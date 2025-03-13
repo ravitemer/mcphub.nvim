@@ -47,7 +47,7 @@ function M.mcp_tool()
                 optional = true,
             },
         },
-        func = function(params)
+        func = function(params, on_log, on_complete)
             local hub = require("mcphub").get_hub_instance()
             if not hub then
                 return nil, "MCP Hub not initialized"
@@ -65,23 +65,15 @@ function M.mcp_tool()
             end
 
             if params.action == "access_mcp_resource" then
-                local res, err = hub:access_resource(params.server_name, params.uri, {
+                hub:access_resource(params.server_name, params.uri, {
                     parse_response = true,
+                    callback = on_complete,
                 })
-                if err or not res then
-                    return nil, err
-                elseif res then
-                    return res.text
-                end
             elseif params.action == "use_mcp_tool" then
-                local res, err = hub:call_tool(params.server_name, params.tool_name, params.arguments, {
+                hub:call_tool(params.server_name, params.tool_name, params.arguments, {
                     parse_response = true,
+                    callback = on_complete,
                 })
-                if err or not res then
-                    return nil, err
-                elseif res then
-                    return res.text
-                end
             else
                 return nil, "Invalid action type"
             end
