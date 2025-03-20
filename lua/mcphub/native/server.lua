@@ -58,7 +58,7 @@ function NativeServer:initialize(def)
     }
 
     -- Get server config
-    local server_config = State.native_server_config[self.name] or {}
+    local server_config = State.native_servers_config[self.name] or {}
     -- Check if server is disabled
     if server_config.disabled then
         self.status = "disabled"
@@ -102,13 +102,10 @@ function NativeServer:call_tool(name, arguments, opts)
             return
         end
         tool_finished = true
-        vim.notify("In output_handler", vim.log.levels.INFO)
         if opts.callback then
-            vim.notify("Calling callback", vim.log.levels.INFO)
             opts.callback(result)
             return
         end
-        vim.notify("Setting tool_result", vim.log.levels.INFO)
         tool_result = result
         return result
     end
@@ -136,29 +133,23 @@ function NativeServer:call_tool(name, arguments, opts)
     end
 end
 
--- --- Get current server state
--- ---@return table Full server state for UI/integration
--- function NativeServer:get_state()
---     -- Calculate uptime and format date
---     if self.status == "connected" then
---         self.uptime = os.difftime(os.time(), self.lastStarted)
---     else
---         self.uptime = 0
---     end
+function NativeServer:start()
+    -- Check server state
+    if self.status == "connected" then
+        return true
+    end
+    self.status = "connected"
+    self.lastStarted = os.time()
+    return true
+end
 
---     -- Convert timestamp to ISO format for MCP schema
---     local started_iso = os.date("!%Y-%m-%dT%H:%M:%S.000Z", self.lastStarted)
-
---     -- Return state matching MCP schema
---     return {
---         name = self.name,
---         displayName = self.displayName,
---         status = self.status,
---         error = self.error,
---         capabilities = self.capabilities,
---         uptime = self.uptime,
---         lastStarted = started_iso,
---     }
--- end
+function NativeServer:stop(disable)
+    disable = disable or true
+    if disable then
+        self.status = "disabled"
+    else
+        self.status = "disconnected"
+    end
+end
 
 return NativeServer

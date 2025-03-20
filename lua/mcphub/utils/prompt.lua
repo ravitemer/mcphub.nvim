@@ -5,6 +5,7 @@
 ---@brief ]]
 local M = {}
 local State = require("mcphub.state")
+local native = require("mcphub.native")
 
 local function get_header()
     return [[
@@ -16,7 +17,9 @@ The Model Context Protocol (MCP) enables communication between the system and lo
 end
 
 local function format_custom_instructions(server_name)
-    local server_config = State.servers_config[server_name] or {}
+    local is_native = native.is_native_server(server_name)
+    local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
+        or {}
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then

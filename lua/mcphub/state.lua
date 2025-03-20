@@ -14,7 +14,7 @@ local State = {
     --config.mcpServers
     servers_config = {},
     --config.nativeMCPServers
-    native_server_config = {},
+    native_servers_config = {},
 
     -- Core instances
     hub_instance = nil,
