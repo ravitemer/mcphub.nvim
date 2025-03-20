@@ -343,12 +343,24 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
             original_callback(response, err)
         end
     end
-    -- ensure args is treated as an object in json
     local arguments = args or {}
     if vim.tbl_isempty(arguments) then
         -- add a property that will force encoding as an object
         arguments.__object = true
     end
+
+    -- Find server in native servers first
+    for _, server in ipairs(State.server_state.native_servers) do
+        if server.name == server_name then
+            local result, err = server:call_tool(tool_name, args, opts)
+            if opts.callback == nil then
+                return (opts.parse_response == true and prompt_utils.parse_tool_response(result) or result), err
+            end
+            return
+        end
+    end
+
+    -- ensure args is treated as an object in json
 
     local response, err = self:api_request(
         "POST",
@@ -361,6 +373,7 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
             },
         }, opts)
     )
+
     -- handle sync calls
     if opts.callback == nil then
         return (opts.parse_response == true and prompt_utils.parse_tool_response(response) or response), err
@@ -745,6 +758,8 @@ function MCPHub:get_servers()
         return {}
     end
     local filtered_servers = {}
+
+    -- Add regular MCP servers
     for _, server in ipairs(State.server_state.servers or {}) do
         if server.status == "connected" then
             local server_config = State.servers_config[server.name] or {}
@@ -761,6 +776,25 @@ function MCPHub:get_servers()
             table.insert(filtered_servers, filtered_server)
         end
     end
+
+    -- Add native servers
+    for _, server in ipairs(State.server_state.native_servers or {}) do
+        if server.status == "connected" then
+            local server_config = State.native_server_config[server.name] or {}
+            local disabled_tools = server_config.disabled_tools or {}
+
+            -- Create a copy of the server with filtered tools
+            local filtered_server = vim.deepcopy(server)
+            if filtered_server.capabilities and filtered_server.capabilities.tools then
+                -- Filter out disabled tools
+                filtered_server.capabilities.tools = vim.tbl_filter(function(tool)
+                    return not vim.tbl_contains(disabled_tools, tool.name)
+                end, filtered_server.capabilities.tools)
+            end
+            table.insert(filtered_servers, filtered_server)
+        end
+    end
+
     return filtered_servers
 end
 

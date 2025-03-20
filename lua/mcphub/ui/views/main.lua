@@ -427,10 +427,12 @@ function MainView:render_servers(line_offset)
     -- Sort servers (enabled first)
     local sorted_servers = sort_servers(vim.deepcopy(State.server_state.servers))
 
-    for _, server in ipairs(sorted_servers) do
-        local server_name_line = renderer.render_server_line(server, self.expanded_server == server.name)
+    -- Function to render a single server's capabilities
+    local function render_server_capabilities(server, lines, current_line, config_source, view)
+        local server_name_line = renderer.render_server_line(server, view.expanded_server == server.name)
         table.insert(lines, Text.pad_line(server_name_line, nil, 3))
         current_line = current_line + 1
+
         -- Prepare hover hint based on server status
         local hint
         if server.status == "disabled" then
@@ -438,19 +440,19 @@ function MainView:render_servers(line_offset)
         elseif server.status == "disconnected" then
             hint = "Press 't' to disable server"
         else
-            hint = self.expanded_server == server.name and "Press <CR> to collapse"
+            hint = view.expanded_server == server.name and "Press <CR> to collapse"
                 or "Press <CR> to expand, 't' to disable"
         end
 
-        self:track_line(current_line, "server", {
+        view:track_line(current_line, "server", {
             name = server.name,
             status = server.status,
             hint = hint,
         })
 
         -- Show expanded server capabilities
-        if server.status == "connected" and server.capabilities and self.expanded_server == server.name then
-            local server_config = State.servers_config[server.name] or {}
+        if server.status == "connected" and server.capabilities and view.expanded_server == server.name then
+            local server_config = config_source[server.name] or {}
             if
                 #server.capabilities.tools + #server.capabilities.resources + #server.capabilities.resourceTemplates
                 == 0
@@ -474,7 +476,7 @@ function MainView:render_servers(line_offset)
                 )
             table.insert(lines, Text.pad_line(ci_line, nil, 5))
             current_line = current_line + 1
-            self:track_line(current_line, "customInstructions", {
+            view:track_line(current_line, "customInstructions", {
                 server_name = server.name,
                 disabled = is_disabled,
                 name = Text.icons.instructions .. " Custom Instructions",
@@ -482,13 +484,14 @@ function MainView:render_servers(line_offset)
             })
             table.insert(lines, Text.empty_line())
             current_line = current_line + 1
+
             -- Tools section if any
             if #server.capabilities.tools > 0 then
                 local section_lines, new_line, mappings =
                     render_cap_section(server.capabilities.tools, "Tools", server.name, "tool", current_line)
                 vim.list_extend(lines, section_lines)
                 for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
+                    view:track_line(m.line, m.type, m.context)
                 end
                 table.insert(lines, Text.empty_line())
                 current_line = new_line + 1
@@ -505,7 +508,7 @@ function MainView:render_servers(line_offset)
                 )
                 vim.list_extend(lines, section_lines)
                 for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
+                    view:track_line(m.line, m.type, m.context)
                 end
                 table.insert(lines, Text.empty_line())
                 current_line = new_line + 1
@@ -522,11 +525,31 @@ function MainView:render_servers(line_offset)
                 )
                 vim.list_extend(lines, section_lines)
                 for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
+                    view:track_line(m.line, m.type, m.context)
                 end
                 table.insert(lines, Text.empty_line())
                 current_line = new_line + 1
             end
+        end
+
+        return current_line
+    end
+
+    -- Render regular MCP servers
+    for _, server in ipairs(sorted_servers) do
+        current_line = render_server_capabilities(server, lines, current_line, State.servers_config, self)
+    end
+
+    -- Add native servers section if any
+    if #State.server_state.native_servers > 0 then
+        table.insert(lines, Text.empty_line())
+        current_line = current_line + 1
+        table.insert(lines, Text.pad_line(NuiLine():append("Native Servers", Text.highlights.title)))
+        current_line = current_line + 1
+
+        local sorted_native = sort_servers(vim.deepcopy(State.server_state.native_servers))
+        for _, server in ipairs(sorted_native) do
+            current_line = render_server_capabilities(server, lines, current_line, State.native_server_config, self)
         end
     end
 

@@ -11,6 +11,53 @@ local M = {}
 ---@field ok boolean
 ---@field error? MCPError
 
+--- Validate native server definition
+---@param def table Native server definition
+---@param server_name string Server name for error messages
+---@return ValidationResult
+local function validate_native_server(def, server_name)
+    if not def.capabilities then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Native server '%s' must contain capabilities", server_name)
+            ),
+        }
+    end
+
+    -- Validate capabilities
+    if def.capabilities.tools and type(def.capabilities.tools) ~= "table" then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("tools must be an array in native server '%s'", server_name)
+            ),
+        }
+    end
+
+    -- Validate tools if present
+    if def.capabilities.tools then
+        for _, tool in ipairs(def.capabilities.tools) do
+            if not tool.name or not tool.callback or type(tool.callback) ~= "function" then
+                return {
+                    ok = false,
+                    error = Error(
+                        "SETUP",
+                        Error.Types.SETUP.INVALID_CONFIG,
+                        string.format("Each tool must have name and callback in native server '%s'", server_name)
+                    ),
+                }
+            end
+        end
+    end
+
+    return { ok = true }
+end
+
 --- Validate setup options
 ---@param opts table
 ---@return ValidationResult
@@ -27,6 +74,23 @@ function M.validate_setup_opts(opts)
             ok = false,
             error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "Config file path is required"),
         }
+    end
+
+    -- Validate native servers if present
+    if opts.native_servers then
+        if type(opts.native_servers) ~= "table" then
+            return {
+                ok = false,
+                error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "native_servers must be a table"),
+            }
+        end
+
+        for name, def in pairs(opts.native_servers) do
+            local result = validate_native_server(def, name)
+            if not result.ok then
+                return result
+            end
+        end
     end
 
     -- Validate config file
@@ -93,6 +157,72 @@ function M.validate_config_file(path)
                 }
             ),
         }
+    end
+
+    -- Validate native servers section if present
+    if json.nativeMCPServers then
+        if type(json.nativeMCPServers) ~= "table" then
+            return {
+                ok = false,
+                content = content,
+                error = Error(
+                    "SETUP",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    "Config file's nativeMCPServers must be an object"
+                ),
+            }
+        end
+
+        -- Validate each native server's config
+        for server_name, server_config in pairs(json.nativeMCPServers) do
+            -- Validate disabled_tools if present
+            if server_config.disabled_tools ~= nil then
+                if type(server_config.disabled_tools) ~= "table" then
+                    return {
+                        ok = false,
+                        content = content,
+                        error = Error(
+                            "SETUP",
+                            Error.Types.SETUP.INVALID_CONFIG,
+                            string.format("disabled_tools must be an array in native server %s", server_name)
+                        ),
+                    }
+                end
+                -- Validate each tool name is a string
+                for _, tool_name in ipairs(server_config.disabled_tools) do
+                    if type(tool_name) ~= "string" or tool_name == "" then
+                        return {
+                            ok = false,
+                            content = content,
+                            error = Error(
+                                "SETUP",
+                                Error.Types.SETUP.INVALID_CONFIG,
+                                string.format(
+                                    "disabled_tools must contain non-empty strings in native server %s",
+                                    server_name
+                                )
+                            ),
+                        }
+                    end
+                end
+            end
+
+            -- Validate custom_instructions if present
+            if
+                server_config.custom_instructions ~= nil
+                and not validate_custom_instructions(server_config.custom_instructions)
+            then
+                return {
+                    ok = false,
+                    content = content,
+                    error = Error(
+                        "SETUP",
+                        Error.Types.SETUP.INVALID_CONFIG,
+                        string.format("Invalid custom_instructions format in native server %s", server_name)
+                    ),
+                }
+            end
+        end
     end
 
     if not json.mcpServers or type(json.mcpServers) ~= "table" then

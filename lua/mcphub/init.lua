@@ -10,7 +10,7 @@ local version = require("mcphub.version")
 local M = {}
 
 --- Setup MCPHub plugin with error handling and validation
---- @param opts? { port?: number, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
+--- @param opts? { port?: number, config?: string, log?: table, native_servers?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
 --[[
 Setup options:
 - port: Port for MCP Hub server (default: auto-select)
@@ -20,6 +20,25 @@ Setup options:
   - to_file: Whether to log to file (default: false)
   - file_path: Path to log file (default: nil)
   - prefix: Prefix for log messages (default: MCPHub)
+- native_servers: Table of native MCP server definitions
+  {
+    ["server-name"] = {
+      name = "server-name", -- Optional, defaults to key
+      displayName = "Display Name", -- Optional
+      capabilities = {
+        tools = {
+          {
+            name = "tool-name",
+            description = "Tool description",
+            inputSchema = {...}, -- JSON Schema
+            callback = function(args) ... end
+          }
+        },
+        resources = {...}, -- Optional resource definitions
+        resourceTemplates = {...} -- Optional resource template definitions
+      }
+    }
+  }
 - on_ready: Callback when server is ready(hub: MCPHub)
 - on_error: Callback for setup errors(err: string)
 --]]
@@ -34,6 +53,9 @@ function M.setup(opts)
         setup_state = "in_progress",
     }, "setup")
 
+    -- Get built-in native servers
+    local builtin = require("mcphub.native.builtin")
+
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
         port = nil,
@@ -44,6 +66,7 @@ function M.setup(opts)
             file_path = nil,
             prefix = "MCPHub",
         },
+        native_servers = builtin,
         on_ready = function() end,
         on_error = function() end,
     }, opts or {})
@@ -83,6 +106,17 @@ function M.setup(opts)
     local file_result = validation.validate_config_file(config.config)
     if file_result.ok and file_result.json then
         State.servers_config = file_result.json.mcpServers
+        State.native_server_config = file_result.json.nativeMCPServers or {}
+    end
+
+    -- Initialize native servers if any provided in setup config
+    if config.native_servers then
+        local Native = require("mcphub.native")
+        for name, def in pairs(config.native_servers) do
+            -- Add name if not provided
+            def.name = def.name or name
+            Native.register(def)
+        end
     end
 
     -- Setup cleanup

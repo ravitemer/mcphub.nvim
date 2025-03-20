@@ -9,9 +9,12 @@ local State = {
     -- Setup state
     setup_state = "not_started",
 
-    -- config
+    -- config.config
     config = {},
+    --config.mcpServers
     servers_config = {},
+    --config.nativeMCPServers
+    native_server_config = {},
 
     -- Core instances
     hub_instance = nil,
@@ -38,7 +41,8 @@ local State = {
         status = "disconnected", -- disconnected/connecting/connected
         pid = nil, -- Server process ID when running
         started_at = nil, -- When server was started
-        servers = {},
+        servers = {}, -- Regular MCP servers
+        native_servers = {}, -- Native MCP servers
     },
 
     -- Error management
@@ -72,6 +76,7 @@ function State:reset()
         pid = nil,
         started_at = nil,
         servers = {},
+        native_servers = {},
     }
     State.errors = {
         items = {},
