@@ -92,6 +92,8 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
             on_error = function(err)
                 -- Called on errors
             end,
+            cmd = "node", -- The cmd to invoke the MCP Hub Server
+            cmdArgs = "path/to/mcphub/src/utils/cli.js", -- The cmd args to pass to spawn the server
             log = {
                 level = vim.log.levels.WARN,
                 to_file = false,

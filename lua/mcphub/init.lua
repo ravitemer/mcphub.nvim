@@ -10,11 +10,13 @@ local version = require("mcphub.version")
 local M = {}
 
 --- Setup MCPHub plugin with error handling and validation
---- @param opts? { port?: number, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
+--- @param opts? { port?: number, cmd?: string, cmdArgs?: string, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
 --[[
 Setup options:
 - port: Port for MCP Hub server (default: auto-select)
 - config: Path to server config file (default: ~/.config/mcp/servers.json)
+- cmd: Command to invoke the server
+- cmdArgs: Args that are needed to pass alog the cmd to spawn the server
 - log: Logging configuration
   - level: Minimum log level (default: ERROR)
   - to_file: Whether to log to file (default: false)
@@ -38,6 +40,8 @@ function M.setup(opts)
     local config = vim.tbl_deep_extend("force", {
         port = nil,
         config = nil,
+        cmd = "mcp-hub",
+        cmdArgs = nil,
         log = {
             level = vim.log.levels.ERROR,
             to_file = false,
@@ -101,8 +105,8 @@ function M.setup(opts)
 
     -- Start version check
     Job:new({
-        command = "mcp-hub",
-        args = { "--version" },
+        command = config.cmd,
+        args = { config.cmdArgs, "--version" },
         on_exit = vim.schedule_wrap(function(j, code)
             if code ~= 0 then
                 local err = Error(
