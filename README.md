@@ -83,7 +83,7 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
         "nvim-lua/plenary.nvim",  -- Required for Job and HTTP requests
     },
     -- cmd = "MCPHub", -- lazily start the hub when `MCPHub` is called
-    build = "npm install -g mcp-hub@latest", -- Installs required mcp-hub npm module
+    build = "build.lua", -- Installs mcp-hub locally
     config = function()
         require("mcphub").setup({
             -- Required options

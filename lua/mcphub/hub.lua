@@ -90,8 +90,10 @@ function MCPHub:start(opts, restart_callback)
         -- We're starting the server, mark as owner
         self.is_owner = true
 
+        local node_bin = require("mcphub.utils").get_bundled_mcp_path()
+
         self.server_job = Job:new({
-            command = "mcp-hub",
+            command = node_bin,
             args = { "--port", tostring(self.port), "--config", self.config },
             detached = true,
             on_stdout = vim.schedule_wrap(function(_, data)

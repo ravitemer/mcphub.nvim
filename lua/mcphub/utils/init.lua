@@ -128,8 +128,8 @@ function M.pretty_json(str, unescape_slashes)
                 -- Add space after colons for readability
                 result = result .. ": "
             elseif char == " " or char == "\n" or char == "\t" then
-                -- Skip whitespace in non-quoted sections
-                -- (vim.json.encode already adds its own whitespace)
+            -- Skip whitespace in non-quoted sections
+            -- (vim.json.encode already adds its own whitespace)
             else
                 result = result .. char
             end
@@ -139,6 +139,13 @@ function M.pretty_json(str, unescape_slashes)
         end
     end
     return result
+end
+
+--- Get path to bundled mcp-hub executable
+---@return string Path to mcp-hub executable in bundled directory
+function M.get_bundled_mcp_path()
+    local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
+    return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
 end
 
 return M

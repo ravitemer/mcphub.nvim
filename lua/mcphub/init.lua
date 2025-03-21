@@ -99,19 +99,19 @@ function M.setup(opts)
         end,
     })
 
+    -- Get mcp-hub path from utils
+    local node_bin = require("mcphub.utils").get_bundled_mcp_path()
+
     -- Start version check
     Job:new({
-        command = "mcp-hub",
+        command = node_bin,
         args = { "--version" },
         on_exit = vim.schedule_wrap(function(j, code)
             if code ~= 0 then
                 local err = Error(
                     "SETUP",
                     Error.Types.SETUP.MISSING_DEPENDENCY,
-                    string.format(
-                        "mcp-hub not found. Run 'npm install -g mcp-hub@%s'",
-                        version.REQUIRED_NODE_VERSION.string
-                    )
+                    "mcp-hub not found. Update the plugin and make sure build = 'build.lua' is in your config"
                 )
                 State:add_error(err)
                 State:update({
