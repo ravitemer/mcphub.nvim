@@ -230,26 +230,31 @@ local prompts = hub:get_prompts()
 
 MCPHub.nvim provides extensions that integrate with popular Neovim chat plugins. These extensions allow you to use MCP tools and resources directly within your chat interfaces.
 
-### Available Extensions
+### Avante.nvim 
 
-#### CodeCompanion Integration
-
-Add MCP capabilities to CodeCompanion.
-
-Add it as a dependency to load the plugin before codecompanion:
+Add MCP capabilities to Avante by including the MCP tool in your setup:
 
 ```lua
-{
-  "olimorris/codecompanion.nvim",
-  dependencies = {
-    "nvim-lua/plenary.nvim",
-    "nvim-treesitter/nvim-treesitter",
-    "ravitemer/mcphub.nvim"
-  },
-},
+require("avante").setup({
+    -- other config
+    -- The system_prompt type supports both a string and a function that returns a string. Using a function here allows dynamically updating the prompt with mcphub
+    system_prompt = function()
+    local hub = require("mcphub").get_hub_instance()
+    return hub:get_active_servers_prompt()
+    end,
+    -- The custom_tools type supports both a list and a function that returns a list. Using a function here prevents requiring mcphub before it's loaded
+    custom_tools = function()
+    return {
+    require("mcphub.extensions.avante").mcp_tool(),
+    }
+    end,
+    })
 ```
+⚠️ **Tool Conflicts**: [Disable any built-in Avante tools](https://github.com/yetone/avante.nvim#disable-tools) that might conflict with enabled MCP servers to prevent duplicate functionality or unexpected behavior.
 
-- Please note there are some breaking changes with codecompanion v13 in the way we configure tools.
+### CodeCompanion 
+
+Add MCP capabilities to CodeCompanion.
 
 ```lua
   require("codecompanion").setup({
@@ -270,34 +275,18 @@ Add it as a dependency to load the plugin before codecompanion:
   })
 ```
 
-See the [extensions/](lua/mcphub/extensions/) folder for more examples and implementation details.
-
-#### Avante Integration
-
-Add MCP capabilities to Avante.
-
-⚠️ **Tool Conflicts**: [Disable any built-in Avante tools](https://github.com/yetone/avante.nvim#disable-tools) that might conflict with enabled MCP servers to prevent duplicate functionality or unexpected behavior.
-
-##### Setup
-
-Add MCP capabilities to Avante by including the MCP tool in your setup:
+### Lualine 
 
 ```lua
-require("avante").setup({
-    -- other config
-    -- The system_prompt type supports both a string and a function that returns a string. Using a function here allows dynamically updating the prompt with mcphub
-    system_prompt = function()
-        local hub = require("mcphub").get_hub_instance()
-        return hub:get_active_servers_prompt()
-    end,
-    -- The custom_tools type supports both a list and a function that returns a list. Using a function here prevents requiring mcphub before it's loaded
-    custom_tools = function()
-        return {
-            require("mcphub.extensions.avante").mcp_tool(),
-        }
-    end,
-})
+require('lualine').setup {
+  sections = {
+    lualine_z = {
+      {require('mcphub.extensions.lualine')},
+    },
+  },
+}
 ```
+See the [extensions/](lua/mcphub/extensions/) folder for more examples and implementation details.
 
 Note: You can also access the Express server directly at http://localhost:[port]/api
 
