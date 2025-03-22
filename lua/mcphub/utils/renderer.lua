@@ -106,50 +106,11 @@ end
 function M.render_hub_errors(error_type, detailed)
     local lines = {}
     local errors = State:get_errors(error_type)
-
     if #errors > 0 then
         for _, err in ipairs(errors) do
-            -- Get appropriate icon based on error type
-            local error_icon = ({
-                SETUP = Text.icons.setup_error,
-                SERVER = Text.icons.server_error,
-                RUNTIME = Text.icons.runtime_error,
-            })[err.type] or Text.icons.error
-
-            -- Handle multiline error messages
-            local message_lines = Text.multiline(err.message, Text.highlights.error)
-
-            -- First line with icon and timestamp
-            local first_line = NuiLine()
-            first_line:append(error_icon .. " ", Text.highlights.error)
-            first_line:append(message_lines[1], Text.highlights.error)
-            if err.timestamp then
-                first_line:append(" (" .. utils.format_relative_time(err.timestamp) .. ")", Text.highlights.muted)
-            end
-            table.insert(lines, Text.pad_line(first_line))
-
-            -- Add remaining lines with proper indentation
-            for i = 2, #message_lines do
-                local line = NuiLine()
-                line:append(message_lines[i], Text.highlights.error)
-                table.insert(lines, Text.pad_line(line, nil, 4))
-            end
-
-            -- Add error details if detailed mode and details exist
-            if detailed and err.details and next(err.details) then
-                -- Convert details to string
-                local detail_text = type(err.details) == "string" and err.details or vim.inspect(err.details)
-
-                -- Add indented details
-                local detail_lines = vim.tbl_map(function(l)
-                    return Text.pad_line(l, nil, 4)
-                end, Text.multiline(detail_text, Text.highlights.muted))
-                vim.list_extend(lines, detail_lines)
-                table.insert(lines, Text.empty_line())
-            end
+            vim.list_extend(lines, M.render_error(err))
         end
     end
-
     return lines
 end
 
@@ -185,6 +146,49 @@ function M.render_server_entries(entries)
         end
     end
 
+    return lines
+end
+
+function M.render_error(err)
+    local lines = {}
+    -- Get appropriate icon based on error type
+    local error_icon = ({
+        SETUP = Text.icons.setup_error,
+        SERVER = Text.icons.server_error,
+        RUNTIME = Text.icons.runtime_error,
+    })[err.type] or Text.icons.error
+
+    -- Handle multiline error messages
+    local message_lines = Text.multiline(err.message, Text.highlights.error)
+
+    -- First line with icon and timestamp
+    local first_line = NuiLine()
+    first_line:append(error_icon .. " ", Text.highlights.error)
+    first_line:append(message_lines[1], Text.highlights.error)
+    if err.timestamp then
+        first_line:append(" (" .. utils.format_relative_time(err.timestamp) .. ")", Text.highlights.muted)
+    end
+    table.insert(lines, Text.pad_line(first_line))
+
+    -- Add remaining lines with proper indentation
+    for i = 2, #message_lines do
+        local line = NuiLine()
+        line:append(message_lines[i], Text.highlights.error)
+        table.insert(lines, Text.pad_line(line, nil, 4))
+    end
+
+    -- Add error details if detailed mode and details exist
+    if detailed and err.details and next(err.details) then
+        -- Convert details to string
+        local detail_text = type(err.details) == "string" and err.details or vim.inspect(err.details)
+
+        -- Add indented details
+        local detail_lines = vim.tbl_map(function(l)
+            return Text.pad_line(l, nil, 4)
+        end, Text.multiline(detail_text, Text.highlights.muted))
+        vim.list_extend(lines, detail_lines)
+        table.insert(lines, Text.empty_line())
+    end
     return lines
 end
 
