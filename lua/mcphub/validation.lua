@@ -29,6 +29,21 @@ function M.validate_setup_opts(opts)
         }
     end
 
+    -- Validate cmd and cmdArgs if provided
+    if opts.cmd and type(opts.cmd) ~= "string" then
+        return {
+            ok = false,
+            error = Error("SETUP", Error.Types.SETUP.INVALID_CMD, "cmd must be a string"),
+        }
+    end
+
+    if opts.cmdArgs and type(opts.cmdArgs) ~= "table" then
+        return {
+            ok = false,
+            error = Error("SETUP", Error.Types.SETUP.INVALID_CMD_ARGS, "cmdArgs must be an array"),
+        }
+    end
+
     -- Validate config file
     local file_result = M.validate_config_file(opts.config)
     if not file_result.ok then
@@ -68,16 +83,38 @@ function M.validate_config_file(path)
             error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "Config file path is required"),
         }
     end
-    local file = io.open(path, "r")
-    if not file then
-        return {
-            ok = false,
-            error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, string.format("Config file not found: %s", path)),
-        }
+    -- Create config directory if it doesn't exist
+    local config_dir = vim.fn.fnamemodify(path, ":h")
+    if vim.fn.isdirectory(config_dir) == 0 then
+        vim.fn.mkdir(config_dir, "p")
     end
 
-    local content = file:read("*a")
-    file:close()
+    -- Try to read existing config file
+    local file = io.open(path, "r")
+    local content
+
+    if not file then
+        -- Create new config file with empty mcpServers object
+        content = [[{
+  "mcpServers": {}
+}]]
+        local new_file = io.open(path, "w")
+        if not new_file then
+            return {
+                ok = false,
+                error = Error(
+                    "SETUP",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Failed to create config file: %s", path)
+                ),
+            }
+        end
+        new_file:write(content)
+        new_file:close()
+    else
+        content = file:read("*a")
+        file:close()
+    end
 
     local success, json = pcall(vim.json.decode, content)
     if not success then

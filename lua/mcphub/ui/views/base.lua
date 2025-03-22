@@ -280,21 +280,9 @@ function View:render_setup_error(lines)
     table.insert(lines, Text.pad_line(NuiLine():append("Setup Failed:", Text.highlights.error)))
 
     for _, err in ipairs(State:get_errors("setup")) do
-        -- Error message
-        local line = NuiLine()
-        line:append("⚠ ", Text.highlights.error)
-        line:append(err.message, Text.highlights.error)
-        table.insert(lines, Text.pad_line(line))
-
-        -- Error details if any
-        if err.details and next(err.details) then
-            local errlines = vim.tbl_map(Text.pad_line, Text.multiline(vim.inspect(err.details), Text.highlights.muted))
-            vim.list_extend(lines, errlines)
-        end
+        vim.list_extend(lines, renderer.render_error(err))
+        table.insert(lines, Text.empty_line())
     end
-
-    -- Add help text
-    table.insert(lines, Text.empty_line())
 
     return lines
 end

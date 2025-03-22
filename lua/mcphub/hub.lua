@@ -16,6 +16,8 @@ local RESOURCE_TIMEOUT = 30000 -- 30s for resource access
 --- @class MCPHub
 --- @field port number The port number for the MCP Hub server
 --- @field config string Path to the MCP servers configuration file
+--- @field cmd string The cmd to invoke the MCP Hub server
+--- @field cmdArgs table The args to pass to the cmd to spawn the server
 --- @field ready boolean Whether the connection to server is ready
 --- @field server_job Job|nil The server process job if we started it
 --- @field client_id string Unique identifier for this client
@@ -45,6 +47,8 @@ function MCPHub:new(opts)
     -- Set up instance fields
     self.port = opts.port
     self.config = opts.config
+    self.cmd = opts.cmd
+    self.cmdArgs = opts.cmdArgs
     self.ready = false
     self.server_job = nil
     self.is_owner = false -- Whether we started the server
@@ -90,9 +94,11 @@ function MCPHub:start(opts, restart_callback)
         -- We're starting the server, mark as owner
         self.is_owner = true
 
+        local node_bin = require("mcphub.utils").get_bundled_mcp_path()
+
         self.server_job = Job:new({
-            command = "mcp-hub",
-            args = { "--port", tostring(self.port), "--config", self.config },
+            command = self.cmd,
+            args = utils.clean_args({ self.cmdArgs, "--port", tostring(self.port), "--config", self.config }),
             detached = true,
             on_stdout = vim.schedule_wrap(function(_, data)
                 if has_called_restart_callback == false then

@@ -4,25 +4,14 @@ local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
+local utils = require("mcphub.utils")
 local validation = require("mcphub.validation")
 local version = require("mcphub.version")
 
 local M = {}
 
 --- Setup MCPHub plugin with error handling and validation
---- @param opts? { port?: number, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
---[[
-Setup options:
-- port: Port for MCP Hub server (default: auto-select)
-- config: Path to server config file (default: ~/.config/mcp/servers.json)
-- log: Logging configuration
-  - level: Minimum log level (default: ERROR)
-  - to_file: Whether to log to file (default: false)
-  - file_path: Path to log file (default: nil)
-  - prefix: Prefix for log messages (default: MCPHub)
-- on_ready: Callback when server is ready(hub: MCPHub)
-- on_error: Callback for setup errors(err: string)
---]]
+--- @param opts? { port?: number, cmd?: string, cmdArgs?: string, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
 function M.setup(opts)
     -- Return if already setup or in progress
     if State.setup_state ~= "not_started" then
@@ -36,8 +25,11 @@ function M.setup(opts)
 
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
-        port = nil,
-        config = nil,
+        port = 37373, -- Default port for MCP Hub
+        config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
+        use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
+        cmd = "mcp-hub",
+        cmdArgs = {},
         log = {
             level = vim.log.levels.ERROR,
             to_file = false,
@@ -47,6 +39,11 @@ function M.setup(opts)
         on_ready = function() end,
         on_error = function() end,
     }, opts or {})
+
+    -- Override cmd if using bundled binary
+    if config.use_bundled_binary then
+        config.cmd = utils.get_bundled_mcp_path()
+    end
 
     -- Set up logging first
     log.setup(config.log or {})
@@ -100,68 +97,34 @@ function M.setup(opts)
     })
 
     -- Start version check
-    Job:new({
-        command = "mcp-hub",
-        args = { "--version" },
-        on_exit = vim.schedule_wrap(function(j, code)
-            if code ~= 0 then
-                local err = Error(
-                    "SETUP",
-                    Error.Types.SETUP.MISSING_DEPENDENCY,
-                    string.format(
-                        "mcp-hub not found. Run 'npm install -g mcp-hub@%s'",
-                        version.REQUIRED_NODE_VERSION.string
-                    )
-                )
-                State:add_error(err)
-                State:update({
-                    setup_state = "failed",
-                }, "setup")
-                config.on_error(tostring(err))
-                return
-            end
+    local ok, result = pcall(function()
+        return Job:new({
+            command = config.cmd,
+            args = utils.clean_args({ config.cmdArgs, "--version" }),
+            on_exit = vim.schedule_wrap(function(j, code)
+                M._handle_version_check(j, code, config)
+            end),
+        })
+    end)
 
-            -- Validate version
-            local version_result = validation.validate_version(j:result()[1])
-            if not version_result.ok then
-                State:add_error(version_result.error)
-                State:update({
-                    setup_state = "failed",
-                }, "setup")
-                config.on_error(tostring(version_result.error))
-                return
-            end
+    if not ok then
+        -- Handle executable not found error
+        local msg = [[mcp-hub executable not found. Please ensure:
+1. For global install: Run 'npm install -g mcp-hub@latest'
+2. For bundled install: Set build = 'bundled_build.lua' and use_bundled_binary = true
+3. For custom install: Verify cmd/cmdArgs point to valid mcp-hub executable
+]]
+        local err = Error("SETUP", Error.Types.SETUP.MISSING_DEPENDENCY, msg, { stack = result })
+        State:add_error(err)
+        State:update({
+            setup_state = "failed",
+        }, "setup")
+        config.on_error(tostring(err))
+        return nil
+    end
 
-            -- Create hub instance
-            local hub = MCPHub:new(config)
-            if not hub then
-                local err = Error("SETUP", Error.Types.SETUP.SERVER_START, "Failed to create MCPHub instance")
-                State:add_error(err)
-                State:update({
-                    setup_state = "failed",
-                }, "setup")
-                config.on_error(tostring(err))
-                return
-            end
-
-            -- Store hub instance with direct assignment to preserve metatable
-            State.setup_state = "completed"
-            State.hub_instance = hub
-            State:notify_subscribers({
-                setup_state = true,
-                hub_instance = true,
-            }, "setup")
-
-            -- Initialize image cache
-            ImageCache.setup()
-
-            -- Start hub
-            hub:start({
-                on_ready = config.on_ready,
-                on_error = config.on_error,
-            })
-        end),
-    }):start()
+    -- Start the job
+    result:start()
 
     return State.hub_instance
 end
@@ -183,6 +146,63 @@ end
 
 function M.get_state()
     return State
+end
+
+-- Version check handler
+function M._handle_version_check(j, code, config)
+    if code ~= 0 then
+        local err = Error(
+            "SETUP",
+            Error.Types.SETUP.MISSING_DEPENDENCY,
+            "mcp-hub exited with non-zero code. Please verify your installation."
+        )
+        State:add_error(err)
+        State:update({
+            setup_state = "failed",
+        }, "setup")
+        config.on_error(tostring(err))
+        return
+    end
+
+    -- Validate version
+    local version_result = validation.validate_version(j:result()[1])
+    if not version_result.ok then
+        State:add_error(version_result.error)
+        State:update({
+            setup_state = "failed",
+        }, "setup")
+        config.on_error(tostring(version_result.error))
+        return
+    end
+
+    -- Create hub instance
+    local hub = MCPHub:new(config)
+    if not hub then
+        local err = Error("SETUP", Error.Types.SETUP.SERVER_START, "Failed to create MCPHub instance")
+        State:add_error(err)
+        State:update({
+            setup_state = "failed",
+        }, "setup")
+        config.on_error(tostring(err))
+        return
+    end
+
+    -- Store hub instance with direct assignment to preserve metatable
+    State.setup_state = "completed"
+    State.hub_instance = hub
+    State:notify_subscribers({
+        setup_state = true,
+        hub_instance = true,
+    }, "setup")
+
+    -- Initialize image cache
+    ImageCache.setup()
+
+    -- Start hub
+    hub:start({
+        on_ready = config.on_ready,
+        on_error = config.on_error,
+    })
 end
 
 return M
