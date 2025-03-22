@@ -1,3 +1,5 @@
+local Request = require("mcphub.native.utils.request")
+local Response = require("mcphub.native.utils.response")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 
@@ -12,23 +14,51 @@ local log = require("mcphub.utils.log")
 local NativeServer = {}
 NativeServer.__index = NativeServer
 
+-- Helper function to extract params from uri using template
+local function extract_params(uri, template)
+    local params = {}
+
+    -- Convert template into pattern
+    local pattern = template:gsub("{([^}]+)}", "([^/]+)")
+
+    -- Get param names from template
+    local names = {}
+    for name in template:gmatch("{([^}]+)}") do
+        table.insert(names, name)
+    end
+
+    -- Match URI against pattern
+    local values = { uri:match("^" .. pattern .. "$") }
+    if #values == 0 then
+        return nil
+    end
+
+    -- Map matched values to param names
+    for i, name in ipairs(names) do
+        params[name] = values[i]
+    end
+
+    return params
+end
+
 -- Helper function to find matching resource
 function NativeServer:find_matching_resource(uri)
     -- Check direct resources first
     for _, resource in ipairs(self.capabilities.resources) do
         if resource.uri == uri then
             log.debug(string.format("Matched uri"))
-            return resource
+            return resource, {}
         end
     end
 
     -- Check templates
     for _, template in ipairs(self.capabilities.resourceTemplates) do
-        -- Pattern match uri against template
+        -- Extract params using template
         log.debug(string.format("Matching uri '%s' against template '%s'", uri, template.uriTemplate))
-        if uri:match(template.uriTemplate) then
-            log.debug(string.format("Matched uri template"))
-            return template
+        local params = extract_params(uri, template.uriTemplate)
+        if params then
+            log.debug(string.format("Matched uri template with params: %s", vim.inspect(params)))
+            return template, params
         end
     end
 
@@ -39,7 +69,6 @@ end
 ---@param def table Server definition with name capabilities etc
 ---@return NativeServer | nil Server instance or nil on error
 function NativeServer:new(def)
-    -- Validate required fields
     -- Validate required fields
     if not def.name then
         log.warn("NativeServer definition must include name")
@@ -142,19 +171,25 @@ function NativeServer:call_tool(name, arguments, opts)
         return output_handler(nil, err)
     end
 
-    -- Execute tool with output handler
-    local ok, result = pcall(tool.handler, arguments, output_handler)
+    -- Create req/res objects with full context
+    local req = Request.ToolRequest:new({
+        server = self,
+        tool = tool,
+        arguments = arguments,
+    })
+    local res = Response.ToolResponse:new(output_handler)
+
+    -- Execute tool with req/res
+    local ok, result = pcall(tool.handler, req, res)
     if not ok then
         log.warn(string.format("Tool execution failed: %s", result))
-        return output_handler(nil, result)
+        return res:error(result)
     end
 
-    -- Handle synchronous return
+    -- Handle synchronous return if any
     if result ~= nil then
-        -- Tool returned value directly
-        return output_handler(result)
+        return result
     end
-    return output_handler(nil)
 end
 
 function NativeServer:access_resource(uri, opts)
@@ -179,8 +214,8 @@ function NativeServer:access_resource(uri, opts)
     end
 
     log.debug(string.format("Accessing resource '%s' on server '%s'", uri, self.name))
-    -- Find matching resource/template
-    local resource = self:find_matching_resource(uri)
+    -- Find matching resource/template and extract params
+    local resource, params = self:find_matching_resource(uri)
     if not resource then
         local err = string.format("Resource '%s' not found", uri)
         log.warn(string.format("Resource '%s' not found", uri))
@@ -194,19 +229,27 @@ function NativeServer:access_resource(uri, opts)
         return output_handler(nil, err)
     end
 
-    -- Call resource handler
-    local ok, result = pcall(resource.handler, uri, output_handler)
+    -- Create req/res objects with full context
+    local req = Request.ResourceRequest:new({
+        server = self,
+        resource = resource,
+        uri = uri,
+        template = resource.uriTemplate,
+        params = params,
+    })
+    local res = Response.ResourceResponse:new(output_handler, uri, resource.uriTemplate)
+
+    -- Call resource handler with req/res
+    local ok, result = pcall(resource.handler, req, res)
     if not ok then
         log.warn(string.format("Resource access failed: %s", result))
-        return output_handler(nil, result)
+        return res:error(result)
     end
 
-    -- Handle synchronous return
+    -- Handle synchronous return if any
     if result ~= nil then
-        -- Handler returned value directly
-        return output_handler(result)
+        return result
     end
-    return output_handler(nil)
 end
 
 function NativeServer:start()
