@@ -22,13 +22,6 @@ function M.clean_args(args)
         :totable()
 end
 
---- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
----@return string Path to mcp-hub executable in bundled directory
-function M.get_bundled_mcp_path()
-    local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
-    return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
-end
-
 --- Format timestamp relative to now
 ---@param timestamp number Unix timestamp
 ---@return string
@@ -108,17 +101,75 @@ function M.format_token_count(count)
     end
 end
 
+--- Sort table keys recursively while preserving arrays
+---@param tbl table The table to sort
+---@return table sorted_tbl The sorted table
+local function sort_keys_recursive(tbl)
+    if type(tbl) ~= "table" then
+        return tbl
+    end
+
+    -- Check if table is an array
+    local is_array = true
+    local max_index = 0
+    for k, _ in pairs(tbl) do
+        if type(k) ~= "number" then
+            is_array = false
+            break
+        end
+        max_index = math.max(max_index, k)
+    end
+    if is_array and max_index == #tbl then
+        -- Process array values but preserve order
+        local result = {}
+        for i, v in ipairs(tbl) do
+            result[i] = sort_keys_recursive(v)
+        end
+        return result
+    end
+
+    -- Sort object keys alphabetically (case-insensitive)
+    local sorted = {}
+    local keys = {}
+
+    for k in pairs(tbl) do
+        table.insert(keys, k)
+    end
+    table.sort(keys)
+    for _, k in ipairs(keys) do
+        sorted[k] = sort_keys_recursive(tbl[k])
+    end
+    return sorted
+end
+
 --- Pretty print JSON string with optional unescaping of forward slashes
 ---@param str string JSON string to format
 ---@param unescape_slashes boolean? Whether to unescape forward slashes (default: true)
 ---@return string Formatted JSON string
 function M.pretty_json(str, unescape_slashes)
+    -- Parse JSON string to table
+    local ok, parsed = pcall(vim.json.decode, str)
+    if not ok then
+        vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
+        -- If parsing fails, return the original string formatted
+        return M.format_json_string(str)
+    end
+    -- Sort keys recursively
+    local sorted = sort_keys_recursive(parsed)
+    -- encode doesn't preserve the order but keeps it atleast kindof sorted
+    local encoded = vim.json.encode(sorted)
+    return M.format_json_string(encoded, unescape_slashes)
+end
+
+--- Format a JSON string with proper indentation
+---@param str string JSON string to format
+---@return string Formatted JSON string
+function M.format_json_string(str, unescape_slashes)
     local level = 0
     local result = ""
     local in_quotes = false
     local escape_next = false
     local indent = "  "
-
     -- Default to true if not specified
     if unescape_slashes == nil then
         unescape_slashes = true
@@ -155,8 +206,8 @@ function M.pretty_json(str, unescape_slashes)
                 -- Add space after colons for readability
                 result = result .. ": "
             elseif char == " " or char == "\n" or char == "\t" then
-            -- Skip whitespace in non-quoted sections
-            -- (vim.json.encode already adds its own whitespace)
+                -- Skip whitespace in non-quoted sections
+                -- (vim.json.encode already adds its own whitespace)
             else
                 result = result .. char
             end
@@ -168,11 +219,10 @@ function M.pretty_json(str, unescape_slashes)
     return result
 end
 
---- Get path to bundled mcp-hub executable
+--- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
 ---@return string Path to mcp-hub executable in bundled directory
 function M.get_bundled_mcp_path()
     local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
     return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
 end
-
 return M
