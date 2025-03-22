@@ -9,15 +9,15 @@ local utils = require("mcphub.utils")
 local validation = require("mcphub.validation")
 
 -- Default timeouts
-local QUICK_TIMEOUT = 1000     -- 1s for quick operations like health checks
-local TOOL_TIMEOUT = 30000     -- 30s for tool calls
+local QUICK_TIMEOUT = 1000 -- 1s for quick operations like health checks
+local TOOL_TIMEOUT = 30000 -- 30s for tool calls
 local RESOURCE_TIMEOUT = 30000 -- 30s for resource access
 
 --- @class MCPHub
 --- @field port number The port number for the MCP Hub server
 --- @field config string Path to the MCP servers configuration file
 --- @field cmd string The cmd to invoke the MCP Hub server
---- @field cmdArgs string The cmd to invoke the MCP Hub server
+--- @field cmdArgs table The args to pass to the cmd to spawn the server
 --- @field ready boolean Whether the connection to server is ready
 --- @field server_job Job|nil The server process job if we started it
 --- @field client_id string Unique identifier for this client
@@ -96,7 +96,7 @@ function MCPHub:start(opts, restart_callback)
 
         self.server_job = Job:new({
             command = self.cmd,
-            args = { self.cmdArgs, "--port", tostring(self.port), "--config", self.config },
+            args = utils.clean_args({ self.cmdArgs, "--port", tostring(self.port), "--config", self.config }),
             detached = true,
             on_stdout = vim.schedule_wrap(function(_, data)
                 if has_called_restart_callback == false then

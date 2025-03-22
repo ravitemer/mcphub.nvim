@@ -2,6 +2,33 @@ local log = require("mcphub.utils.log")
 
 local M = {}
 
+--- Clean command arguments by filtering out empty strings and nil values.
+--- This is particularly useful when handling command arguments that may contain optional values.
+---
+--- @param args table Array of command arguments
+--- @return table Cleaned array with only valid arguments
+--- @example
+--- -- Basic usage:
+--- clean_args({"--port", "3000", nil, ""}) -- returns {"--port", "3000"}
+---
+--- -- With nested arrays (flattened):
+--- clean_args({{"-f", "--flag"}, nil, {"value"}}) -- returns {"-f", "--flag", "value"}
+function M.clean_args(args)
+    return vim.iter(args or {})
+        :flatten()
+        :filter(function(arg)
+            return arg ~= "" and arg ~= nil
+        end)
+        :totable()
+end
+
+--- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
+---@return string Path to mcp-hub executable in bundled directory
+function M.get_bundled_mcp_path()
+    local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
+    return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
+end
+
 --- Format timestamp relative to now
 ---@param timestamp number Unix timestamp
 ---@return string

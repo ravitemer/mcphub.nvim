@@ -4,6 +4,7 @@ local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
+local utils = require("mcphub.utils")
 local validation = require("mcphub.validation")
 local version = require("mcphub.version")
 
@@ -11,20 +12,6 @@ local M = {}
 
 --- Setup MCPHub plugin with error handling and validation
 --- @param opts? { port?: number, cmd?: string, cmdArgs?: string, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
---[[
-Setup options:
-- port: Port for MCP Hub server (default: auto-select)
-- config: Path to server config file (default: ~/.config/mcp/servers.json)
-- cmd: Command to invoke the server
-- cmdArgs: Args that are needed to pass alog the cmd to spawn the server
-- log: Logging configuration
-  - level: Minimum log level (default: ERROR)
-  - to_file: Whether to log to file (default: false)
-  - file_path: Path to log file (default: nil)
-  - prefix: Prefix for log messages (default: MCPHub)
-- on_ready: Callback when server is ready(hub: MCPHub)
-- on_error: Callback for setup errors(err: string)
---]]
 function M.setup(opts)
     -- Return if already setup or in progress
     if State.setup_state ~= "not_started" then
@@ -38,10 +25,11 @@ function M.setup(opts)
 
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
-        port = nil,
-        config = nil,
+        port = 37373, -- Default port for MCP Hub
+        config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
+        use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
         cmd = "mcp-hub",
-        cmdArgs = nil,
+        cmdArgs = {},
         log = {
             level = vim.log.levels.ERROR,
             to_file = false,
@@ -51,6 +39,11 @@ function M.setup(opts)
         on_ready = function() end,
         on_error = function() end,
     }, opts or {})
+
+    -- Override cmd if using bundled binary
+    if config.use_bundled_binary then
+        config.cmd = utils.get_bundled_mcp_path()
+    end
 
     -- Set up logging first
     log.setup(config.log or {})
@@ -106,7 +99,7 @@ function M.setup(opts)
     -- Start version check
     Job:new({
         command = config.cmd,
-        args = { config.cmdArgs, "--version" },
+        args = utils.clean_args({ config.cmdArgs, "--version" }),
         on_exit = vim.schedule_wrap(function(j, code)
             if code ~= 0 then
                 local err = Error(

@@ -77,35 +77,65 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
     dependencies = {
         "nvim-lua/plenary.nvim",  -- Required for Job and HTTP requests
     },
-    -- cmd = "MCPHub", -- lazily start the hub when `MCPHub` is called
-    build = "npm install -g mcp-hub@latest", -- Installs required mcp-hub npm module
-    config = function()
-        require("mcphub").setup({
-            -- Required options
-            port = 3000,  -- Port for MCP Hub server
-            config = vim.fn.expand("~/mcpservers.json"),  -- Absolute path to config file
-
-            -- Optional options
-            on_ready = function(hub)
-                -- Called when hub is ready
-            end,
-            on_error = function(err)
-                -- Called on errors
-            end,
-            cmd = "node", -- The cmd to invoke the MCP Hub Server
-            cmdArgs = "path/to/mcphub/src/utils/cli.js", -- The cmd args to pass to spawn the server
-            log = {
-                level = vim.log.levels.WARN,
-                to_file = false,
-                file_path = nil,
-                prefix = "MCPHub"
-            },
-        })
-    end
+    -- comment the following line to ensure hub will be ready at the earliest
+    cmd = "MCPHub",  -- lazy load by default
+    build = "npm install -g mcp-hub@latest",  -- Installs required mcp-hub npm module
+    -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
+    -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts  (see Advanced configuration)
+    opts = {}  -- zero-config setup
 }
 ```
 
-Example configuration file:
+<details>
+<summary>Advanced Configuration</summary>
+
+### Default Config
+
+All options are optional with sensible defaults. Here's a complete example with all available options:
+
+```lua
+opts = {
+    port = 37373,  -- Default port for MCP Hub
+    config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Absolute path to config file location
+    -- Logging configuration
+    log = {
+        level = vim.log.levels.WARN,
+        to_file = false,
+        file_path = nil,
+        prefix = "MCPHub"
+    },
+
+    -- Event callbacks
+    on_ready = function(hub)
+        -- Called when hub is ready
+    end,
+    on_error = function(err)
+        -- Called on errors
+    end,
+
+    --set this to true when using build = "bundled_build.lua"
+    use_bundled_binary = false,  -- Uses bundled mcp-hub instead of global installation
+
+    -- Custom Server command configuration (auto-configured if use_bundled_binary = true)
+    cmd = "mcp-hub", -- The command to invoke the MCP Hub Server
+    cmdArgs = {},    -- Additional arguments for the command
+
+    -- Common command configurations (when not using bundled binary):
+    -- 1. Global installation (default):
+    --   cmd = "mcp-hub"
+    --   cmdArgs = {}
+    -- 2. Local npm package:
+    --   cmd = "node"
+    --   cmdArgs = {"/path/to/node_modules/mcp-hub/dist/cli.js"}
+    -- 3. Custom binary:
+    --   cmd = "/usr/local/bin/custom-mcp-hub"
+    --   cmdArgs = {"--custom-flag"}
+}
+```
+
+### Server Configuration
+
+The config file (`~/.config/mcphub/servers.json`) defines your MCP servers. Here's an example:
 
 ```json
 {
@@ -125,6 +155,15 @@ Example configuration file:
   }
 }
 ```
+
+- `command`: The command to run the server
+- `args`: Command arguments as array
+- `disabled`: Optional boolean to disable server
+- `disabled_tools`: Optional array of tool names to disable
+- `env`: Optional environment variables
+- `custom_instructions`: Optional custom instructions for the server
+
+</details>
 
 ### Requirements
 
