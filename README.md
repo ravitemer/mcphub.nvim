@@ -13,7 +13,12 @@ A powerful Neovim plugin that integrates MCP (Model Context Protocol) servers in
 <video controls muted src="https://github.com/user-attachments/assets/22d14360-5994-455b-8789-4fffd2b598e2"></video>
 </p>
 </div>
-
+<div align="center">
+    <p>
+    <h4>MCP Hub + <a href="https://github.com/yetone/avante.nvim">Avante</a> </h4>
+    <video controls muted src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d"></video>
+    </p>
+</div>
 <div align="center">
 <p>
 <h4>Using <a href="https://github.com/olimorris/codecompanion.nvim">codecompanion</a></h4>
@@ -298,6 +303,7 @@ Note: You can also access the Express server directly at http://localhost:[port]
 
 ## 🔧 Troubleshooting
 
+
 1. **Environment Requirements**
 
    - Ensure these are installed as they're required by most MCP servers:
@@ -332,8 +338,9 @@ Note: You can also access the Express server directly at http://localhost:[port]
    - Test tools and resources individually to isolate issues
 
 5. **Need Help?**
-   - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions
-   - Open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs
+   - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388) 
+   - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
+   - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
 
 ## 🔄 How It Works
 

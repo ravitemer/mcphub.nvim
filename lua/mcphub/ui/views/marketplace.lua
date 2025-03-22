@@ -138,6 +138,9 @@ function MarketplaceView:filter_and_sort_items(items)
         newest = function(a, b)
             return (a.createdAt or 0) > (b.createdAt or 0)
         end,
+        downloads = function(a, b)
+            return (a.downloadCount or 0) > (b.downloadCount or 0)
+        end,
         stars = function(a, b)
             return (a.githubStars or 0) > (b.githubStars or 0)
         end,
@@ -216,6 +219,7 @@ function MarketplaceView:setup_active_mode()
                 action = function()
                     local sorts = {
                         { text = "Most Stars", value = "stars" },
+                        { text = "Most Downloads", value = "downloads" },
                         { text = "Newest First", value = "newest" },
                         { text = "Name (A-Z)", value = "name" },
                     }
