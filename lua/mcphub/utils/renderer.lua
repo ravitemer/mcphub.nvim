@@ -233,8 +233,7 @@ function M.render_server_line(server, active)
 
     --INFO: when decoded from regualr mcp servers vim.NIL; for nativeservers we set nil, so check both
     -- Add error message for disconnected servers
-    if (server.error ~= vim.NIL or server.error ~= nil) and server.status == "disconnected" and server.error ~= "" then
-        vim.notify(vim.inspect(server), vim.log.levels.INFO)
+    if server.error ~= vim.NIL and server.error ~= nil and server.status == "disconnected" and server.error ~= "" then
         -- Get first line of error message
         local error_lines = Text.multiline(server.error, Text.highlights.error)
         line:append(" - ", Text.highlights.muted):append(error_lines[1], Text.highlights.error)

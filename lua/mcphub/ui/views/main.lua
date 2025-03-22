@@ -89,6 +89,20 @@ function MainView:handle_action()
                 end
             end
         end
+    elseif type == "create_server" then
+        -- Store browse mode position before switching
+        self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
+
+        -- Switch to create server capability
+        self.active_capability =
+            Capabilities.create_handler("createServer", "Native Servers", { name = "Create Server" }, self)
+        self:setup_active_mode()
+        self:draw()
+        -- Move to capability's preferred position
+        local cap_pos = self.active_capability:get_cursor_position()
+        if cap_pos then
+            vim.api.nvim_win_set_cursor(0, cap_pos)
+        end
     elseif
         (type == "tool" or type == "resource" or type == "resourceTemplate" or type == "customInstructions") and context
     then
@@ -360,15 +374,34 @@ function MainView:render_servers(line_offset)
     table.insert(lines, Text.empty_line())
     current_line = current_line + 1
 
-    -- Render Native servers section
-    local native_lines, final_line = self:render_servers_section(
-        "Native Servers",
+    -- Native servers section header
+    table.insert(lines, Text.pad_line(NuiLine():append("Native Servers", Text.highlights.title)))
+    current_line = current_line + 1
+
+    -- Render Native servers first
+    local native_lines, native_line = self:render_servers_section(
+        nil, -- No title since we added it above
         State.server_state.native_servers,
         State.native_servers_config,
         current_line
     )
     vim.list_extend(lines, native_lines)
-    current_line = final_line
+    current_line = native_line
+
+    -- Add create server option
+    -- table.insert(lines, Text.empty_line())
+    table.insert(
+        lines,
+        Text.pad_line(
+            NuiLine()
+                :append(" " .. Text.icons.edit .. " ", Text.highlights.muted)
+                :append("Auto Create Server", Text.highlights.muted)
+        )
+    )
+    -- Track line for interaction
+    self:track_line(current_line + 1, "create_server", {
+        hint = "Press <CR> to create server",
+    })
 
     return lines
 end
@@ -432,9 +465,10 @@ function MainView:render()
         local capability_view_lines = self:render_header(false)
         -- Add breadcrumb
         local breadcrumb = NuiLine()
+        breadcrumb
             :append(self.active_capability.server_name, Text.highlights.muted)
             :append(" > ", Text.highlights.muted)
-            :append(" " .. self.active_capability.info.name .. " ", Text.highlights.info)
+            :append(self.active_capability.info.name, Text.highlights.info)
         table.insert(capability_view_lines, Text.pad_line(breadcrumb))
         table.insert(capability_view_lines, self:divider())
         -- Let capability render its content

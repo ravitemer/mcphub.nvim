@@ -264,11 +264,11 @@ end
 
 function NativeServer:stop(disable)
     disable = disable or false
-    if disable then
-        self.status = "disabled"
-    else
-        self.status = "disconnected"
-    end
+    -- if disable then
+    self.status = "disabled"
+    -- else
+    --     self.status = "disconnected"
+    -- end
 end
 
 return NativeServer

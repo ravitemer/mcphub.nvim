@@ -1,4 +1,4 @@
-local NativeServer = require("mcphub.native.server")
+local NativeServer = require("mcphub.native.utils.server")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 
