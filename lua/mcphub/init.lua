@@ -11,7 +11,7 @@ local version = require("mcphub.version")
 local M = {}
 
 --- Setup MCPHub plugin with error handling and validation
---- @param opts? { port?: number, cmd?: string, cmdArgs?: string, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
+--- @param opts? { port?: number, cmd?: string, native_servers? : table, cmdArgs?: table, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
 function M.setup(opts)
     -- Return if already setup or in progress
     if State.setup_state ~= "not_started" then
@@ -23,10 +23,14 @@ function M.setup(opts)
         setup_state = "in_progress",
     }, "setup")
 
+    -- Get built-in native servers
+    local builtin_native_servers = require("mcphub.native.builtin")
+
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
         port = 37373, -- Default port for MCP Hub
         config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
+        native_servers = builtin_native_servers,
         use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
         cmd = "mcp-hub",
         cmdArgs = {},
@@ -80,6 +84,16 @@ function M.setup(opts)
     local file_result = validation.validate_config_file(config.config)
     if file_result.ok and file_result.json then
         State.servers_config = file_result.json.mcpServers
+        State.native_servers_config = file_result.json.nativeMCPServers or {}
+    end
+    -- Initialize native servers if any provided in setup config
+    if config.native_servers then
+        local Native = require("mcphub.native")
+        for name, def in pairs(config.native_servers) do
+            -- Add name if not provided
+            def.name = def.name or name
+            Native.register(def)
+        end
     end
 
     -- Setup cleanup

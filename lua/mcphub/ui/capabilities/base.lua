@@ -173,7 +173,6 @@ function CapabilityHandler:handle_response(response, err)
         vim.notify(string.format("%s execution failed: %s", self.type, err), vim.log.levels.ERROR)
         self.state.error = err
     else
-        vim.notify(string.format("%s executed successfully", self.type), vim.log.levels.INFO)
         self.state.result = response
         self.state.error = nil
     end

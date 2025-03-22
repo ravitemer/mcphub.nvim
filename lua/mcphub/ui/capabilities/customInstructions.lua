@@ -3,6 +3,7 @@ local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local highlights = require("mcphub.utils.highlights").groups
+local native = require("mcphub.native")
 
 ---@class CustomInstructionsHandler : CapabilityHandler
 ---@field super CapabilityHandler
@@ -89,7 +90,10 @@ function CustomInstructionsHandler:open_edit_buffer(current_text)
         vim.api.nvim_win_close(win, true)
         -- Update only if content has changed
         if content ~= current_text then
-            local server_config = State.servers_config[server_name] or {}
+            local is_native = native.is_native_server(self.server_name)
+            local server_config = (
+                is_native and State.native_servers_config[self.server_name] or State.servers_config[self.server_name]
+            ) or {}
             local custom_instructions = server_config.custom_instructions or {}
             if State.hub_instance then
                 State.hub_instance:update_server_config(server_name, {
@@ -126,7 +130,10 @@ function CustomInstructionsHandler:handle_action(line)
     local type = self:get_line_info(line)
     if type == "edit" then
         -- Edit custom instructions
-        local server_config = State.servers_config[self.server_name] or {}
+        local is_native = native.is_native_server(self.server_name)
+        local server_config = (
+            is_native and State.native_servers_config[self.server_name] or State.servers_config[self.server_name]
+        ) or {}
         local custom_instructions = server_config.custom_instructions or {}
         local text = custom_instructions.text or ""
 
@@ -144,8 +151,10 @@ function CustomInstructionsHandler:render(line_offset)
     -- Custom Instructions info section
     vim.list_extend(lines, self:render_section_start(Text.icons.instructions .. " Custom Instructions"))
 
-    -- Get current state
-    local server_config = State.servers_config[self.server_name] or {}
+    local is_native = native.is_native_server(self.server_name)
+    local server_config = (
+        is_native and State.native_servers_config[self.server_name] or State.servers_config[self.server_name]
+    ) or {}
     local custom_instructions = server_config.custom_instructions or {}
     local is_disabled = custom_instructions.disabled
     local text = custom_instructions.text or ""

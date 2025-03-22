@@ -7,6 +7,53 @@ local version = require("mcphub.version")
 
 local M = {}
 
+--- Validate native server definition
+---@param def table Native server definition
+---@param server_name string Server name for error messages
+---@return ValidationResult
+local function validate_native_server(def, server_name)
+    if not def.capabilities then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Native server '%s' must contain capabilities", server_name)
+            ),
+        }
+    end
+
+    -- Validate capabilities
+    if def.capabilities.tools and type(def.capabilities.tools) ~= "table" then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("tools must be an array in native server '%s'", server_name)
+            ),
+        }
+    end
+
+    -- Validate tools if present
+    if def.capabilities.tools then
+        for _, tool in ipairs(def.capabilities.tools) do
+            if not tool.name or not tool.handler or type(tool.handler) ~= "function" then
+                return {
+                    ok = false,
+                    error = Error(
+                        "SETUP",
+                        Error.Types.SETUP.INVALID_CONFIG,
+                        string.format("Each tool must have name and handler in native server '%s'", server_name)
+                    ),
+                }
+            end
+        end
+    end
+
+    return { ok = true }
+end
+
 ---@class ValidationResult
 ---@field ok boolean
 ---@field error? MCPError
@@ -43,7 +90,22 @@ function M.validate_setup_opts(opts)
             error = Error("SETUP", Error.Types.SETUP.INVALID_CMD_ARGS, "cmdArgs must be an array"),
         }
     end
+    -- Validate native servers if present
+    if opts.native_servers then
+        if type(opts.native_servers) ~= "table" then
+            return {
+                ok = false,
+                error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "native_servers must be a table"),
+            }
+        end
 
+        for name, def in pairs(opts.native_servers) do
+            local result = validate_native_server(def, name)
+            if not result.ok then
+                return result
+            end
+        end
+    end
     -- Validate config file
     local file_result = M.validate_config_file(opts.config)
     if not file_result.ok then
@@ -83,38 +145,16 @@ function M.validate_config_file(path)
             error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "Config file path is required"),
         }
     end
-    -- Create config directory if it doesn't exist
-    local config_dir = vim.fn.fnamemodify(path, ":h")
-    if vim.fn.isdirectory(config_dir) == 0 then
-        vim.fn.mkdir(config_dir, "p")
-    end
-
-    -- Try to read existing config file
     local file = io.open(path, "r")
-    local content
-
     if not file then
-        -- Create new config file with empty mcpServers object
-        content = [[{
-  "mcpServers": {}
-}]]
-        local new_file = io.open(path, "w")
-        if not new_file then
-            return {
-                ok = false,
-                error = Error(
-                    "SETUP",
-                    Error.Types.SETUP.INVALID_CONFIG,
-                    string.format("Failed to create config file: %s", path)
-                ),
-            }
-        end
-        new_file:write(content)
-        new_file:close()
-    else
-        content = file:read("*a")
-        file:close()
+        return {
+            ok = false,
+            error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, string.format("Config file not found: %s", path)),
+        }
     end
+
+    local content = file:read("*a")
+    file:close()
 
     local success, json = pcall(vim.json.decode, content)
     if not success then
@@ -130,6 +170,72 @@ function M.validate_config_file(path)
                 }
             ),
         }
+    end
+
+    -- Validate native servers section if present
+    if json.nativeMCPServers then
+        if type(json.nativeMCPServers) ~= "table" then
+            return {
+                ok = false,
+                content = content,
+                error = Error(
+                    "SETUP",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    "Config file's nativeMCPServers must be an object"
+                ),
+            }
+        end
+
+        -- Validate each native server's config
+        for server_name, server_config in pairs(json.nativeMCPServers) do
+            -- Validate disabled_tools if present
+            if server_config.disabled_tools ~= nil then
+                if type(server_config.disabled_tools) ~= "table" then
+                    return {
+                        ok = false,
+                        content = content,
+                        error = Error(
+                            "SETUP",
+                            Error.Types.SETUP.INVALID_CONFIG,
+                            string.format("disabled_tools must be an array in native server %s", server_name)
+                        ),
+                    }
+                end
+                -- Validate each tool name is a string
+                for _, tool_name in ipairs(server_config.disabled_tools) do
+                    if type(tool_name) ~= "string" or tool_name == "" then
+                        return {
+                            ok = false,
+                            content = content,
+                            error = Error(
+                                "SETUP",
+                                Error.Types.SETUP.INVALID_CONFIG,
+                                string.format(
+                                    "disabled_tools must contain non-empty strings in native server %s",
+                                    server_name
+                                )
+                            ),
+                        }
+                    end
+                end
+            end
+
+            -- Validate custom_instructions if present
+            if
+                server_config.custom_instructions ~= nil
+                and not validate_custom_instructions(server_config.custom_instructions)
+            then
+                return {
+                    ok = false,
+                    content = content,
+                    error = Error(
+                        "SETUP",
+                        Error.Types.SETUP.INVALID_CONFIG,
+                        string.format("Invalid custom_instructions format in native server %s", server_name)
+                    ),
+                }
+            end
+        end
     end
 
     if not json.mcpServers or type(json.mcpServers) ~= "table" then
@@ -197,7 +303,6 @@ function M.validate_config_file(path)
         content = content,
     }
 end
-
 --- Validate MCP Hub version
 ---@param ver_str string Version string to validate
 ---@return ValidationResult

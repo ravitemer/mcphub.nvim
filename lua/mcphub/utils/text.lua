@@ -65,6 +65,9 @@ M.icons = {
 ---@param highlight? string Optional highlight group
 ---@return NuiLine[]
 function M.multiline(content, highlight)
+    if type(content) ~= "string" then
+        content = tostring(content)
+    end
     local lines = {}
     for _, line in
         ipairs(vim.split(content, "\n", {

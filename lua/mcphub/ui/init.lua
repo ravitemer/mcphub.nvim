@@ -50,6 +50,7 @@ function UI:new()
                     or k == "setup_state"
                     or k == "server_state"
                     or k == "servers_config"
+                    or k == "native_servers_config"
                     or k == "marketplace_state"
                     or k == "logs"
                     or k == "errors"
