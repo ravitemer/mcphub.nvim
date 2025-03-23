@@ -36,6 +36,21 @@ function MainView:new(ui)
     return self
 end
 
+function MainView:show_prompts_view()
+    -- Store current cursor position before switching
+    self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
+
+    -- Switch to prompts capability
+    self.active_capability = Capabilities.create_handler("prompts", "MCP Servers", { name = "System Prompts" }, self)
+    self:setup_active_mode()
+    self:draw()
+    -- Move to capability's preferred position
+    local cap_pos = self.active_capability:get_cursor_position()
+    if cap_pos then
+        vim.api.nvim_win_set_cursor(0, cap_pos)
+    end
+end
+
 function MainView:handle_action()
     local go_to_cap_line = false
     -- Get current line
@@ -44,7 +59,9 @@ function MainView:handle_action()
 
     -- Get line info
     local type, context = self:get_line_info(line)
-    if type == "server" then
+    if type == "breadcrumb" then
+        self:show_prompts_view()
+    elseif type == "server" then
         -- Toggle expand/collapse for server
         if context.status == "connected" then
             if self.expanded_server == context.name then
@@ -171,6 +188,12 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Expand/Collapse",
             },
+            ["gd"] = {
+                action = function()
+                    self:show_prompts_view()
+                end,
+                desc = "View prompts",
+            },
         }
     end
     self:apply_keymaps()
@@ -247,8 +270,8 @@ end
 
 function MainView:get_initial_cursor_position()
     -- Position after server status section
-    local lines = self:render_header()
-    vim.list_extend(lines, self:render_hub_status(self:get_width()))
+    local lines = self:render_header(false)
+    -- vim.list_extend(lines, self:render_hub_status(self:get_width()))
     -- In browse mode, restore last browse position
     if not self.active_capability and self.cursor_positions.browse_mode then
         return self.cursor_positions.browse_mode[1]
@@ -342,6 +365,7 @@ function MainView:render_servers(line_offset)
 
     -- Start with top-level MCP Servers header
     local header_line = NuiLine():append("MCP Servers", Text.highlights.title)
+
     -- Add token count on MCP Servers section if connected
     if State.server_state.status == "connected" and State.hub_instance and State.hub_instance:is_ready() then
         local prompts = State.hub_instance:get_prompts()
@@ -361,8 +385,13 @@ function MainView:render_servers(line_offset)
         end
     end
     table.insert(lines, Text.pad_line(header_line))
+    current_line = current_line + 1
+    -- Track breadcrumb line for interaction
+    self:track_line(current_line, "breadcrumb", {
+        hint = "Press <CR> to preview system prompts",
+    })
     table.insert(lines, self:divider())
-    current_line = current_line + 2
+    current_line = current_line + 1
 
     -- Render MCP servers section (without title since we already added it)
     local mcp_lines, new_line =
@@ -427,7 +456,7 @@ function MainView:after_enter()
         if self.cursor_positions.browse_mode then
             local new_pos = {
                 math.min(self.cursor_positions.browse_mode[1], line_count),
-                self.cursor_positions.browse_mode[2],
+                self.cursor_positions.browse_mode[2] or 2,
             }
             vim.api.nvim_win_set_cursor(0, new_pos)
         end

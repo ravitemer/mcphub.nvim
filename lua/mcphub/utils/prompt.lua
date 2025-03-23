@@ -43,14 +43,33 @@ local function format_tools(tools)
     return result
 end
 
-local function format_resources(resources)
+local function remove_functions(obj)
+    if type(obj) ~= "table" then
+        return obj
+    end
+    local new_obj = {}
+    for k, v in pairs(obj) do
+        if type(v) ~= "function" then
+            new_obj[k] = remove_functions(v)
+        end
+    end
+    return new_obj
+end
+
+local function format_resources(resources, templates)
     if not resources or #resources == 0 then
         return ""
     end
-
     local result = "\n\n### Available Resources"
     for i, resource in ipairs(resources) do
-        result = result .. "\n\n" .. vim.inspect(resource)
+        result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
+    end
+    if not templates or #templates == 0 then
+        return result
+    end
+    result = result .. "\n\n### Available Resource Templates"
+    for _, template in ipairs(templates) do
+        result = result .. "\n\n" .. vim.inspect(remove_functions(template))
     end
     return result
 end
@@ -129,6 +148,7 @@ function M.get_active_servers_prompt(servers)
             and (
                 (server.capabilities.tools and #server.capabilities.tools > 0)
                 or (server.capabilities.resources and #server.capabilities.resources > 0)
+                or (server.capabilities.resourceTemplates and #server.capabilities.resourceTemplates > 0)
             )
         then
             -- Add server section
@@ -139,7 +159,9 @@ function M.get_active_servers_prompt(servers)
 
             -- Add capabilities
             prompt = prompt .. format_tools(server.capabilities.tools)
-            prompt = prompt .. format_resources(server.capabilities.resources)
+            prompt = prompt .. format_resources(server.capabilities.resources, server.capabilities.resourceTemplates)
+        else
+            prompt = prompt .. "\n\n(No tools or resources available)"
         end
     end
 
