@@ -155,6 +155,7 @@ function M.render_server_capabilities(server, lines, current_line, config_source
             )
             table.insert(lines, Text.empty_line())
             current_line = current_line + 2
+            return current_line
         end
 
         local custom_instructions = server_config.custom_instructions or {}
