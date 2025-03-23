@@ -95,7 +95,7 @@ end
 
 function ToolHandler:validate_all_params()
     if not self.info.inputSchema then
-        return false, "No parameters to validate"
+        return true, nil, {}
     end
 
     local errors = {}

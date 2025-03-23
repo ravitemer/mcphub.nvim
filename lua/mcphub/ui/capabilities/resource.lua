@@ -60,7 +60,9 @@ function ResourceHandler:render(line_offset)
 
     -- Resource details
     local details = {
-        NuiLine():append("Name: ", highlights.muted):append(self.info.name, highlights.success),
+        NuiLine()
+            :append("Name: ", highlights.muted)
+            :append(self.info.name or "N/A", self.info.name and highlights.success or highlights.muted),
         NuiLine():append("Type: ", highlights.muted):append(self.info.mimeType or "unknown", highlights.info),
         NuiLine():append("URI: ", highlights.muted):append(self.info.uri, highlights.link),
     }

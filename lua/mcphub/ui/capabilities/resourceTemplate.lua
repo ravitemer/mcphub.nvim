@@ -73,7 +73,9 @@ function ResourceTemplateHandler:render(line_offset)
 
     -- Template details
     local details = {
-        NuiLine():append("Name: ", highlights.muted):append(self.info.name, highlights.success),
+        NuiLine()
+            :append("Name: ", highlights.muted)
+            :append(self.info.name or "N/A", self.info.name and highlights.success or highlights.muted),
         NuiLine():append("Template: ", highlights.muted):append(self.info.uriTemplate, highlights.info),
     }
 

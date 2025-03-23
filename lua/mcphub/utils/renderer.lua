@@ -75,12 +75,13 @@ function M.render_cap_section(items, title, server_name, type, current_line)
 
     for _, item in ipairs(items) do
         local is_disabled = type == "tool" and vim.tbl_contains(disabled_tools, item.name) or false
+        local name = item.name or item.uri or item.uriTemplate or "NO NAME"
 
         local line = NuiLine()
         if is_disabled then
-            line:append(Text.icons.circle .. " ", Text.highlights.muted):append(item.name, Text.highlights.muted)
+            line:append(Text.icons.circle .. " ", Text.highlights.muted):append(name, Text.highlights.muted)
         else
-            line:append(Text.icons.arrowRight .. " ", Text.highlights.muted):append(item.name, Text.highlights.info)
+            line:append(Text.icons.arrowRight .. " ", Text.highlights.muted):append(name, Text.highlights.info)
         end
 
         if item.mimeType then
