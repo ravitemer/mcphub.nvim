@@ -4,11 +4,18 @@ local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
+local native = require("mcphub.native")
 local utils = require("mcphub.utils")
 local validation = require("mcphub.validation")
 local version = require("mcphub.version")
 
-local M = {}
+local M = {
+    is_native_server = native.is_native_server,
+    add_server = native.add_server,
+    add_tool = native.add_tool,
+    add_resource = native.add_resource,
+    add_resource_template = native.add_resource_template,
+}
 
 --- Setup MCPHub plugin with error handling and validation
 --- @param opts? { port?: number, cmd?: string, native_servers? : table, cmdArgs?: table, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }

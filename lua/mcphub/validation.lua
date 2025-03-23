@@ -7,53 +7,6 @@ local version = require("mcphub.version")
 
 local M = {}
 
---- Validate native server definition
----@param def table Native server definition
----@param server_name string Server name for error messages
----@return ValidationResult
-local function validate_native_server(def, server_name)
-    if not def.capabilities then
-        return {
-            ok = false,
-            error = Error(
-                "SETUP",
-                Error.Types.SETUP.INVALID_CONFIG,
-                string.format("Native server '%s' must contain capabilities", server_name)
-            ),
-        }
-    end
-
-    -- Validate capabilities
-    if def.capabilities.tools and type(def.capabilities.tools) ~= "table" then
-        return {
-            ok = false,
-            error = Error(
-                "SETUP",
-                Error.Types.SETUP.INVALID_CONFIG,
-                string.format("tools must be an array in native server '%s'", server_name)
-            ),
-        }
-    end
-
-    -- Validate tools if present
-    if def.capabilities.tools then
-        for _, tool in ipairs(def.capabilities.tools) do
-            if not tool.name or not tool.handler or type(tool.handler) ~= "function" then
-                return {
-                    ok = false,
-                    error = Error(
-                        "SETUP",
-                        Error.Types.SETUP.INVALID_CONFIG,
-                        string.format("Each tool must have name and handler in native server '%s'", server_name)
-                    ),
-                }
-            end
-        end
-    end
-
-    return { ok = true }
-end
-
 ---@class ValidationResult
 ---@field ok boolean
 ---@field error? MCPError
@@ -97,13 +50,6 @@ function M.validate_setup_opts(opts)
                 ok = false,
                 error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "native_servers must be a table"),
             }
-        end
-
-        for name, def in pairs(opts.native_servers) do
-            local result = validate_native_server(def, name)
-            if not result.ok then
-                return result
-            end
         end
     end
     -- Validate config file
@@ -343,6 +289,242 @@ function M.validate_version(ver_str)
     return {
         ok = true,
     }
+end
+
+--- Validate a property according to requirements
+---@param value any The value to validate
+---@param prop_type string Type of property (string|function|table)
+---@param name string Name of property for error messages
+---@param error_type string Error type from Error.Types.NATIVE
+---@param object_id? string Optional identifier for error messages
+---@param extra_check? function Optional additional validation function
+---@return ValidationResult
+local function validate_property(value, prop_type, name, error_type, object_id, extra_check)
+    if not value or type(value) ~= prop_type then
+        return {
+            ok = false,
+            error = Error("VALIDATION", error_type, string.format("%s must be a %s", name, prop_type)),
+        }
+    end
+
+    if prop_type == "string" and value == "" then
+        return {
+            ok = false,
+            error = Error("VALIDATION", error_type, string.format("%s cannot be empty", name)),
+        }
+    end
+
+    if extra_check then
+        local ok, err = extra_check(value)
+        if not ok then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    error_type,
+                    string.format("%s: %s", object_id and string.format("%s in %s", err, object_id) or err, name)
+                ),
+            }
+        end
+    end
+
+    return { ok = true }
+end
+
+--- Validate a tool definition
+---@param tool table Tool definition to validate
+---@return ValidationResult
+function M.validate_tool(tool)
+    -- Validate name
+    local name_result = validate_property(tool.name, "string", "Tool name", Error.Types.NATIVE.INVALID_NAME)
+    if not name_result.ok then
+        return name_result
+    end
+
+    -- Validate handler
+    local handler_result =
+        validate_property(tool.handler, "function", "Handler", Error.Types.NATIVE.INVALID_HANDLER, tool.name)
+    if not handler_result.ok then
+        return handler_result
+    end
+
+    -- Validate inputSchema if present
+    if tool.inputSchema then
+        local schema_result =
+            validate_property(tool.inputSchema, "table", "Input schema", Error.Types.NATIVE.INVALID_SCHEMA, tool.name)
+        if not schema_result.ok then
+            return schema_result
+        end
+
+        -- Check inputSchema structure
+        local function validate_schema(schema)
+            if schema.type ~= "object" then
+                return false, "type must be 'object'"
+            end
+            if not schema.properties or type(schema.properties) ~= "table" then
+                return false, "must have a properties table"
+            end
+            return true
+        end
+
+        local schema_struct = validate_property(
+            tool.inputSchema,
+            "table",
+            "Input schema",
+            Error.Types.NATIVE.INVALID_SCHEMA,
+            tool.name,
+            validate_schema
+        )
+        if not schema_struct.ok then
+            return schema_struct
+        end
+    end
+
+    return { ok = true }
+end
+
+--- Validate a resource definition
+---@param resource table Resource definition to validate
+---@return ValidationResult
+function M.validate_resource(resource)
+    local name_result = validate_property(resource.name, "string", "Resource Name", Error.Types.NATIVE.INVALID_NAME)
+    if not name_result.ok then
+        return name_result
+    end
+    -- Validate URI
+    local uri_result = validate_property(resource.uri, "string", "Resource URI", Error.Types.NATIVE.INVALID_URI)
+    if not uri_result.ok then
+        return uri_result
+    end
+
+    -- Validate handler
+    local handler_result =
+        validate_property(resource.handler, "function", "Handler", Error.Types.NATIVE.INVALID_HANDLER, resource.uri)
+    if not handler_result.ok then
+        return handler_result
+    end
+
+    return { ok = true }
+end
+
+--- Validate a resource template definition
+---@param template table Resource template definition to validate
+---@return ValidationResult
+function M.validate_resource_template(template)
+    -- Validate URI template
+    local function validate_uri_template(uri)
+        if not uri:match("{[^}]+}") then
+            return false, "must contain at least one parameter in {param} format"
+        end
+        return true
+    end
+
+    local name_result = validate_property(template.name, "string", "Resource Name", Error.Types.NATIVE.INVALID_NAME)
+    if not name_result.ok then
+        return name_result
+    end
+    local uri_result = validate_property(
+        template.uriTemplate,
+        "string",
+        "URI template",
+        Error.Types.NATIVE.INVALID_URI,
+        nil,
+        validate_uri_template
+    )
+    if not uri_result.ok then
+        return uri_result
+    end
+
+    -- Validate handler
+    local handler_result = validate_property(
+        template.handler,
+        "function",
+        "Handler",
+        Error.Types.NATIVE.INVALID_HANDLER,
+        template.uriTemplate
+    )
+    if not handler_result.ok then
+        return handler_result
+    end
+
+    return { ok = true }
+end
+
+--- Validate native server definition
+---@param def table Native server definition
+---@param server_name string Server name for error messages
+---@return ValidationResult
+function M.validate_native_server(def)
+    local server_name = def.name
+    if not def.name then
+        return {
+            ok = false,
+            error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "Native server must contain a name"),
+        }
+    end
+    if not def.capabilities then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Native server '%s' must contain capabilities", server_name)
+            ),
+        }
+    end
+
+    -- Validate capabilities
+    if def.capabilities.tools and type(def.capabilities.tools) ~= "table" then
+        return {
+            ok = false,
+            error = Error(
+                "SETUP",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("tools must be an array in native server '%s'", server_name)
+            ),
+        }
+    end
+
+    -- Validate tools if present
+    if def.capabilities.tools then
+        for _, tool in ipairs(def.capabilities.tools) do
+            local ok, err = M.validate_tool(tool)
+            if not ok then
+                return {
+                    ok = false,
+                    error = err,
+                }
+            end
+        end
+    end
+
+    -- Validate resources if present
+    if def.capabilities.resources then
+        for _, resource in ipairs(def.capabilities.resources) do
+            local ok, err = M.validate_resource(resource)
+            if not ok then
+                return {
+                    ok = false,
+                    error = err,
+                }
+            end
+        end
+    end
+
+    -- Validate resource templates if present
+    if def.capabilities.resourceTemplates then
+        for _, template in ipairs(def.capabilities.resourceTemplates) do
+            local ok, err = M.validate_resource_template(template)
+            if not ok then
+                return {
+                    ok = false,
+                    error = err,
+                }
+            end
+        end
+    end
+
+    return { ok = true }
 end
 
 return M

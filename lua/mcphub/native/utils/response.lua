@@ -11,15 +11,16 @@ function BaseResponse:new(output_handler)
 end
 
 function BaseResponse:send(result)
+    local final_result = result or self.result
     if self.output_handler then
         -- Async with callback
         self.output_handler({
-            result = result or self.result,
+            result = final_result,
         })
     else
         -- Sync return
         return {
-            result = result or self.result,
+            result = final_result,
         }
     end
 end
@@ -36,6 +37,9 @@ function ToolResponse:new(output_handler)
 end
 
 function ToolResponse:text(text)
+    if type(text) ~= "string" then
+        text = vim.inspect(text)
+    end
     table.insert(self.result.content, {
         type = "text",
         text = text,
@@ -53,6 +57,9 @@ function ToolResponse:image(data, mime)
 end
 
 function ToolResponse:error(message, details)
+    if type(message) ~= "string" then
+        message = vim.inspect(message)
+    end
     local result = {
         isError = true,
         content = {
@@ -89,6 +96,9 @@ function ResourceResponse:new(output_handler, uri, template)
 end
 
 function ResourceResponse:text(text, mime)
+    if type(text) ~= "string" then
+        text = vim.inspect(text)
+    end
     table.insert(self.result.contents, {
         uri = self.uri,
         text = text,
@@ -107,6 +117,9 @@ function ResourceResponse:blob(data, mime)
 end
 
 function ResourceResponse:error(message, details)
+    if type(message) ~= "string" then
+        message = vim.inspect(message)
+    end
     -- For resources, we return error as a text resource
     self.result = {
         contents = {
