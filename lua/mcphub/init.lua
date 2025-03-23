@@ -40,6 +40,16 @@ function M.setup(opts)
             file_path = nil,
             prefix = "MCPHub",
         },
+        -- Default window settings
+        ui = {
+            window = {
+                width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+                height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+                border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+                relative = "editor",
+                zindex = 50,
+            },
+        },
         on_ready = function() end,
         on_error = function() end,
     }, opts or {})
@@ -53,7 +63,7 @@ function M.setup(opts)
     log.setup(config.log or {})
 
     -- Create UI instance early
-    State.ui_instance = require("mcphub.ui"):new()
+    State.ui_instance = require("mcphub.ui"):new(config.ui)
     State.config = config
 
     -- Create command early

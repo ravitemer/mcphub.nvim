@@ -10,16 +10,44 @@ local hl = require("mcphub.utils.highlights")
 local UI = {}
 UI.__index = UI
 
--- Constants for window sizing and layout
-local WINDOW_CONSTANTS = {
-    WIDTH_RATIO = 0.9,
-    HEIGHT_RATIO = 0.9,
-    MIN_WIDTH = 40,
+-- Default window settings
+UI.defaults = {
+    window = {
+        width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+        height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+        border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+        relative = "editor",
+        zindex = 50,
+    },
 }
 
+-- User configured options
+UI.opts = {}
+
+-- Parse size value into actual numbers
+---@param value any Size value (number, float, or percentage string)
+---@param total number Total available size
+---@return number Calculated size
+local function parse_size(value, total)
+    if type(value) == "number" then
+        if value <= 1 then -- Ratio
+            return math.floor(total * value)
+        end
+        return math.floor(value) -- Raw number
+    elseif type(value) == "string" then
+        -- Parse percentage (e.g., "80%")
+        local percent = tonumber(value:match("(%d+)%%"))
+        if percent then
+            return math.floor((total * percent) / 100)
+        end
+    end
+    return math.floor(total * 0.8) -- Default fallback
+end
+
 --- Create a new UI instance
+---@param opts? table Configuration options for UI
 ---@return MCPHubUI
-function UI:new()
+function UI:new(opts)
     local instance = {
         window = nil, -- Window handle
         buffer = nil, -- Buffer handle
@@ -30,6 +58,9 @@ function UI:new()
     }
     setmetatable(instance, self)
 
+    -- Merge user options with defaults
+    UI.opts = vim.tbl_deep_extend("force", UI.defaults, opts or {})
+
     -- Setup highlights with auto-update
     hl.setup()
     hl.setup_auto_update()
@@ -39,8 +70,6 @@ function UI:new()
 
     -- Subscribe to state changes
     State:subscribe(function(_, changes)
-        -- Only update UI if window is visible and relevant state changed
-        -- vim.notify("State changed" .. vim.inspect(changes))
         if instance.window and vim.api.nvim_win_is_valid(instance.window) then
             -- Check if we need to update
             local should_update = false
@@ -60,16 +89,13 @@ function UI:new()
                 end
             end
             if should_update then
-                -- Re-render current view
                 instance:render()
             end
         end
     end, { "ui", "server", "setup", "errors", "marketplace" })
 
     -- Create cleanup autocommands
-    local group = vim.api.nvim_create_augroup("mcphub_ui", {
-        clear = true,
-    })
+    local group = vim.api.nvim_create_augroup("mcphub_ui", { clear = true })
 
     -- Handle VimLeave
     vim.api.nvim_create_autocmd("VimLeavePre", {
@@ -83,7 +109,6 @@ function UI:new()
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         callback = function(args)
-            -- Check if the closed window is our window
             if instance.window and tonumber(args.match) == instance.window then
                 instance:cleanup()
             end
@@ -114,7 +139,6 @@ end
 --- Create a new buffer for the UI
 ---@private
 function UI:create_buffer()
-    -- Create new buffer
     self.buffer = vim.api.nvim_create_buf(false, true)
 
     -- Set buffer options
@@ -136,24 +160,30 @@ function UI:create_window()
         self:create_buffer()
     end
 
-    -- Calculate dimensions with padding
-    local width = math.max(WINDOW_CONSTANTS.MIN_WIDTH, math.floor(vim.o.columns * WINDOW_CONSTANTS.WIDTH_RATIO))
-    -- Account for horizontal padding
-    width = width - (Text.HORIZONTAL_PADDING * 2)
+    local min_width = 50
+    local min_height = 10
+    local win_opts = UI.opts.window
+    -- Calculate dimensions
+    local width = parse_size(win_opts.width, vim.o.columns)
+    width = math.max(min_width, width)
 
-    local height = math.floor(vim.o.lines * WINDOW_CONSTANTS.HEIGHT_RATIO)
+    local height = parse_size(win_opts.height, vim.o.lines)
+    height = math.max(min_height, height)
+
+    -- Calculate center position
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
 
     -- Create floating window
     self.window = vim.api.nvim_open_win(self.buffer, true, {
-        relative = "editor",
+        relative = win_opts.relative,
         width = width,
         height = height,
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
+        border = win_opts.border,
+        zindex = win_opts.zindex,
     })
 
     -- Apply window highlights
@@ -250,21 +280,6 @@ function UI:hard_refresh()
     end
 end
 
--- function UI:restart()
---     if State.hub_instance then
---         vim.notify("Restarting")
---         State.hub_instance:restart(function(success)
---             if success then
---                 vim.notify("Restarted")
---             else
---                 vim.notify("Failed to restart")
---             end
---         end)
---     else
---         vim.notify("No hub instance available")
---     end
--- end
-
 --- Clean up resources
 ---@private
 function UI:cleanup()
@@ -274,9 +289,7 @@ function UI:cleanup()
 
     -- Clean up buffer if it exists
     if self.buffer and vim.api.nvim_buf_is_valid(self.buffer) then
-        vim.api.nvim_buf_delete(self.buffer, {
-            force = true,
-        })
+        vim.api.nvim_buf_delete(self.buffer, { force = true })
         self.buffer = nil
     end
 

@@ -118,6 +118,17 @@ opts = {
         -- Called on errors
     end,
 
+    -- Default window settings
+    ui = {
+        window = {
+            width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+            height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+            border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+            relative = "editor",
+            zindex = 50,
+        },
+    },
+
     --set this to true when using build = "bundled_build.lua"
     use_bundled_binary = false,  -- Uses bundled mcp-hub instead of global installation
 
@@ -280,7 +291,7 @@ Add MCP capabilities to CodeCompanion.
 ```lua
 require('lualine').setup {
   sections = {
-    lualine_z = {
+    lualine_x = {
       {require('mcphub.extensions.lualine')},
     },
   },
