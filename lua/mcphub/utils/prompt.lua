@@ -170,12 +170,13 @@ end
 
 function M.parse_tool_response(response)
     if response == nil then
-        return { text = "", images = {} }
+        return { text = "", images = {}, blobs = {} }
     end
 
     local result = response.result or {}
-    local output = { text = "", images = {} }
+    local output = { text = "", images = {}, blobs = {} }
     local images = {}
+    local blobs = {}
     local texts = {}
 
     -- parse tool response
@@ -188,6 +189,17 @@ function M.parse_tool_response(response)
                 data = v.data,
                 mimeType = v.mimeType or "application/octet-stream",
             })
+        elseif type == "resource" and v.resource then
+            -- Handle resource content by treating it as a resource response
+            local resource_result = M.parse_resource_response({
+                result = {
+                    contents = { v.resource },
+                },
+            })
+            -- Merge the results
+            table.insert(texts, resource_result.text)
+            vim.list_extend(images, resource_result.images)
+            vim.list_extend(blobs, resource_result.blobs)
         end
     end
 
@@ -197,35 +209,59 @@ function M.parse_tool_response(response)
         output.text = "The tool run failed with error.\n" .. output.text
     end
     output.images = images
+    output.blobs = blobs
 
     return output
 end
 
 function M.parse_resource_response(response)
     if response == nil then
-        return { text = "", images = {} }
+        return { text = "", images = {}, blobs = {} }
     end
 
     local result = response.result or {}
-    local output = { text = "", images = {} }
+    local output = { text = "", images = {}, blobs = {} }
     local images = {}
+    local blobs = {}
     local texts = {}
 
     for _, content in ipairs(result.contents or {}) do
-        -- If it has a blob, treat as image
-        if content.blob then
-            table.insert(images, {
-                data = content.blob,
-                mimeType = content.mimeType or "application/octet-stream",
-            })
-        -- Otherwise treat as text
-        elseif content.text then
-            table.insert(texts, string.format("Resource %s:\n%s", content.uri, content.text))
+        if content.uri then
+            if content.blob then
+                -- Handle blob data based on mimetype
+                if content.mimeType and content.mimeType:match("^image/") then
+                    -- It's an image
+                    table.insert(images, {
+                        data = content.blob,
+                        mimeType = content.mimeType,
+                    })
+                else
+                    -- It's a binary blob
+                    table.insert(blobs, {
+                        data = content.blob,
+                        mimeType = content.mimeType or "application/octet-stream",
+                        uri = content.uri,
+                    })
+                    -- Add blob info to text
+                    table.insert(
+                        texts,
+                        string.format(
+                            "Resource %s: <Binary data of type %s>",
+                            content.uri,
+                            content.mimeType or "application/octet-stream"
+                        )
+                    )
+                end
+            elseif content.text then
+                -- Text content
+                table.insert(texts, string.format("Resource %s:\n%s", content.uri, content.text))
+            end
         end
     end
 
     output.text = table.concat(texts, "\n\n")
     output.images = images
+    output.blobs = blobs
 
     return output
 end

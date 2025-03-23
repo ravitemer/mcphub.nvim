@@ -9,31 +9,54 @@ M.cache_dir = vim.fn.stdpath("cache") .. "/mcphub/images"
 ---@param mime_type string MIME type of the image
 ---@return string filename
 local function get_unique_filename(data, mime_type)
-    local hash = vim.fn.sha256(data)
+    -- local hash = vim.fn.sha256(data)
+    local time = os.time()
     local ext = mime_type:match("image/(%w+)") or "bin"
-    return string.format("%s.%s", hash, ext)
+    return string.format("%s.%s", time, ext)
 end
-
 --- Save image to temp file and return file path
 ---@param data string Base64 encoded image data
 ---@param mime_type string MIME type of the image
----@return string filepath Path to saved file
+---@return string|nil filepath Path to saved file
 function M.save_image(data, mime_type)
     local filename = get_unique_filename(data, mime_type)
     local filepath = M.cache_dir .. "/" .. filename
 
-    -- Save file if it doesn't exist
-    if not vim.loop.fs_stat(filepath) then
-        local file = io.open(filepath, "wb")
-        if file then
-            file:write(vim.base64.decode(data))
-            file:close()
+    -- Open file with proper error handling
+    local file, err = io.open(filepath, "wb")
+    if not file then
+        error(string.format("Failed to open file for writing: %s", err))
+        return nil
+    end
+
+    local success, result = pcall(function()
+        -- Try base64 decode if it looks like base64
+        if type(data) == "string" and data:match("^[A-Za-z0-9+/]+=*$") then
+            local ok, decoded = pcall(vim.base64.decode, data)
+            if ok then
+                file:write(decoded)
+                return
+            end
         end
+
+        -- Handle binary/blob data
+        if type(data) == "string" then
+            file:write(data)
+        else
+            error("Unsupported data type: " .. type(data))
+        end
+    end)
+
+    file:close()
+
+    if not success then
+        vim.fn.delete(filepath)
+        error(string.format("Failed to write image data: %s", result))
+        return nil
     end
 
     return filepath
 end
-
 --- Clean all cached images
 function M.cleanup()
     -- Get all files in the cache directory

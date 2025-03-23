@@ -143,22 +143,35 @@ function CapabilityHandler:render_result()
     -- Handle image content
     if self.state.result.images and #self.state.result.images > 0 then
         if #lines > 0 then
-            table.insert(lines, Text.pad_line(NuiLine())) -- Spacer
+            vim.list_extend(lines, self:render_section_content({ "  " }, 1))
         end
         for i, img in ipairs(self.state.result.images) do
             -- Save to temp file
-            local filepath = ImageCache.save_image(img.data, img.mimeType or "application/octet-stream")
+            local ok, filepath = pcall(ImageCache.save_image, img.data, img.mimeType or "application/octet-stream")
+            if ok and filepath then
+                -- Create filesystem URL
+                local url = "file://" .. filepath
+                -- Show friendly name with URL
+                local image_line = NuiLine()
+                    :append("Image " .. i .. ": ", highlights.muted)
+                    :append(" [", highlights.muted)
+                    :append(url, highlights.link)
+                    :append("]", highlights.muted)
+                vim.list_extend(lines, self:render_section_content({ image_line }, 1))
+            else
+                vim.list_extend(lines, self:render_section_content({ "Failed to save image: " .. filepath }, 1))
+            end
+        end
+    end
 
-            -- Create filesystem URL
-            local url = "file://" .. filepath
-            -- Show friendly name with URL
-            local image_line = NuiLine()
-                :append("Image " .. i .. ": ", highlights.muted)
-                :append(" [", highlights.muted)
-                :append(url, highlights.link)
-                :append("]", highlights.muted)
-
-            vim.list_extend(lines, self:render_section_content({ image_line }, 1))
+    --Handle blobs content
+    if self.state.result.blobs and #self.state.result.blobs > 0 then
+        if #lines > 0 then
+            vim.list_extend(lines, self:render_section_content({ "  " }, 1))
+        end
+        for i, blob in ipairs(self.state.result.blobs) do
+            local blob_line = NuiLine():append("Blob " .. i .. ": Blob data cannot be shown", highlights.muted)
+            vim.list_extend(lines, self:render_section_content({ blob_line }, 1))
         end
     end
 
