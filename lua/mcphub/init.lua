@@ -57,6 +57,11 @@ function M.setup(opts)
                 zindex = 50,
             },
         },
+        extensions = {
+            codecompanion = {
+                make_vars = true,
+            },
+        },
         on_ready = function() end,
         on_error = function() end,
     }, opts or {})
@@ -74,9 +79,9 @@ function M.setup(opts)
     State.config = config
 
     -- Create command early
-    vim.api.nvim_create_user_command("MCPHub", function()
+    vim.api.nvim_create_user_command("MCPHub", function(args)
         if State.ui_instance then
-            State.ui_instance:toggle()
+            State.ui_instance:toggle(args)
         else
             State:add_error(Error("RUNTIME", Error.Types.RUNTIME.INVALID_STATE, "UI not initialized"))
         end
@@ -128,7 +133,7 @@ function M.setup(opts)
     })
 
     -- Start version check
-    local ok, result = pcall(function()
+    local ok, job = pcall(function()
         return Job:new({
             command = config.cmd,
             args = utils.clean_args({ config.cmdArgs, "--version" }),
@@ -145,7 +150,7 @@ function M.setup(opts)
 2. For bundled install: Set build = 'bundled_build.lua' and use_bundled_binary = true
 3. For custom install: Verify cmd/cmdArgs point to valid mcp-hub executable
 ]]
-        local err = Error("SETUP", Error.Types.SETUP.MISSING_DEPENDENCY, msg, { stack = result })
+        local err = Error("SETUP", Error.Types.SETUP.MISSING_DEPENDENCY, msg, { stack = job })
         State:add_error(err)
         State:update({
             setup_state = "failed",
@@ -155,7 +160,7 @@ function M.setup(opts)
     end
 
     -- Start the job
-    result:start()
+    job:start()
 
     return State.hub_instance
 end
@@ -228,6 +233,9 @@ function M._handle_version_check(j, code, config)
 
     -- Initialize image cache
     ImageCache.setup()
+
+    require("mcphub.extensions").setup("codecompanion", config.extensions.codecompanion)
+    --TODO: Add Support for Avante
 
     -- Start hub
     hub:start({

@@ -87,7 +87,9 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
     build = "npm install -g mcp-hub@latest",  -- Installs required mcp-hub npm module
     -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
     -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts  (see Advanced configuration)
-    opts = {}  -- zero-config setup
+    config = function()
+        require("mcphub").setup()
+    end,
 }
 ```
 
@@ -99,9 +101,19 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 All options are optional with sensible defaults. Here's a complete example with all available options:
 
 ```lua
-opts = {
+require("mcphub").setup({
     port = 37373,  -- Default port for MCP Hub
-    config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Absolute path to config file location
+    config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Absolute path to config file location (will create if not exists)
+
+    -- Extensions configuration
+    extensions = {
+        avante = {}, -- 
+        codecompanion = {
+            make_vars = true -- Create chat #variables from MCP Server resources.
+        }
+    },
+
+
     -- Logging configuration
     log = {
         level = vim.log.levels.WARN,
@@ -132,9 +144,10 @@ opts = {
     --set this to true when using build = "bundled_build.lua"
     use_bundled_binary = false,  -- Uses bundled mcp-hub instead of global installation
 
-    -- Custom Server command configuration (auto-configured if use_bundled_binary = true)
-    cmd = "mcp-hub", -- The command to invoke the MCP Hub Server
-    cmdArgs = {},    -- Additional arguments for the command
+    --WARN: Use the custom setup if you can't use `npm install -g mcp-hub` or cant have `build = "bundled_build.lua"`
+    -- Custom Server command configuration 
+    cmd = "node", -- The command to invoke the MCP Hub Server
+    cmdArgs = {"/path/to/node_modules/mcp-hub/dist/cli.js"},    -- Additional arguments for the command
 
     -- Common command configurations (when not using bundled binary):
     -- 1. Global installation (default):
@@ -146,7 +159,7 @@ opts = {
     -- 3. Custom binary:
     --   cmd = "/usr/local/bin/custom-mcp-hub"
     --   cmdArgs = {"--custom-flag"}
-}
+})
 ```
 
 ### Server Configuration

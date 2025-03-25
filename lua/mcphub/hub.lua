@@ -807,6 +807,42 @@ function MCPHub:get_servers()
     return filtered_servers
 end
 
+function MCPHub:get_resources()
+    local active_servers = self:get_servers()
+    local resources = {}
+    for _, server in ipairs(active_servers) do
+        if server.capabilities and server.capabilities.resources then
+            for _, resource in ipairs(server.capabilities.resources) do
+                table.insert(
+                    resources,
+                    vim.tbl_extend("force", resource, {
+                        server_name = server.name,
+                    })
+                )
+            end
+        end
+    end
+    return resources
+end
+
+function MCPHub:get_tools()
+    local active_servers = self:get_servers()
+    local tools = {}
+    for _, server in ipairs(active_servers) do
+        if server.capabilities and server.capabilities.tools then
+            for _, tool in ipairs(server.capabilities.tools) do
+                table.insert(
+                    tools,
+                    vim.tbl_extend("force", tool, {
+                        server_name = server.name,
+                    })
+                )
+            end
+        end
+    end
+    return tools
+end
+
 function MCPHub:get_active_servers_prompt()
     if not self:ensure_ready() then
         return ""
