@@ -19,6 +19,8 @@ Error.Types = {
         MISSING_DEPENDENCY = "MISSING_DEPENDENCY",
         VERSION_MISMATCH = "VERSION_MISMATCH",
         SERVER_START = "SERVER_START",
+        INVALID_CMD = "INVALID_CMD",
+        INVALID_CMD_ARGS = "INVALID_CMD_ARGS",
     },
     MARKETPLACE = {
         FETCH_ERROR = "FETCH_ERROR", -- Failed to fetch marketplace data

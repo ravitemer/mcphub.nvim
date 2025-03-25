@@ -47,7 +47,10 @@ local Installers = {
                 visible = false,
             })
             local api = require("avante.api")
-            api.ask({ question = "@read_global_file @write_global_file Please follow the provided instructions carefully to install this MCP server", without_selection = true })
+            api.ask({
+                question = "@read_global_file @write_global_file Please follow the provided instructions carefully to install this MCP server",
+                without_selection = true,
+            })
         end,
     },
     codecompanion = {

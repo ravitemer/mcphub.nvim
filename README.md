@@ -13,7 +13,12 @@ A powerful Neovim plugin that integrates MCP (Model Context Protocol) servers in
 <video controls muted src="https://github.com/user-attachments/assets/22d14360-5994-455b-8789-4fffd2b598e2"></video>
 </p>
 </div>
-
+<div align="center">
+    <p>
+    <h4>MCP Hub + <a href="https://github.com/yetone/avante.nvim">Avante</a> </h4>
+    <video controls muted src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d"></video>
+    </p>
+</div>
 <div align="center">
 <p>
 <h4>Using <a href="https://github.com/olimorris/codecompanion.nvim">codecompanion</a></h4>
@@ -47,6 +52,7 @@ Thank you to the following people:
   - Dynamically enable/disable servers and tools to optimize token usage
   - Start/stop servers with persistent state
   - Enable/disable specific tools per server
+  - Configure custom instructions per server
   - State persists across restarts
 - **Marketplace Integration**
   - Browse available MCP servers with details and stats
@@ -76,33 +82,65 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
     dependencies = {
         "nvim-lua/plenary.nvim",  -- Required for Job and HTTP requests
     },
-    -- cmd = "MCPHub", -- lazily start the hub when `MCPHub` is called
-    build = "npm install -g mcp-hub@latest", -- Installs required mcp-hub npm module
-    config = function()
-        require("mcphub").setup({
-            -- Required options
-            port = 3000,  -- Port for MCP Hub server
-            config = vim.fn.expand("~/mcpservers.json"),  -- Absolute path to config file
-
-            -- Optional options
-            on_ready = function(hub)
-                -- Called when hub is ready
-            end,
-            on_error = function(err)
-                -- Called on errors
-            end,
-            log = {
-                level = vim.log.levels.WARN,
-                to_file = false,
-                file_path = nil,
-                prefix = "MCPHub"
-            },
-        })
-    end
+    -- comment the following line to ensure hub will be ready at the earliest
+    cmd = "MCPHub",  -- lazy load by default
+    build = "npm install -g mcp-hub@latest",  -- Installs required mcp-hub npm module
+    -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
+    -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts  (see Advanced configuration)
+    opts = {}  -- zero-config setup
 }
 ```
 
-Example configuration file:
+<details>
+<summary>Advanced Configuration</summary>
+
+### Default Config
+
+All options are optional with sensible defaults. Here's a complete example with all available options:
+
+```lua
+opts = {
+    port = 37373,  -- Default port for MCP Hub
+    config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Absolute path to config file location
+    -- Logging configuration
+    log = {
+        level = vim.log.levels.WARN,
+        to_file = false,
+        file_path = nil,
+        prefix = "MCPHub"
+    },
+
+    -- Event callbacks
+    on_ready = function(hub)
+        -- Called when hub is ready
+    end,
+    on_error = function(err)
+        -- Called on errors
+    end,
+
+    --set this to true when using build = "bundled_build.lua"
+    use_bundled_binary = false,  -- Uses bundled mcp-hub instead of global installation
+
+    -- Custom Server command configuration (auto-configured if use_bundled_binary = true)
+    cmd = "mcp-hub", -- The command to invoke the MCP Hub Server
+    cmdArgs = {},    -- Additional arguments for the command
+
+    -- Common command configurations (when not using bundled binary):
+    -- 1. Global installation (default):
+    --   cmd = "mcp-hub"
+    --   cmdArgs = {}
+    -- 2. Local npm package:
+    --   cmd = "node"
+    --   cmdArgs = {"/path/to/node_modules/mcp-hub/dist/cli.js"}
+    -- 3. Custom binary:
+    --   cmd = "/usr/local/bin/custom-mcp-hub"
+    --   cmdArgs = {"--custom-flag"}
+}
+```
+
+### Server Configuration
+
+The config file (`~/.config/mcphub/servers.json`) defines your MCP servers. Here's an example:
 
 ```json
 {
@@ -122,6 +160,15 @@ Example configuration file:
   }
 }
 ```
+
+- `command`: The command to run the server
+- `args`: Command arguments as array
+- `disabled`: Optional boolean to disable server
+- `disabled_tools`: Optional array of tool names to disable
+- `env`: Optional environment variables
+- `custom_instructions`: Optional custom instructions for the server
+
+</details>
 
 ### Requirements
 
@@ -256,6 +303,7 @@ Note: You can also access the Express server directly at http://localhost:[port]
 
 ## 🔧 Troubleshooting
 
+
 1. **Environment Requirements**
 
    - Ensure these are installed as they're required by most MCP servers:
@@ -290,8 +338,9 @@ Note: You can also access the Express server directly at http://localhost:[port]
    - Test tools and resources individually to isolate issues
 
 5. **Need Help?**
-   - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions
-   - Open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs
+   - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388) 
+   - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
+   - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
 
 ## 🔄 How It Works
 
@@ -432,6 +481,7 @@ sequenceDiagram
 
 ## 🚧 TODO
 
+- [ ] Neovim MCP Server (kind of) with better editing, diffs, terminal integration etc (Ideas are welcome)
 - [ ] Enhanced help view with comprehensive documentation
 
 ## 👏 Acknowledgements
