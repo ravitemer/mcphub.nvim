@@ -1,4 +1,7 @@
 ---@class BaseResponse
+---@field output_handler function|nil Async callback handler
+---@field result table Response data
+---@field send fun(self: BaseResponse, result?: table): table Send final response
 local BaseResponse = {}
 BaseResponse.__index = BaseResponse
 
@@ -25,7 +28,16 @@ function BaseResponse:send(result)
     end
 end
 
+---@alias MCPResourceContent { uri: string, text?: string, blob?: string, mimeType: string }
+---@alias MCPContent { type: "text"|"image"|"resource", text?: string, data?: string, resource?: MCPResourceContent, mimeType?: string }
+
 ---@class ToolResponse : BaseResponse
+---@field result { content: MCPContent[] }
+---@field text fun(self: ToolResponse, text: string): ToolResponse Add text content
+---@field image fun(self: ToolResponse, data: string, mime: string): ToolResponse Add image content
+---@field resource fun(self: ToolResponse, resource: MCPResourceContent): ToolResponse Add resource content
+---@field error fun(self: ToolResponse, message: string, details?: table): table Send error response
+---@field send fun(self: ToolResponse, result?: table): table Send response
 local ToolResponse = setmetatable({}, { __index = BaseResponse })
 ToolResponse.__index = ToolResponse
 
@@ -52,6 +64,14 @@ function ToolResponse:image(data, mime)
         type = "image",
         data = data,
         mimeType = mime,
+    })
+    return self
+end
+
+function ToolResponse:resource(resource)
+    table.insert(self.result.content, {
+        type = "resource",
+        resource = resource,
     })
     return self
 end
@@ -83,6 +103,14 @@ function ToolResponse:error(message, details)
 end
 
 ---@class ResourceResponse : BaseResponse
+---@field uri string Resource URI
+---@field template string|nil Template if from template
+---@field result { contents: MCPResourceContent[] }
+---@field text fun(self: ResourceResponse, text: string, mime?: string): ResourceResponse Add text content
+---@field blob fun(self: ResourceResponse, data: string, mime?: string): ResourceResponse Add binary content
+---@field image fun(self: ResourceResponse, data: string, mime: string): ResourceResponse Add image content
+---@field error fun(self: ResourceResponse, message: string, details?: table): table Send error response
+---@field send fun(self: ResourceResponse, result?: table): table Send response
 local ResourceResponse = setmetatable({}, { __index = BaseResponse })
 ResourceResponse.__index = ResourceResponse
 
@@ -114,6 +142,11 @@ function ResourceResponse:blob(data, mime)
         mimeType = mime or "application/octet-stream",
     })
     return self
+end
+
+function ResourceResponse:image(data, mime)
+    -- Image is just a specialized blob with image mime type
+    return self:blob(data, mime or "image/png")
 end
 
 function ResourceResponse:error(message, details)

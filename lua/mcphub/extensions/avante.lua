@@ -64,9 +64,14 @@ function M.mcp_tool()
                 return nil, "tool_name is required"
             end
 
+            local sidebar = require("avante").get()
             if params.action == "access_mcp_resource" then
                 hub:access_resource(params.server_name, params.uri, {
                     parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                    },
                     callback = function(result, err)
                         --result has .text and .images [{mimeType, data}]
                         on_complete(result.text, err)
@@ -75,6 +80,10 @@ function M.mcp_tool()
             elseif params.action == "use_mcp_tool" then
                 hub:call_tool(params.server_name, params.tool_name, params.arguments, {
                     parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                    },
                     callback = function(result, err)
                         on_complete(result.text, err)
                     end,

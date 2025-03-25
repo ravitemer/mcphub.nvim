@@ -225,4 +225,117 @@ function M.get_bundled_mcp_path()
     local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
     return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
 end
+
+---@param bufnr nil|integer
+---@return string
+M.get_filetype = function(bufnr)
+    bufnr = bufnr or 0
+    local ft = vim.api.nvim_buf_get_option(bufnr, "filetype")
+
+    if ft == "cpp" then
+        return "C++"
+    end
+
+    return ft
+end
+
+function M.safe_get(tbl, path)
+    -- Handle nil input
+    if tbl == nil then
+        return nil
+    end
+
+    -- Split path by dots
+    local parts = {}
+    for part in path:gmatch("[^.]+") do
+        parts[#parts + 1] = part
+    end
+
+    local current = tbl
+    for _, key in ipairs(parts) do
+        -- Convert string numbers to numeric indices
+        if tonumber(key) then
+            key = tonumber(key)
+        end
+
+        if type(current) ~= "table" then
+            return nil
+        end
+        current = current[key]
+        if current == nil then
+            return nil
+        end
+    end
+
+    return current
+end
+
+function M.parse_context(caller)
+    local bufnr = 0
+    local type = caller.type
+    if type == "codecompanion" then
+        local chat = M.safe_get(caller, "codecompanion.chat")
+        bufnr = M.safe_get(chat, "context.bufnr") or 0
+    elseif type == "avante" then
+        bufnr = M.safe_get(caller, "avante.code.bufnr") or 0
+    elseif type == "hubui" then
+        bufnr = M.safe_get(caller, "hubui.context.bufnr") or 0
+    end
+    return {
+        bufnr = bufnr,
+    }
+end
+
+---@param mode string
+---@return boolean
+local function is_visual_mode(mode)
+    return mode == "v" or mode == "V" or mode == "^V"
+end
+
+---Get the context of the current buffer.
+---@param bufnr? integer
+---@param args? table
+---@return table
+function M.get_buf_info(bufnr, args)
+    bufnr = bufnr or vim.api.nvim_get_current_buf()
+    local winnr = vim.api.nvim_get_current_win()
+    local mode = vim.fn.mode()
+    local cursor_pos = vim.api.nvim_win_get_cursor(winnr)
+
+    local lines, start_line, start_col, end_line, end_col =
+        {}, cursor_pos[1], cursor_pos[2], cursor_pos[1], cursor_pos[2]
+
+    local is_visual = false
+    local is_normal = true
+
+    if args and args.range and args.range > 0 then
+        is_visual = true
+        is_normal = false
+        mode = "v"
+        lines, start_line, start_col, end_line, end_col = M.get_visual_selection(bufnr)
+    elseif is_visual_mode(mode) then
+        is_visual = true
+        is_normal = false
+        lines, start_line, start_col, end_line, end_col = M.get_visual_selection(bufnr)
+    end
+
+    return {
+        winnr = winnr,
+        bufnr = bufnr,
+        mode = mode,
+        is_visual = is_visual,
+        is_normal = is_normal,
+        buftype = vim.api.nvim_buf_get_option(bufnr, "buftype") or "",
+        filetype = M.get_filetype(bufnr),
+        filename = vim.api.nvim_buf_get_name(bufnr),
+        cursor_pos = cursor_pos,
+        lines = lines,
+        line_count = vim.api.nvim_buf_line_count(bufnr),
+        start_line = start_line,
+        start_col = start_col,
+        end_line = end_line,
+        end_col = end_col,
+    }
+end
+
 return M

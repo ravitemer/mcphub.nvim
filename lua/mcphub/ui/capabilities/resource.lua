@@ -32,6 +32,10 @@ function ResourceHandler:execute()
     -- Access resource
     if State.hub_instance then
         State.hub_instance:access_resource(self.server_name, self.info.uri, {
+            caller = {
+                name = "hubui",
+                hubui = State.ui_instance,
+            },
             parse_response = true,
             callback = function(response, err)
                 self:handle_response(response, err)

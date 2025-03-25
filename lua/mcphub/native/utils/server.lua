@@ -14,6 +14,8 @@ local log = require("mcphub.utils.log")
 local NativeServer = {}
 NativeServer.__index = NativeServer
 
+local TIMEOUT = 5 -- seconds
+
 -- Helper function to extract params from uri using template
 local function extract_params(uri, template)
     local params = {}
@@ -138,10 +140,13 @@ function NativeServer:call_tool(name, arguments, opts)
     -- Create output handler
     -- Track if tool has completed to prevent double-handling
     local tool_finished = false
+    local tool_result, tool_error
     local function output_handler(result, err)
         if tool_finished then
             return
         end
+        tool_result = result
+        tool_error = err
         tool_finished = true
         if opts.callback then
             opts.callback(result, err)
@@ -176,6 +181,7 @@ function NativeServer:call_tool(name, arguments, opts)
         server = self,
         tool = tool,
         arguments = arguments,
+        caller = opts.caller,
     })
     local res = Response.ToolResponse:new(output_handler)
 
@@ -188,7 +194,20 @@ function NativeServer:call_tool(name, arguments, opts)
 
     -- Handle synchronous return if any
     if result ~= nil then
-        return result
+        return output_handler(result)
+    end
+    -- If native_server:call_tool is a synchronous call but the handler didn't return anything or is running asynchronously given the res:send() arch
+    -- Wait for the handler to finish until TIMEOUT as if the user didn't call res:send() this will never finish
+    -- The only place the nativeserver is called synchronously is while a chat resolving #resource variable in the chat when submitted
+    local start_time = os.time()
+    if not opts.callback then
+        while not tool_finished do
+            vim.wait(500)
+            if os.time() - start_time > TIMEOUT then
+                return output_handler(nil, "Tool execution timed out")
+            end
+        end
+        return tool_result, tool_error
     end
 end
 
@@ -196,12 +215,15 @@ function NativeServer:access_resource(uri, opts)
     opts = opts or {}
     -- Create output handler
     -- Track if resource has called to prevent double-handling
-    local resource_finished = false
+    local resource_accessed = false
+    local resource_result, resource_error
     local function output_handler(result, err)
-        if resource_finished then
+        if resource_accessed then
             return
         end
-        resource_finished = true
+        resource_result = result
+        resource_error = err
+        resource_accessed = true
         if opts.callback then
             opts.callback(result, err)
             return
@@ -236,6 +258,7 @@ function NativeServer:access_resource(uri, opts)
         uri = uri,
         template = resource.uriTemplate,
         params = params,
+        caller = opts.caller,
     })
     local res = Response.ResourceResponse:new(output_handler, uri, resource.uriTemplate)
 
@@ -248,7 +271,20 @@ function NativeServer:access_resource(uri, opts)
 
     -- Handle synchronous return if any
     if result ~= nil then
-        return result
+        return output_handler(result)
+    end
+    -- call_resource will be called synchronously when chat is trying to resolve #resourcevariable(that we populated dynamically based on available servers) when chat:submit(),
+    -- If native_server:call_resource is a synchronous call but the handler didn't return anything or is running asynchronously given the res:send() arch
+    -- Wait for the handler to finish until TIMEOUT as if the user didn't call res:send() this will never finish
+    local start_time = os.time()
+    if not opts.callback then
+        while not resource_accessed do
+            vim.wait(500)
+            if (os.time() - start_time) > TIMEOUT then
+                return output_handler(nil, "Resource access timed out")
+            end
+        end
+        return resource_result, resource_error
     end
 end
 

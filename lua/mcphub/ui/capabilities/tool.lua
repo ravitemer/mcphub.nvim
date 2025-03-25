@@ -208,6 +208,10 @@ function ToolHandler:execute()
     -- Execute tool
     if State.hub_instance then
         State.hub_instance:call_tool(self.server_name, self.info.name, converted_values, {
+            caller = {
+                type = "hubui",
+                hubui = State.ui_instance,
+            },
             parse_response = true,
             callback = function(response, err)
                 self:handle_response(response, err)

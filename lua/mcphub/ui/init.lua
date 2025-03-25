@@ -6,6 +6,7 @@
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local hl = require("mcphub.utils.highlights")
+local utils = require("mcphub.utils")
 
 local UI = {}
 UI.__index = UI
@@ -55,6 +56,7 @@ function UI:new(opts)
         views = {}, -- View instances
         is_shown = false, -- Whether the UI is currently visible
         cursor_states = {}, -- Store cursor positions by view name
+        context = {}, -- Context from which the UI was opened
     }
     setmetatable(instance, self)
 
@@ -302,11 +304,11 @@ function UI:cleanup()
 end
 
 --- Toggle UI visibility
-function UI:toggle()
+function UI:toggle(args)
     if self.window and vim.api.nvim_win_is_valid(self.window) then
         self:cleanup()
     else
-        self:show()
+        self:show(args)
     end
 end
 
@@ -331,12 +333,12 @@ function UI:switch_view(view_name)
 end
 
 --- Show the UI window
-function UI:show()
+function UI:show(args)
+    self.context = utils.get_buf_info(vim.api.nvim_get_current_buf(), args)
     -- Create/show window if needed
     if not self.window or not vim.api.nvim_win_is_valid(self.window) then
         self:create_window()
     end
-
     -- Focus window
     vim.api.nvim_set_current_win(self.window)
 

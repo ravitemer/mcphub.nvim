@@ -23,6 +23,10 @@ local tool_schema = {
             if action_name == "use_mcp_tool" then
                 --use async call_tool method
                 hub:call_tool(server_name, tool_name, arguments, {
+                    caller = {
+                        type = "codecompanion",
+                        codecompanion = self,
+                    },
                     parse_response = true,
                     callback = function(res, err)
                         if err or not res then
@@ -35,6 +39,10 @@ local tool_schema = {
             elseif action_name == "access_mcp_resource" then
                 -- use async access_resource method
                 hub:access_resource(server_name, uri, {
+                    caller = {
+                        type = "codecompanion",
+                        codecompanion = self,
+                    },
                     parse_response = true,
                     callback = function(res, err)
                         if err or not res then
