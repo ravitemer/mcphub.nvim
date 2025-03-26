@@ -81,6 +81,13 @@ function MCPHub:start(opts, restart_callback)
             status = "connecting",
         },
     }, "server")
+
+    self:emit_update({
+        status = "connecting",
+        active_servers = 0,
+        total_tools = 0,
+        total_resources = 0,
+    })
     local has_called_restart_callback = false
 
     -- Check if server is already running
@@ -94,8 +101,6 @@ function MCPHub:start(opts, restart_callback)
         -- Start new server
         -- We're starting the server, mark as owner
         self.is_owner = true
-
-        local node_bin = require("mcphub.utils").get_bundled_mcp_path()
 
         self.server_job = Job:new({
             command = self.cmd,
@@ -123,7 +128,12 @@ function MCPHub:start(opts, restart_callback)
                         pid = nil,
                     },
                 }, "server")
-
+                self:emit_update({
+                    status = "disconnected",
+                    active_servers = 0,
+                    total_tools = 0,
+                    total_resources = 0,
+                })
                 self.ready = false
                 self.server_job = nil
             end),
@@ -271,6 +281,8 @@ function MCPHub:start_mcp_server(name, opts)
     if is_native then
         local server = is_native
         server:start()
+        -- Fire state change event with updated stats
+        self:emit_update()
         State:notify_subscribers({
             server_state = true,
         }, "server")
@@ -283,6 +295,9 @@ function MCPHub:start_mcp_server(name, opts)
                     break
                 end
             end
+
+            self:emit_update()
+
             State:notify_subscribers({
                 server_state = true,
             }, "server")
@@ -303,6 +318,16 @@ function MCPHub:start_mcp_server(name, opts)
     })
 end
 
+function MCPHub:emit_update(data)
+    -- Fire state change event with updated stats
+    utils.fire("MCPHubStateChange", data or {
+        status = State.server_state.status,
+        active_servers = #self:get_servers(),
+        total_tools = #self:get_tools(),
+        total_resources = #self:get_resources(),
+    })
+end
+
 --- Stop an MCP server
 ---@param name string Server name to stop
 ---@param disable boolean Whether to disable the server
@@ -315,6 +340,7 @@ function MCPHub:stop_mcp_server(name, disable, opts)
     if is_native then
         local server = is_native
         server:stop()
+        self:emit_update()
         State:notify_subscribers({
             server_state = true,
         }, "server")
@@ -360,12 +386,24 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
     if opts.callback then
         local original_callback = opts.callback
         opts.callback = function(response, err)
+            -- Signal tool completion
+            utils.fire("MCPHubToolEnd", {
+                server = server_name,
+                tool = tool_name,
+                success = err == nil,
+            })
             if opts.parse_response == true then
                 response = prompt_utils.parse_tool_response(response)
             end
             original_callback(response, err)
         end
     end
+
+    -- Signal tool start
+    utils.fire("MCPHubToolStart", {
+        server = server_name,
+        tool = tool_name,
+    })
     local arguments = args or {}
     if vim.tbl_isempty(arguments) then
         --HACK: add a property that will force encoding as an object
@@ -378,6 +416,11 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
         local server = is_native
         local result, err = server:call_tool(tool_name, args, opts)
         if opts.callback == nil then
+            utils.fire("MCPHubToolEnd", {
+                server = server_name,
+                tool = tool_name,
+                success = err == nil,
+            })
             return (opts.parse_response == true and prompt_utils.parse_tool_response(result) or result), err
         end
         return
@@ -397,6 +440,11 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
 
     -- handle sync calls
     if opts.callback == nil then
+        utils.fire("MCPHubToolEnd", {
+            server = server_name,
+            tool = tool_name,
+            success = err == nil,
+        })
         return (opts.parse_response == true and prompt_utils.parse_tool_response(response) or response), err
     end
 end
@@ -411,6 +459,12 @@ function MCPHub:access_resource(server_name, uri, opts)
     if opts.callback then
         local original_callback = opts.callback
         opts.callback = function(response, err)
+            -- Signal resource completion
+            utils.fire("MCPHubResourceEnd", {
+                server = server_name,
+                uri = uri,
+                success = err == nil,
+            })
             if opts.parse_response == true then
                 response = prompt_utils.parse_resource_response(response)
             end
@@ -418,12 +472,23 @@ function MCPHub:access_resource(server_name, uri, opts)
         end
     end
 
+    -- Signal resource start
+    utils.fire("MCPHubResourceStart", {
+        server = server_name,
+        uri = uri,
+    })
+
     -- Check native servers first
     local is_native = native.is_native_server(server_name)
     if is_native then
         local server = is_native
         local result, err = server:access_resource(uri, opts)
         if opts.callback == nil then
+            utils.fire("MCPHubResourceEnd", {
+                server = server_name,
+                uri = uri,
+                success = err == nil,
+            })
             return (opts.parse_response == true and prompt_utils.parse_resource_response(result) or result), err
         end
         return
@@ -442,6 +507,11 @@ function MCPHub:access_resource(server_name, uri, opts)
     )
     -- handle sync calls
     if opts.callback == nil then
+        utils.fire("MCPHubResourceEnd", {
+            server = server_name,
+            uri = uri,
+            success = err == nil,
+        })
         return (opts.parse_response == true and prompt_utils.parse_resource_response(response) or response), err
     end
 end
@@ -572,7 +642,13 @@ function MCPHub:load_config()
 end
 
 function MCPHub:handle_servers_updated()
-    State:emit("servers_updated", { prompt = self:get_active_servers_prompt(), hub = self })
+    -- Fire state change event with updated stats
+    self:emit_update()
+    -- Emit server update event with prompt
+    State:emit("servers_updated", {
+        prompt = self:get_active_servers_prompt(),
+        hub = self,
+    })
 end
 
 function MCPHub:handle_capability_updates(data)
@@ -598,6 +674,10 @@ function MCPHub:handle_capability_updates(data)
             break
         end
     end
+    -- Fire state change event with updated stats
+    self:emit_update()
+
+    -- Notify subscribers of state change
     State:notify_subscribers({
         server_state = true,
     }, "server")
@@ -681,6 +761,13 @@ function MCPHub:stop()
             pid = nil,
         },
     }, "server")
+
+    self:emit_update({
+        status = "disconnected",
+        active_servers = 0,
+        total_tools = 0,
+        total_resources = 0,
+    })
 
     -- Clear state
     self.ready = false

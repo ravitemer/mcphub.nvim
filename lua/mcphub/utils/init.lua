@@ -101,6 +101,16 @@ function M.format_token_count(count)
     end
 end
 
+--- Fire an autocommand event with data
+---@param name string The event name (without "User" prefix)
+---@param data? table Optional data to pass to the event
+function M.fire(name, data)
+    vim.api.nvim_exec_autocmds("User", {
+        pattern = name,
+        data = data,
+    })
+end
+
 --- Sort table keys recursively while preserving arrays
 ---@param tbl table The table to sort
 ---@return table sorted_tbl The sorted table

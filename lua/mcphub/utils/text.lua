@@ -15,6 +15,8 @@ M.HORIZONTAL_PADDING = 2
 M.highlights = hl.groups
 
 M.icons = {
+
+    tower = "󰐻",
     tool = "",
     resourceTemplate = "",
     resource = "",

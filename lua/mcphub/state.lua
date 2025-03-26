@@ -75,7 +75,7 @@ function State:reset()
         pid = nil,
         started_at = nil,
         servers = {},
-        native_servers = {},
+        native_servers = State.server_state.native_servers or {},
     }
     State.errors = {
         items = {},
