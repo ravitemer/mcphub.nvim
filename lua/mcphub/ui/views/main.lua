@@ -228,8 +228,7 @@ function MainView:handle_server_toggle()
     elseif type == "tool" and context and State.hub_instance then
         local server_name = context.server_name
         local is_native = native.is_native_server(server_name)
-        local tool_name = context.name
-
+        local tool_name = context.def.name
         local server_config = (
             is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
         ) or {}
@@ -497,7 +496,7 @@ function MainView:render()
         breadcrumb
             :append(self.active_capability.server_name, Text.highlights.muted)
             :append(" > ", Text.highlights.muted)
-            :append(self.active_capability.info.name, Text.highlights.info)
+            :append(self.active_capability.name, Text.highlights.info)
         table.insert(capability_view_lines, Text.pad_line(breadcrumb))
         table.insert(capability_view_lines, self:divider())
         -- Let capability render its content

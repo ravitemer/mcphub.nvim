@@ -79,21 +79,18 @@ function ResourceTemplateHandler:render(line_offset)
     local details = {
         NuiLine()
             :append("Name: ", highlights.muted)
-            :append(self.info.name or "N/A", self.info.name and highlights.success or highlights.muted),
-        NuiLine():append("Template: ", highlights.muted):append(self.info.uriTemplate, highlights.info),
+            :append(self.def.name or "N/A", self.def.name and highlights.success or highlights.muted),
+        NuiLine():append("Template: ", highlights.muted):append(self.def.uriTemplate, highlights.info),
     }
 
-    if self.info.mimeType then
-        table.insert(details, NuiLine():append("Type: ", highlights.muted):append(self.info.mimeType, highlights.info))
+    if self.def.mimeType then
+        table.insert(details, NuiLine():append("Type: ", highlights.muted):append(self.def.mimeType, highlights.info))
     end
 
     vim.list_extend(lines, self:render_section_content(details, 2))
 
-    -- Description if any
-    if self.info.description then
-        table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(self.info.description, highlights.muted), 2))
-    end
+    table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
+    vim.list_extend(lines, self:render_section_content(Text.multiline(self:get_description(), highlights.muted), 2))
 
     vim.list_extend(lines, self:render_section_end())
 

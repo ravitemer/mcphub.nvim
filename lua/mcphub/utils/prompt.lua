@@ -28,6 +28,19 @@ local function format_custom_instructions(server_name)
     return ""
 end
 
+local function get_description(def)
+    local description = def.description or ""
+    if type(description) == "function" then
+        local ok, desc = pcall(description, def)
+        if not ok then
+            description = "Failed to get description :" .. (desc or "")
+        else
+            description = desc or ""
+        end
+    end
+    return description
+end
+
 local function format_tools(tools)
     if not tools or #tools == 0 then
         return ""
@@ -35,7 +48,7 @@ local function format_tools(tools)
 
     local result = "\n\n### Available Tools"
     for i, tool in ipairs(tools) do
-        result = result .. string.format("\n\n- %s: %s", tool.name, tool.description or "")
+        result = result .. string.format("\n\n- %s: %s", tool.name, get_description(tool))
         if tool.inputSchema then
             result = result .. "\n    Input Schema:\n    " .. vim.inspect(tool.inputSchema):gsub("\n", "\n    ")
         end
@@ -61,15 +74,22 @@ local function format_resources(resources, templates)
         return ""
     end
     local result = "\n\n### Available Resources"
-    for i, resource in ipairs(resources) do
-        result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
+    for _, resource in ipairs(resources) do
+        result = result
+            .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
+        local desc = get_description(resource)
+        result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
+        -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
     end
     if not templates or #templates == 0 then
         return result
     end
     result = result .. "\n\n### Available Resource Templates"
     for _, template in ipairs(templates) do
-        result = result .. "\n\n" .. vim.inspect(remove_functions(template))
+        result = result .. string.format("\n\n- %s", template.uriTemplate)
+        local desc = get_description(template)
+        result = result .. "\n  " .. (template.name or "") .. (desc == "" and "" or "\n  " .. desc)
+        -- result = result .. "\n\n" .. vim.inspect(remove_functions(template))
     end
     return result
 end

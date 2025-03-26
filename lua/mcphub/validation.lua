@@ -472,19 +472,6 @@ function M.validate_native_server(def)
             ),
         }
     end
-
-    -- Validate capabilities
-    if def.capabilities.tools and type(def.capabilities.tools) ~= "table" then
-        return {
-            ok = false,
-            error = Error(
-                "SETUP",
-                Error.Types.SETUP.INVALID_CONFIG,
-                string.format("tools must be an array in native server '%s'", server_name)
-            ),
-        }
-    end
-
     -- Validate tools if present
     if def.capabilities.tools then
         for _, tool in ipairs(def.capabilities.tools) do

@@ -6,6 +6,7 @@ local Text = require("mcphub.utils.text")
 ---@class CapabilityHandler
 ---@field server_name string Name of the server this capability belongs to
 ---@field info table Raw capability info from the server
+---@field def table Definition of the capability
 ---@field state table Current state of the capability execution
 ---@field interactive_lines { line: number, type: string, context: any}[] List of interactive lines
 local CapabilityHandler = {
@@ -15,8 +16,10 @@ CapabilityHandler.__index = CapabilityHandler
 
 function CapabilityHandler:new(server_name, capability_info, view)
     local handler = setmetatable({
+        name = capability_info.def.name or capability_info.def.uri or capability_info.def.uriTemplate,
         server_name = server_name,
         info = capability_info,
+        def = capability_info.def or {},
         view = view,
         state = {
             is_executing = false,
@@ -189,6 +192,19 @@ function CapabilityHandler:handle_response(response, err)
         self.state.result = response
         self.state.error = nil
     end
+end
+
+function CapabilityHandler:get_description(def_description)
+    local description = def_description or self.def.description or ""
+    if type(description) == "function" then
+        local ok, desc = pcall(description, self.def)
+        if not ok then
+            description = "Failed to get description :" .. (desc or "")
+        else
+            description = "(" .. Text.icons.event .. " Dynamic) " .. (desc or "Nothing returned")
+        end
+    end
+    return description
 end
 
 -- Abstract methods to be implemented by subclasses

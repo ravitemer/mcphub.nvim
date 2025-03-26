@@ -103,11 +103,12 @@ function M.render_cap_section(items, title, server_name, type, current_line)
         table.insert(mappings, {
             line = current_line + #lines,
             type = type,
-            context = vim.tbl_extend("force", item, {
+            context = {
+                def = item,
                 server_name = server_name,
                 disabled = is_disabled,
                 hint = hint,
-            }),
+            },
         })
     end
 
