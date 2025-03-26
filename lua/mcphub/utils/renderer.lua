@@ -255,7 +255,13 @@ function M.render_server_line(server, active)
             )
         end
         if #server.capabilities.tools > 0 then
+            local current_tool_names = vim.tbl_map(function(tool)
+                return tool.name
+            end, server.capabilities.tools)
             local disabled_tools = server_config.disabled_tools or {}
+            disabled_tools = vim.tbl_filter(function(tool)
+                return vim.tbl_contains(current_tool_names, tool)
+            end, disabled_tools)
             local enabled_tools = #server.capabilities.tools - #disabled_tools
 
             line:append(" ", Text.highlights.muted):append(Text.icons.tool, Text.highlights.info):append(

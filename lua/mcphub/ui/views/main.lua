@@ -342,7 +342,12 @@ function MainView:render_servers_section(title, servers, config_source, current_
 
     -- If no servers in section
     if not servers or #servers == 0 then
-        table.insert(lines, Text.pad_line(NuiLine():append("No servers connected", Text.highlights.muted)))
+        table.insert(
+            lines,
+            Text.pad_line(
+                NuiLine():append("No servers connected " .. "(Install from Marketplace)", Text.highlights.muted)
+            )
+        )
         table.insert(lines, Text.empty_line())
         return lines, current_line + 2
     end

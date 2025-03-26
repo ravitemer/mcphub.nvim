@@ -43,26 +43,26 @@ function PromptsHandler:render(line_offset)
 
     -- Active Servers Section
     if prompts.active_servers then
-        vim.list_extend(lines, self:render_section_start("Active Servers Prompt", highlights.title))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(prompts.active_servers), 2))
-        vim.list_extend(lines, self:render_section_end())
+        table.insert(lines, Text.pad_line(NuiLine():append("Active Servers Prompt", highlights.title)))
         table.insert(lines, Text.empty_line())
+        vim.list_extend(lines, vim.tbl_map(Text.pad_line, Text.multiline(prompts.active_servers, highlights.muted)))
+        -- vim.list_extend(lines, self:render_section_end())
     end
 
-    -- Tool Usage Section
-    if prompts.use_mcp_tool then
-        vim.list_extend(lines, self:render_section_start("Tool Usage Prompt", highlights.title))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(prompts.use_mcp_tool), 2))
-        vim.list_extend(lines, self:render_section_end())
-        table.insert(lines, Text.empty_line())
-    end
+    -- -- Tool Usage Section
+    -- if prompts.use_mcp_tool then
+    --     vim.list_extend(lines, self:render_section_start("Tool Usage Prompt", highlights.title))
+    --     vim.list_extend(lines, self:render_section_content(Text.multiline(prompts.use_mcp_tool), 2))
+    --     vim.list_extend(lines, self:render_section_end())
+    --     table.insert(lines, Text.empty_line())
+    -- end
 
-    -- Resource Access Section
-    if prompts.access_mcp_resource then
-        vim.list_extend(lines, self:render_section_start("Resource Access Prompt", highlights.title))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(prompts.access_mcp_resource), 2))
-        vim.list_extend(lines, self:render_section_end())
-    end
+    -- -- Resource Access Section
+    -- if prompts.access_mcp_resource then
+    --     vim.list_extend(lines, self:render_section_start("Resource Access Prompt", highlights.title))
+    --     vim.list_extend(lines, self:render_section_content(Text.multiline(prompts.access_mcp_resource), 2))
+    --     vim.list_extend(lines, self:render_section_end())
+    -- end
 
     return lines
 end
