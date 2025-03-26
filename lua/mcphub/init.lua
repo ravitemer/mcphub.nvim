@@ -30,14 +30,11 @@ function M.setup(opts)
         setup_state = "in_progress",
     }, "setup")
 
-    -- Get built-in native servers
-    local builtin_native_servers = require("mcphub.native.builtin")
-
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
         port = 37373, -- Default port for MCP Hub
         config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
-        native_servers = builtin_native_servers,
+        native_servers = {},
         use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
         cmd = "mcp-hub",
         cmdArgs = {},
@@ -108,13 +105,16 @@ function M.setup(opts)
         State.servers_config = file_result.json.mcpServers
         State.native_servers_config = file_result.json.nativeMCPServers or {}
     end
+    local Native = require("mcphub.native")
+    Native.setup()
     -- Initialize native servers if any provided in setup config
     if config.native_servers then
-        local Native = require("mcphub.native")
         for name, def in pairs(config.native_servers) do
-            -- Add name if not provided
-            def.name = def.name or name
-            Native.register(def)
+            local server = Native.register(def)
+            if server then
+                -- make sure the server name is set to key
+                server.name = name
+            end
         end
     end
 

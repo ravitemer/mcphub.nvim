@@ -236,19 +236,6 @@ function M.get_bundled_mcp_path()
     return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
 end
 
----@param bufnr nil|integer
----@return string
-M.get_filetype = function(bufnr)
-    bufnr = bufnr or 0
-    local ft = vim.api.nvim_buf_get_option(bufnr, "filetype")
-
-    if ft == "cpp" then
-        return "C++"
-    end
-
-    return ft
-end
-
 function M.safe_get(tbl, path)
     -- Handle nil input
     if tbl == nil then
@@ -281,7 +268,8 @@ function M.safe_get(tbl, path)
 end
 
 function M.parse_context(caller)
-    local bufnr = 0
+    local bufnr = nil
+    local context = {}
     local type = caller.type
     local meta = caller.meta or {}
     if type == "codecompanion" then
@@ -296,11 +284,11 @@ function M.parse_context(caller)
     elseif type == "avante" then
         bufnr = M.safe_get(caller, "avante.code.bufnr") or 0
     elseif type == "hubui" then
-        bufnr = M.safe_get(caller, "hubui.context.bufnr") or 0
+        context = M.safe_get(caller, "hubui.context") or {}
     end
-    return {
+    return vim.tbl_extend("force", {
         bufnr = bufnr,
-    }
+    }, context)
 end
 
 ---@param mode string
@@ -343,7 +331,7 @@ function M.get_buf_info(bufnr, args)
         is_visual = is_visual,
         is_normal = is_normal,
         buftype = vim.api.nvim_buf_get_option(bufnr, "buftype") or "",
-        filetype = M.get_filetype(bufnr),
+        filetype = vim.api.nvim_buf_get_option(bufnr, "filetype") or "",
         filename = vim.api.nvim_buf_get_name(bufnr),
         cursor_pos = cursor_pos,
         lines = lines,

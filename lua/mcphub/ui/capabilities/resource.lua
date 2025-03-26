@@ -33,7 +33,7 @@ function ResourceHandler:execute()
     if State.hub_instance then
         State.hub_instance:access_resource(self.server_name, self.def.uri, {
             caller = {
-                name = "hubui",
+                type = "hubui",
                 hubui = State.ui_instance,
             },
             parse_response = true,
