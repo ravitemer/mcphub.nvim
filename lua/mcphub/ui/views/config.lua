@@ -7,7 +7,7 @@ local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.validation")
+local validation = require("mcphub.utils.validation")
 
 ---@class ConfigView
 ---@field super View

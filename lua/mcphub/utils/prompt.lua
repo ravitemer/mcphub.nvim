@@ -7,7 +7,7 @@ local M = {}
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
-local validation = require("mcphub.validation")
+local validation = require("mcphub.utils.validation")
 
 local function get_header()
     return [[
@@ -329,7 +329,7 @@ function M.get_marketplace_server_prompt(details)
     local servers_path = home .. "/.mcphub/servers"
 
     -- Get current config content
-    local config_result = require("mcphub.validation").validate_config_file(details.config_file)
+    local config_result = validation.validate_config_file(details.config_file)
     local config_content = config_result.content or "{}"
 
     -- Build installation prompt

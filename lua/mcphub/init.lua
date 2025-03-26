@@ -1,4 +1,4 @@
-local Error = require("mcphub.errors")
+local Error = require("mcphub.utils.errors")
 local ImageCache = require("mcphub.utils.image_cache")
 local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
@@ -6,8 +6,8 @@ local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.validation")
-local version = require("mcphub.version")
+local validation = require("mcphub.utils.validation")
+local version = require("mcphub.utils.version")
 
 local M = {
     is_native_server = native.is_native_server,

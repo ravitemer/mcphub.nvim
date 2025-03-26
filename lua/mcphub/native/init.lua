@@ -1,8 +1,7 @@
-local Error = require("mcphub.errors")
 local NativeServer = require("mcphub.native.utils.server")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
-local validate = require("mcphub.validation")
+local validate = require("mcphub.utils.validation")
 
 ---@class NativeManager
 local Native = {}

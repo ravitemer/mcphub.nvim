@@ -1,4 +1,4 @@
-local Error = require("mcphub.errors")
+local Error = require("mcphub.utils.errors")
 local Job = require("plenary.job")
 local State = require("mcphub.state")
 local curl = require("plenary.curl")
@@ -7,7 +7,7 @@ local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
 local prompt_utils = require("mcphub.utils.prompt")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.validation")
+local validation = require("mcphub.utils.validation")
 
 -- Default timeouts
 local QUICK_TIMEOUT = 1000 -- 1s for quick operations like health checks

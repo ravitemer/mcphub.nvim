@@ -2,8 +2,8 @@
 --- Validation utilities for MCPHub
 --- Handles configuration and input validation
 ---@brief ]]
-local Error = require("mcphub.errors")
-local version = require("mcphub.version")
+local Error = require("mcphub.utils.errors")
+local version = require("mcphub.utils.version")
 
 local M = {}
 

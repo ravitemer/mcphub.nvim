@@ -5,7 +5,7 @@ local Text = require("mcphub.utils.text")
 local highlights = require("mcphub.utils.highlights").groups
 local Handlers = require("mcphub.utils.handlers")
 local log = require("mcphub.utils.log")
-local validation = require("mcphub.validation")
+local validation = require("mcphub.utils.validation")
 
 ---@class ToolHandler : CapabilityHandler
 ---@field super CapabilityHandler
