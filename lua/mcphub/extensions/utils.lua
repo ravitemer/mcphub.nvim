@@ -28,18 +28,24 @@ function M.setup_codecompanion_variables(enabled)
             if type(description) == "function" then
                 local ok, desc = pcall(description, resource)
                 if ok then
-                    description = desc
+                    description = desc or ""
                 else
-                    description = "Error in description function: " .. desc
+                    description = "Error in description function: " .. (desc or "")
                 end
             end
             description = resource_name .. "\n\n" .. description
             cc_variables[uri] = {
                 id = "mcp" .. server_name .. uri,
                 description = description,
-                callback = function()
+                callback = function(self)
                     -- this is sync and will block the UI (can't use async in variables yet)
-                    local response = hub:access_resource(server_name, uri, { parse_response = true })
+                    local response = hub:access_resource(server_name, uri, {
+                        caller = {
+                            type = "codecompanion",
+                            codecompanion = self,
+                        },
+                        parse_response = true,
+                    })
                     return response.text
                 end,
             }

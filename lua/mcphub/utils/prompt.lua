@@ -5,7 +5,9 @@
 ---@brief ]]
 local M = {}
 local State = require("mcphub.state")
+local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
+local validation = require("mcphub.validation")
 
 local function get_header()
     return [[
@@ -28,7 +30,7 @@ local function format_custom_instructions(server_name)
     return ""
 end
 
-local function get_description(def)
+function M.get_description(def)
     local description = def.description or ""
     if type(description) == "function" then
         local ok, desc = pcall(description, def)
@@ -41,17 +43,45 @@ local function get_description(def)
     return description
 end
 
+function M.get_inputSchema(def)
+    local base = {
+        type = "object",
+        properties = {},
+    }
+    local inputSchema = def.inputSchema
+    if not inputSchema or (type(inputSchema) == "table" and not next(inputSchema)) then
+        inputSchema = base
+    end
+    local parsedSchema = inputSchema
+    if type(parsedSchema) == "function" then
+        local ok, schema = pcall(parsedSchema, def)
+        if not ok then
+            local err = "Error in inputSchema function: " .. tostring(schema)
+            log.error(err)
+            parsedSchema = base
+        else
+            parsedSchema = schema or base
+        end
+    end
+    local res = validation.validate_inputSchema(parsedSchema, def.name)
+    if not res.ok then
+        local err = "Error in inputSchema function: " .. tostring(res.error)
+        log.error(err)
+        return base
+    end
+    return parsedSchema
+end
+
 local function format_tools(tools)
     if not tools or #tools == 0 then
         return ""
     end
 
     local result = "\n\n### Available Tools"
-    for i, tool in ipairs(tools) do
-        result = result .. string.format("\n\n- %s: %s", tool.name, get_description(tool))
-        if tool.inputSchema then
-            result = result .. "\n    Input Schema:\n    " .. vim.inspect(tool.inputSchema):gsub("\n", "\n    ")
-        end
+    for _, tool in ipairs(tools) do
+        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool))
+        local inputSchema = M.get_inputSchema(tool)
+        result = result .. "\n    Input Schema:\n    " .. vim.inspect(inputSchema):gsub("\n", "\n    ")
     end
     return result
 end
@@ -77,7 +107,7 @@ local function format_resources(resources, templates)
     for _, resource in ipairs(resources) do
         result = result
             .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
-        local desc = get_description(resource)
+        local desc = M.get_description(resource)
         result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
         -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
     end
@@ -87,7 +117,7 @@ local function format_resources(resources, templates)
     result = result .. "\n\n### Available Resource Templates"
     for _, template in ipairs(templates) do
         result = result .. string.format("\n\n- %s", template.uriTemplate)
-        local desc = get_description(template)
+        local desc = M.get_description(template)
         result = result .. "\n  " .. (template.name or "") .. (desc == "" and "" or "\n  " .. desc)
         -- result = result .. "\n\n" .. vim.inspect(remove_functions(template))
     end

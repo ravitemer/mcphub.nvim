@@ -16,7 +16,9 @@ CapabilityHandler.__index = CapabilityHandler
 
 function CapabilityHandler:new(server_name, capability_info, view)
     local handler = setmetatable({
-        name = capability_info.def.name or capability_info.def.uri or capability_info.def.uriTemplate,
+        name = capability_info.def
+                and (capability_info.def.name or capability_info.def.uri or capability_info.def.uriTemplate)
+            or (capability_info.name or ""),
         server_name = server_name,
         info = capability_info,
         def = capability_info.def or {},

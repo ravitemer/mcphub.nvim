@@ -331,6 +331,32 @@ local function validate_property(value, prop_type, name, error_type, object_id, 
     return { ok = true }
 end
 
+--the inputSchema will be evaluated if it is a function and is obj is validated
+function M.validate_inputSchema(inputSchema, tool_name)
+    if not inputSchema then
+        return { ok = true }
+    end
+    -- Check inputSchema structure
+    local function validate_schema(schema)
+        if schema.type ~= "object" then
+            return false, "type must be 'object'"
+        end
+        if not schema.properties or type(schema.properties) ~= "table" then
+            return false, "must have a properties table"
+        end
+        return true
+    end
+
+    return validate_property(
+        inputSchema,
+        "table",
+        "Input schema",
+        Error.Types.NATIVE.INVALID_SCHEMA,
+        tool_name or "",
+        validate_schema
+    )
+end
+
 --- Validate a tool definition
 ---@param tool table Tool definition to validate
 ---@return ValidationResult
@@ -347,39 +373,6 @@ function M.validate_tool(tool)
     if not handler_result.ok then
         return handler_result
     end
-
-    -- Validate inputSchema if present
-    if tool.inputSchema then
-        local schema_result =
-            validate_property(tool.inputSchema, "table", "Input schema", Error.Types.NATIVE.INVALID_SCHEMA, tool.name)
-        if not schema_result.ok then
-            return schema_result
-        end
-
-        -- Check inputSchema structure
-        local function validate_schema(schema)
-            if schema.type ~= "object" then
-                return false, "type must be 'object'"
-            end
-            if not schema.properties or type(schema.properties) ~= "table" then
-                return false, "must have a properties table"
-            end
-            return true
-        end
-
-        local schema_struct = validate_property(
-            tool.inputSchema,
-            "table",
-            "Input schema",
-            Error.Types.NATIVE.INVALID_SCHEMA,
-            tool.name,
-            validate_schema
-        )
-        if not schema_struct.ok then
-            return schema_struct
-        end
-    end
-
     return { ok = true }
 end
 
