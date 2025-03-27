@@ -17,7 +17,7 @@ local function parse_params(action)
     end
     local uri = action.uri
     return {
-        action_name = action_name,
+        action = action_name,
         server_name = server_name,
         tool_name = tool_name,
         uri = uri,
@@ -31,7 +31,7 @@ local tool_schema = {
         function(self, action, input, output_handler)
             local hub = require("mcphub").get_hub_instance()
             local params = parse_params(action)
-            if params.action_name == "use_mcp_tool" then
+            if params.action == "use_mcp_tool" then
                 --use async call_tool method
                 hub:call_tool(params.server_name, params.tool_name, params.arguments, {
                     caller = {
@@ -47,7 +47,7 @@ local tool_schema = {
                         end
                     end,
                 })
-            elseif params.action_name == "access_mcp_resource" then
+            elseif params.action == "access_mcp_resource" then
                 -- use async access_resource method
                 hub:access_resource(params.server_name, params.uri, {
                     caller = {
