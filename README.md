@@ -7,6 +7,54 @@
 
 A powerful Neovim plugin that integrates MCP (Model Context Protocol) servers into your workflow. Configure and manage MCP servers through a centralized config file while providing an intuitive UI for browsing, installing and testing tools and resources. Perfect for LLM integration, offering both programmatic API access and interactive testing capabilities through the `:MCPHub` command.
 
+```mermaid
+graph TD
+subgraph "MCP Servers"
+subgraph "Native MCP Servers"
+N1["Buffer (Tools)"]
+N2["LSP (Resources)"]
+end
+subgraph "Community"
+C1["GitHub (Tools )"]
+C2["Figma (Tools)"]
+end
+end
+
+H[MCPHub]
+M["@mcp tool + MCP Servers in text representation"]
+
+subgraph "Chat Plugins"
+A["Avante + @mcp tool"]
+CC["CodeCompanion + @mcp tool"]
+O[Others + @mcp tool]
+end
+
+subgraph "LLM Providers"
+OAI[OpenAI]
+AC[Anthropic/Claude]
+M1[Mistral]
+G[Grok]
+D[DeepSeek]
+end
+
+%% MCP Servers provide capabilities
+N1 & N2 --> H
+C1 & C2 --> H
+
+%% MCPHub transforms capabilities into system prompt
+H --> M
+
+%% Tools to plugins
+M --> A
+M --> CC
+M --> O
+
+%% Plugin to LLM connections
+A --> OAI & AC
+CC --> M1 & G
+O --> D
+```
+
 <div align="center">
 <p>
 <h4>MCP Hub UI</h4>
@@ -258,6 +306,8 @@ MCPHub.nvim provides extensions that integrate with popular Neovim chat plugins.
 
 Add MCP capabilities to Avante by including the MCP tool in your setup:
 
+> Set `vim.g.mcphub_auto_approve = true` to automatically approve tool requests. 
+
 ```lua
 require("avante").setup({
     -- other config
@@ -274,11 +324,15 @@ require("avante").setup({
     end,
     })
 ```
+
+
 ⚠️ **Tool Conflicts**: [Disable any built-in Avante tools](https://github.com/yetone/avante.nvim#disable-tools) that might conflict with enabled MCP servers to prevent duplicate functionality or unexpected behavior.
 
 ### CodeCompanion 
 
 Add MCP capabilities to CodeCompanion.
+
+> Set `vim.g.codecompanion_auto_tool_mode = true` or use `gta` in the chat to automatically approve tool requests.
 
 ```lua
   require("codecompanion").setup({
@@ -298,6 +352,7 @@ Add MCP capabilities to CodeCompanion.
     }
   })
 ```
+
 
 ### Lualine 
 

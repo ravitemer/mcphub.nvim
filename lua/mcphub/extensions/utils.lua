@@ -55,6 +55,44 @@ function M.setup_codecompanion_variables(enabled)
         end
     end)
 end
+function M.get_mcp_tool_prompt(params)
+    local action_name = params.action
+    local server_name = params.server_name
+    local tool_name = params.tool_name
+    local uri = params.uri
+    local arguments = params.arguments or {}
+
+    local args = ""
+    for k, v in pairs(arguments) do
+        args = args .. k .. ":\n "
+        if type(v) == "string" then
+            local lines = vim.split(v, "\n")
+            for _, line in ipairs(lines) do
+                args = args .. line .. "\n"
+            end
+        else
+            args = args .. vim.inspect(v) .. "\n"
+        end
+    end
+    local msg = ""
+    if action_name == "use_mcp_tool" then
+        msg = string.format(
+            [[Do you want to run the `%s` tool on the `%s` mcp server with arguments: 
+%s]],
+            tool_name,
+            server_name,
+            args
+        )
+    elseif action_name == "access_mcp_resource" then
+        msg = string.format("Do you want to access the resource `%s` on the `%s` server?", uri, server_name)
+    end
+    return msg
+end
+function M.show_mcp_tool_prompt(params)
+    local msg = M.get_mcp_tool_prompt(params)
+    local confirm = vim.fn.confirm(msg, "&Yes\n&No", 2)
+    return confirm == 1
+end
 
 function M.setup_codecompanion_tools(enabled)
     if not enabled then
