@@ -283,8 +283,15 @@ end
 function M.parse_context(caller)
     local bufnr = 0
     local type = caller.type
+    local meta = caller.meta or {}
     if type == "codecompanion" then
-        local chat = M.safe_get(caller, "codecompanion.chat")
+        local is_within_variable = meta.is_within_variable == true
+        local chat
+        if is_within_variable then
+            chat = M.safe_get(caller, "codecompanion.Chat") or M.safe_get(caller, "codecompanion.inline")
+        else
+            chat = M.safe_get(caller, "codecompanion.chat")
+        end
         bufnr = M.safe_get(chat, "context.bufnr") or 0
     elseif type == "avante" then
         bufnr = M.safe_get(caller, "avante.code.bufnr") or 0

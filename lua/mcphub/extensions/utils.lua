@@ -43,6 +43,9 @@ function M.setup_codecompanion_variables(enabled)
                         caller = {
                             type = "codecompanion",
                             codecompanion = self,
+                            meta = {
+                                is_within_variable = true,
+                            },
                         },
                         parse_response = true,
                     })
