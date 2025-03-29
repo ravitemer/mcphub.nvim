@@ -4,6 +4,7 @@ local mcphub = require("mcphub")
 local buffer_resource = require("mcphub.native.neovim.files.buffer")
 local environment_resource = require("mcphub.native.neovim.files.environment")
 local file_tools = require("mcphub.native.neovim.files.operations")
+local write_tools = require("mcphub.native.neovim.files.write")
 -- local replace_tools = require("mcphub.native.neovim.files.replace")
 local search_tools = require("mcphub.native.neovim.files.search")
 
@@ -15,6 +16,11 @@ local function setup()
 
     -- Register file operation tools
     for _, tool in ipairs(file_tools) do
+        mcphub.add_tool("neovim", tool)
+    end
+
+    -- Register write tools
+    for _, tool in ipairs(write_tools) do
         mcphub.add_tool("neovim", tool)
     end
 
