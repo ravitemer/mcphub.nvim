@@ -18,6 +18,9 @@ end
 
 -- Core write file logic
 local function handle_write_file(req, res)
+    if not req.params.path or not req.params.contents then
+        return res:error("Missing required parameters: path and contents")
+    end
     local p = Path:new(req.params.path)
     local path = p:absolute()
 
@@ -57,7 +60,6 @@ local function handle_write_file(req, res)
         end
 
         target_win = vim.api.nvim_get_current_win()
-        vim.cmd("edit " .. path)
     end
 
     vim.api.nvim_set_current_win(target_win)
@@ -181,36 +183,32 @@ local function handle_write_file(req, res)
     })
 end
 
-local write_tools = {
-    {
-        name = "write_file",
-        description = "Write content to a file (opens diff for review)",
-        inputSchema = {
-            type = "object",
-            properties = {
-                path = {
-                    type = "string",
-                    description = "Path to the file to write",
-                },
-                contents = {
-                    type = "string",
-                    description = "Content to write to the file",
-                },
+return {
+    name = "write_file",
+    description = "Write content to a file (opens diff for review)",
+    inputSchema = {
+        type = "object",
+        properties = {
+            path = {
+                type = "string",
+                description = "Path to the file to write",
             },
-            required = { "path", "contents" },
+            contents = {
+                type = "string",
+                description = "Content to write to the file",
+            },
         },
-        handler = function(req, res)
-            table.insert(write_queue, {
-                req = req,
-                res = res,
-                handler = handle_write_file,
-            })
-
-            if not is_processing then
-                process_next_write()
-            end
-        end,
+        required = { "path", "contents" },
     },
-}
+    handler = function(req, res)
+        table.insert(write_queue, {
+            req = req,
+            res = res,
+            handler = handle_write_file,
+        })
 
-return write_tools
+        if not is_processing then
+            process_next_write()
+        end
+    end,
+}
