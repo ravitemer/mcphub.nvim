@@ -1,5 +1,3 @@
-local api = vim.api
-local uv = vim.loop
 local M = {}
 
 function M.get_directory_info(path)
@@ -78,11 +76,25 @@ function M.get_editor_info()
             local buffer_info = {
                 bufnr = buf.bufnr,
                 name = buf.name,
+                filename = buf.name,
                 is_visible = #buf.windows > 0,
                 is_modified = buf.changed == 1,
                 is_loaded = buf.loaded == 1,
                 lastused = buf.lastused,
+                windows = buf.windows,
+                winnr = buf.windows[1], -- Primary window showing this buffer
             }
+
+            -- Add cursor info for currently visible buffers
+            if buffer_info.is_visible then
+                local win = buffer_info.winnr
+                local cursor = vim.api.nvim_win_get_cursor(win)
+                buffer_info.cursor_pos = cursor
+            end
+
+            -- Add additional buffer info
+            buffer_info.filetype = vim.api.nvim_buf_get_option(buf.bufnr, "filetype")
+            buffer_info.line_count = vim.api.nvim_buf_line_count(buf.bufnr)
 
             table.insert(valid_buffers, buffer_info)
 
@@ -104,5 +116,4 @@ function M.get_editor_info()
         buffers = valid_buffers,
     }
 end
-
 return M

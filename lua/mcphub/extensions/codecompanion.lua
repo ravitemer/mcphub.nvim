@@ -9,14 +9,27 @@ local function parse_params(action)
     local action_name = action._attr.type
     local server_name = action.server_name
     local tool_name = action.tool_name
-    local json_ok, arguments = pcall(vim.fn.json_decode, action.arguments or "{}")
+    local uri = action.uri
+    local arguments = nil
+    local json_ok, decode_result = pcall(vim.fn.json_decode, action.arguments or "{}")
+    local errors = {}
+    if not server_name then
+        table.insert(errors, "Server name is required")
+    end
+    if action_name == "use_mcp_tool" and not tool_name then
+        table.insert(errors, "Tool name is required")
+    end
+    if action_name == "access_mcp_resource" and not uri then
+        table.insert(errors, "URI is required")
+    end
     if json_ok then
-        arguments = arguments or {}
+        arguments = decode_result or {}
     else
+        table.insert(errors, decode_result)
         arguments = {}
     end
-    local uri = action.uri
     return {
+        errors = errors,
         action = action_name,
         server_name = server_name,
         tool_name = tool_name,
@@ -31,6 +44,12 @@ local tool_schema = {
         function(self, action, input, output_handler)
             local hub = require("mcphub").get_hub_instance()
             local params = parse_params(action)
+            if #params.errors > 0 then
+                return {
+                    status = "error",
+                    data = table.concat(params.errors, "\n"),
+                }
+            end
             if params.action == "use_mcp_tool" then
                 --use async call_tool method
                 hub:call_tool(params.server_name, params.tool_name, params.arguments, {

@@ -47,6 +47,9 @@ M.icons = {
     edit = "󰏫",
     instructions = "",
 
+    file = "",
+    folder = "",
+
     -- Error type icons
     setup_error = "",
     server_error = "",

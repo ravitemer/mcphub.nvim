@@ -303,26 +303,72 @@ end
 ---@return table
 function M.get_buf_info(bufnr, args)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
-    local winnr = vim.api.nvim_get_current_win()
-    local mode = vim.fn.mode()
-    local cursor_pos = vim.api.nvim_win_get_cursor(winnr)
 
-    local lines, start_line, start_col, end_line, end_col =
-        {}, cursor_pos[1], cursor_pos[2], cursor_pos[1], cursor_pos[2]
+    -- Validate buffer
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+        error("Invalid buffer number: " .. tostring(bufnr))
+    end
+
+    -- Find the window displaying this buffer
+    local winnr
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_get_buf(win) == bufnr then
+            winnr = win
+            break
+        end
+    end
+
+    -- Fallback to current window if buffer isn't displayed
+    if not winnr then
+        winnr = vim.api.nvim_get_current_win()
+    end
+    local mode = vim.fn.mode()
+    local cursor_pos = { 1, 0 } -- Default to start of buffer
+
+    -- Only get cursor position if we have a valid window
+    if winnr and vim.api.nvim_win_is_valid(winnr) then
+        local ok, pos = pcall(vim.api.nvim_win_get_cursor, winnr)
+        if ok then
+            cursor_pos = pos
+        end
+    end
+
+    -- Get all buffer lines for context
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local start_line = cursor_pos[1]
+    local start_col = cursor_pos[2]
+    local end_line = cursor_pos[1]
+    local end_col = cursor_pos[2]
 
     local is_visual = false
     local is_normal = true
 
-    if args and args.range and args.range > 0 then
-        is_visual = true
-        is_normal = false
-        mode = "v"
-        lines, start_line, start_col, end_line, end_col = M.get_visual_selection(bufnr)
-    elseif is_visual_mode(mode) then
-        is_visual = true
-        is_normal = false
-        lines, start_line, start_col, end_line, end_col = M.get_visual_selection(bufnr)
+    local function try_get_visual_selection()
+        local ok, result = pcall(function()
+            if args and args.range and args.range > 0 then
+                is_visual = true
+                is_normal = false
+                mode = "v"
+                return M.get_visual_selection(bufnr)
+            elseif is_visual_mode(mode) then
+                is_visual = true
+                is_normal = false
+                return M.get_visual_selection(bufnr)
+            end
+            return lines, start_line, start_col, end_line, end_col
+        end)
+
+        if not ok then
+            -- Fallback to current cursor position on error
+            vim.notify("Failed to get visual selection: " .. tostring(result), vim.log.levels.WARN)
+            is_visual = false
+            is_normal = true
+            return lines, start_line, start_col, end_line, end_col
+        end
+        return result
     end
+
+    lines, start_line, start_col, end_line, end_col = try_get_visual_selection()
 
     return {
         winnr = winnr,

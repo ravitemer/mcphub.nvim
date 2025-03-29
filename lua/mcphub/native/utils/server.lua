@@ -1,6 +1,7 @@
 local Request = require("mcphub.native.utils.request")
 local Response = require("mcphub.native.utils.response")
 local State = require("mcphub.state")
+local buf_utils = require("mcphub.native.neovim.utils.buffer")
 local log = require("mcphub.utils.log")
 
 ---@class NativeServer
@@ -17,10 +18,15 @@ NativeServer.__index = NativeServer
 local TIMEOUT = 5 -- seconds
 
 -- Helper function to extract params from uri using template
+-- Note: Parameter values containing slashes (/) or special characters must be URL encoded
+-- Example: For a template "file/read/{path}"
+--   - "file/read/home%2Fuser%2Ffile.txt" ✓ (correctly encoded)
+--   - "file/read/home/user/file.txt"     ✗ (will not match)
+
 local function extract_params(uri, template)
     local params = {}
 
-    -- Convert template into pattern
+    -- Convert template into pattern with url-encoded char support
     local pattern = template:gsub("{([^}]+)}", "([^/]+)")
 
     -- Get param names from template
@@ -35,9 +41,13 @@ local function extract_params(uri, template)
         return nil
     end
 
-    -- Map matched values to param names
+    -- Map matched values to param names and decode them
     for i, name in ipairs(names) do
-        params[name] = values[i]
+        -- URL decode the parameter value
+        local decoded = values[i]:gsub("%%(%x%x)", function(hex)
+            return string.char(tonumber(hex, 16))
+        end)
+        params[name] = decoded
     end
 
     return params
@@ -176,12 +186,14 @@ function NativeServer:call_tool(name, arguments, opts)
         return output_handler(nil, err)
     end
 
+    local editor_info = buf_utils.get_editor_info()
     -- Create req/res objects with full context
     local req = Request.ToolRequest:new({
         server = self,
         tool = tool,
         arguments = arguments,
         caller = opts.caller,
+        editor_info = editor_info,
     })
     local res = Response.ToolResponse:new(output_handler)
 
@@ -251,12 +263,14 @@ function NativeServer:access_resource(uri, opts)
         return output_handler(nil, err)
     end
 
+    local editor_info = buf_utils.get_editor_info()
     -- Create req/res objects with full context
     local req = Request.ResourceRequest:new({
         server = self,
         resource = resource,
         uri = uri,
         template = resource.uriTemplate,
+        editor_info = editor_info,
         params = params,
         caller = opts.caller,
     })
