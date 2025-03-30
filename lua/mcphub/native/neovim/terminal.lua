@@ -1,80 +1,6 @@
 local api = vim.api
+local Path = require("plenary.path")
 local mcphub = require("mcphub")
--- local lazy = require("toggleterm.lazy")
--- local ui = lazy.require("toggleterm.ui")
--- local Terminal = require("toggleterm.terminal").Terminal
-
--- -- Tool to execute shell commands in terminal
--- mcphub.add_tool("neovim", {
---     name = "execute_in_terminal",
---     description = "Execute a command in a floating terminal and return the output",
---     inputSchema = {
---         type = "object",
---         properties = {
---             command = {
---                 type = "string",
---                 description = "Command to execute",
---                 examples = { "ls -la", "echo 'Hello World'" },
---             },
---         },
---         required = { "command" },
---     },
---     handler = function(req, res)
---         local command = req.params.command
---         local output = {}
-
---         -- Create terminal without initial command to show shell prompt
---         local term = Terminal:new({
---             direction = "float",
---             float_opts = {
---                 border = "single",
---                 width = 80,
---                 height = 20,
---             },
---             on_stdout = function(_, job, data)
---                 if data then
---                     for _, line in ipairs(data) do
---                         if line ~= "" then
---                             table.insert(output, line)
---                         end
---                     end
---                 end
---             end,
---             on_stderr = function(_, job, data)
---                 if data then
---                     for _, line in ipairs(data) do
---                         if line ~= "" then
---                             table.insert(output, "ERROR: " .. line)
---                         end
---                     end
---                 end
---             end,
---             close_on_exit = false, -- Keep terminal open
---         })
-
---         -- Open terminal first to show shell prompt
---         term:open()
-
---         -- Give a small delay for shell to initialize
---         vim.defer_fn(function()
---             -- Send command to terminal
---             term:send(command)
---         end, 100)
-
---         -- Wait for command to complete
---         vim.wait(5000, function()
---             return not term:is_running()
---         end, 100)
-
---         -- Convert output table to string
---         local result = table.concat(output, "\n")
---         if result == "" then
---             result = "Command executed. (No output)"
---         end
-
---         return res:text(result):send()
---     end,
--- })
 
 -- Tool to execute Lua code using nvim_exec2
 mcphub.add_tool("neovim", {
@@ -154,6 +80,124 @@ EOF]],
             return res:text(result.output):send()
         else
             return res:text("Code executed successfully. (No output)"):send()
+        end
+    end,
+})
+
+-- Tool to execute shell commands using jobstart
+mcphub.add_tool("neovim", {
+    name = "execute_command",
+    description = [[Execute a shell command using vim.fn.jobstart and return the result.
+    
+Command Execution Guide:
+1. Commands run in a separate process
+2. Output is captured and returned when command completes
+3. Environment is inherited from Neovim
+4. Working directory must be specified]],
+
+    inputSchema = {
+        type = "object",
+        properties = {
+            command = {
+                type = "string",
+                description = "Shell command to execute",
+                examples = [["ls -la"]],
+            },
+            cwd = {
+                type = "string",
+                description = "Working directory for the command",
+                default = ".",
+            },
+        },
+        required = { "command", "cwd" },
+    },
+    handler = function(req, res)
+        local command = req.params.command
+        local cwd = req.params.cwd
+
+        if not command or command == "" then
+            return res:error("command field is required and cannot be empty.")
+        end
+
+        if not cwd or cwd == "" then
+            return res:error("cwd field is required and cannot be empty.")
+        end
+
+        -- Use Plenary Path to handle the path
+        local path = Path:new(cwd)
+
+        -- Check if the directory exists
+        if not path:exists() then
+            return res:error("Directory does not exist: " .. cwd)
+        end
+
+        -- Make sure it's a directory
+        if not path:is_dir() then
+            return res:error("Path is not a directory: " .. cwd)
+        end
+
+        local absolute_path = path:absolute()
+        local output = ""
+        local stderr_output = ""
+
+        local options = {
+            cwd = absolute_path,
+            on_stdout = function(_, data)
+                if data then
+                    for _, line in ipairs(data) do
+                        if line ~= "" then
+                            output = output .. line .. "\n"
+                        end
+                    end
+                end
+            end,
+            on_stderr = function(_, data)
+                if data then
+                    for _, line in ipairs(data) do
+                        if line ~= "" then
+                            stderr_output = stderr_output .. line .. "\n"
+                        end
+                    end
+                end
+            end,
+            on_exit = function(_, exit_code)
+                local result = ""
+
+                -- Add command information
+                result = result .. "Command: " .. command .. "\n"
+                result = result .. "Working Directory: " .. absolute_path .. "\n"
+                result = result .. "Exit Code: " .. exit_code .. "\n"
+
+                -- Add stdout if there's any output
+                if output ~= "" then
+                    result = result .. "Output:\n\n" .. output
+                end
+
+                -- Add stderr if there's any error output
+                if stderr_output ~= "" then
+                    result = result .. "\nError Output:\n" .. stderr_output
+                end
+
+                -- If no output was captured at all
+                if output == "" and stderr_output == "" then
+                    result = result .. "Command completed with no output."
+                end
+
+                res:text(result):send()
+            end,
+        }
+
+        -- Start the job
+        local job_id = vim.fn.jobstart(command, options)
+
+        if job_id <= 0 then
+            local error_msg
+            if job_id == 0 then
+                error_msg = "Invalid arguments for jobstart"
+            else -- job_id == -1
+                error_msg = "Command is not executable"
+            end
+            return res:error(error_msg)
         end
     end,
 })
