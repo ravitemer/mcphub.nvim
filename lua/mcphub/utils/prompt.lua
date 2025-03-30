@@ -394,4 +394,34 @@ function M.get_native_server_prompt()
     return content
 end
 
+--- Get mcphub.nvim plugin documentation intended for llms
+---@return string|nil The plugin docs content or nil if not found
+function M.get_plugin_docs()
+    local source_path = debug.getinfo(1, "S").source:sub(2)
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h:h:h")
+    local guide_path = base_path .. "/README.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+    local content = f:read("*all")
+    f:close()
+    return content
+end
+
+--- Get the changelog for the mcphub.nvim plugin
+--- @return string|nil The changelog content or nil if not found
+function M.get_plugin_changelog()
+    local source_path = debug.getinfo(1, "S").source:sub(2)
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h:h:h")
+    local guide_path = base_path .. "/CHANGELOG.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+    local content = f:read("*all")
+    f:close()
+    return content
+end
+
 return M

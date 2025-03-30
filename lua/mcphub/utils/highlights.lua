@@ -22,6 +22,17 @@ M.groups = {
     active_item = "MCPHubActiveItem",
     active_item_muted = "MCPHubActiveItemMuted",
     link = "MCPHubLink",
+    -- JSON syntax highlights
+    json_property = "MCPHubJsonProperty",
+    json_string = "MCPHubJsonString",
+    json_number = "MCPHubJsonNumber",
+    json_boolean = "MCPHubJsonBoolean",
+    json_null = "MCPHubJsonNull",
+    json_punctuation = "MCPHubJsonPunctuation",
+    -- Markdown specific highlights
+    text = "MCPHubText", -- Regular markdown text
+    code = "MCPHubCode", -- Code blocks
+    heading = "MCPHubHeading", -- Markdown headings
 }
 
 -- Get highlight attributes from a highlight group
@@ -154,6 +165,47 @@ function M.setup()
             bg = "NONE",
             fg = info_color,
             underline = true,
+        },
+        -- JSON syntax highlights linked to built-in groups
+        [M.groups.json_property] = {
+            bg = "NONE",
+            fg = get_color("@property", "fg", special_key),
+            italic = true,
+            bold = true,
+        },
+        [M.groups.json_string] = {
+            bg = "NONE",
+            fg = get_color("String", "fg", hint_color),
+        },
+        [M.groups.json_number] = {
+            bg = "NONE",
+            fg = get_color("Number", "fg", info_color),
+        },
+        [M.groups.json_boolean] = {
+            bg = "NONE",
+            fg = get_color("Boolean", "fg", special_key),
+        },
+        [M.groups.json_null] = {
+            bg = "NONE",
+            fg = get_color("Keyword", "fg", warn_color), -- null is often highlighted as a keyword
+        },
+        [M.groups.json_punctuation] = {
+            bg = "NONE",
+            fg = get_color("Delimiter", "fg", comment_fg),
+        },
+        -- Markdown highlights
+        [M.groups.text] = {
+            bg = "NONE",
+            fg = normal_fg,
+        },
+        [M.groups.code] = {
+            -- bg = pmenu_sel_bg,
+            fg = info_color,
+        },
+        [M.groups.heading] = {
+            bg = "NONE",
+            fg = title_color,
+            bold = true,
         },
     }
 

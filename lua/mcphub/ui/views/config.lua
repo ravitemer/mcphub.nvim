@@ -88,13 +88,11 @@ function ConfigView:render()
 
     if file_validation.json then
         -- Show file content
-        vim.list_extend(
-            lines,
-            vim.tbl_map(
-                Text.pad_line,
-                Text.multiline(utils.pretty_json(file_validation.content), Text.highlights.muted)
-            )
-        )
+        -- vim.list_extend(
+        --     lines,
+        --     vim.tbl_map(Text.pad_line, Text.multiline(Text.render_json(file_validation.content), Text.highlights.muted))
+        -- )
+        vim.list_extend(lines, Text.render_json(file_validation.content))
     end
     return lines
 end

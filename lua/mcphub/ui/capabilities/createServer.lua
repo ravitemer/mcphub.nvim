@@ -70,8 +70,6 @@ function CreateServerHandler:render(line_offset)
     end
 
     table.insert(lines, Text.empty_line())
-    table.insert(lines, self.view:divider())
-    table.insert(lines, Text.empty_line())
 
     local install_line = NuiLine()
         :append(" " .. Text.icons.install .. " ", highlights.active_item)
@@ -108,28 +106,10 @@ function CreateServerHandler:render(line_offset)
     -- Show the LLM prompt content
     local guide = prompt_utils.get_native_server_prompt()
     if guide then
-        -- Add heading for the section
-        table.insert(lines, Text.pad_line("Native Server Guide (LLM Prompt)", highlights.title))
-        table.insert(lines, Text.empty_line())
-
-        -- Format guide content with proper highlighting
-        for line in vim.gsplit(guide, "\n") do
-            if line:match("^#+ ") then
-                -- Headers
-                table.insert(lines, Text.pad_line(line, highlights.title))
-            elseif line:match("^```") or line:match("^```lua") then
-                -- Code block start
-                table.insert(lines, Text.pad_line(line, highlights.title))
-            elseif line:match("^```$") then
-                -- Code block end
-                table.insert(lines, Text.pad_line(line, highlights.title))
-            else
-                -- Regular text, preserving any markdown formatting
-                table.insert(lines, Text.pad_line(line, highlights.muted))
-            end
-        end
+        vim.list_extend(lines, Text.render_markdown(guide))
+    else
+        table.insert(lines, Text.pad_line("Native server guide not found", highlights.error))
     end
-
     return lines
 end
 

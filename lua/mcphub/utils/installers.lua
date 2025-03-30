@@ -65,7 +65,7 @@ local Installers = {
             })
             local api = require("avante.api")
             api.ask({
-                question = "@read_global_file @write_global_file I have provided you a guide to create Lua native MCP servers for mcphub.nvim plugin. My Neovim config directory is '"
+                question = "I have provided you a guide to create Lua native MCP servers for mcphub.nvim plugin. My Neovim config directory is '"
                     .. vim.fn.stdpath("config")
                     .. "'. Once you understood the guide thoroughly, please ask me what kind of server, tools, or resources I want to create.",
                 without_selection = true,

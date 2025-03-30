@@ -251,4 +251,141 @@ function M.render_header(width, current_view)
     return lines
 end
 
+--- Render markdown text with proper syntax highlighting
+---@param text string The markdown text to render
+---@return NuiLine[]
+function M.render_markdown(text)
+    if not text then
+        return {}
+    end
+
+    local lines = {}
+    local current_list_level = 0
+    local in_code_block = false
+    local code_block_lang = nil
+
+    for _, line in ipairs(vim.split(text, "\n", { plain = true })) do
+        local nui_line = NuiLine()
+
+        -- Handle code blocks
+        if line:match("^```") then
+            in_code_block = not in_code_block
+            code_block_lang = in_code_block and line:match("^```(.+)") or nil
+            nui_line:append(line, M.highlights.muted)
+
+        -- Inside code block
+        elseif in_code_block then
+            nui_line:append(line, M.highlights.code)
+
+        -- Headers
+        elseif line:match("^#+ ") then
+            local level = #line:match("^(#+)")
+            local text = line:match("^#+%s+(.+)")
+            nui_line:append(string.rep("#", level) .. " ", M.highlights.muted):append(text, M.highlights.title)
+
+        -- Lists
+        elseif line:match("^%s*[-*] ") then
+            local indent = #(line:match("^%s*") or "")
+            local text = line:match("^%s*[-*]%s+(.+)")
+            nui_line:append(string.rep(" ", indent)):append("• ", M.highlights.muted):append(text, M.highlights.text)
+
+        -- Normal text
+        else
+            nui_line:append(line, M.highlights.text)
+        end
+
+        table.insert(lines, M.pad_line(nui_line))
+    end
+
+    return lines
+end
+
+--- Render JSON with syntax highlighting using the existing pretty_json formatter
+---@param text string|table The JSON text or table to render
+---@return NuiLine[]
+function M.render_json(text)
+    local utils = require("mcphub.utils")
+
+    -- Convert table to JSON if needed
+    if type(text) == "table" then
+        text = vim.json.encode(text)
+    end
+
+    -- Use the existing pretty printer
+    local formatted = utils.pretty_json(text)
+    local lines = {}
+
+    -- Process each line and add highlighting
+    for _, line in ipairs(vim.split(formatted, "\n", { plain = true })) do
+        local nui_line = NuiLine()
+        local pos = 1
+
+        -- Add indentation
+        local indent = line:match("^(%s*)")
+        if indent then
+            nui_line:append(indent)
+            pos = #indent + 1
+        end
+
+        -- Handle property names (with quotes) first
+        local property = line:match('^%s*"([^"]+)"%s*:', pos)
+        if property then
+            nui_line:append('"' .. property .. '"', M.highlights.json_property)
+            pos = pos + #property + 2 -- +2 for quotes
+            -- Skip past the colon
+            local colon_pos = line:find(":", pos)
+            if colon_pos then
+                nui_line:append(line:sub(pos, colon_pos), M.highlights.json_punctuation)
+                pos = colon_pos + 1
+            end
+        end
+
+        -- Process the rest of the line
+        while pos <= #line do
+            local char = line:sub(pos, pos)
+
+            -- Handle structural characters
+            if char:match("[{%[%]}:,]") then
+                nui_line:append(char, M.highlights.json_punctuation)
+            -- Handle string values (must be in quotes)
+            elseif char == '"' then
+                local str_end = pos + 1
+                while str_end <= #line do
+                    if line:sub(str_end, str_end) == '"' and line:sub(str_end - 1, str_end - 1) ~= "\\" then
+                        break
+                    end
+                    str_end = str_end + 1
+                end
+                nui_line:append(line:sub(pos, str_end), M.highlights.json_string)
+                pos = str_end
+            -- Handle numbers
+            elseif char:match("%d") then
+                local num = line:match("%d+%.?%d*", pos)
+                if num then
+                    nui_line:append(num, M.highlights.json_number)
+                    pos = pos + #num - 1
+                end
+            -- Handle boolean and null
+            elseif line:match("^true", pos) then
+                nui_line:append("true", M.highlights.json_boolean)
+                pos = pos + 3
+            elseif line:match("^false", pos) then
+                nui_line:append("false", M.highlights.json_boolean)
+                pos = pos + 4
+            elseif line:match("^null", pos) then
+                nui_line:append("null", M.highlights.json_null)
+                pos = pos + 3
+            -- Handle whitespace
+            elseif char:match("%s") then
+                nui_line:append(char)
+            end
+            pos = pos + 1
+        end
+
+        table.insert(lines, M.pad_line(nui_line))
+    end
+
+    return lines
+end
+
 return M
