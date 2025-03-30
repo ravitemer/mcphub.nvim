@@ -114,7 +114,6 @@ local search_tools = {
             }
 
             local results = scan.scan_dir(path, scan_opts)
-            vim.notify(vim.inspect(results))
 
             if #results == 0 then
                 return res:text("No files found in: " .. path):send()

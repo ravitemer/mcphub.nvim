@@ -1,5 +1,5 @@
-local os_utils = require("mcphub.native.neovim.utils.os")
 local buf_utils = require("mcphub.native.neovim.utils.buffer")
+local os_utils = require("mcphub.native.neovim.utils.os")
 
 return {
     name = "Environment",
@@ -9,7 +9,7 @@ return {
     uri = "neovim://workspace/info",
     mimeType = "text/plain",
     handler = function(req, res)
-        local editor_info = buf_utils.get_editor_info()
+        local editor_info = req.editor_info
         local os_info = os_utils.get_os_info()
         local dir_info = buf_utils.get_directory_info(vim.fn.getcwd())
 
@@ -81,5 +81,5 @@ Files: %d
             os.date("%Y-%m-%d %H:%M:%S")
         )
         return res:text(text):send()
-    end
+    end,
 }

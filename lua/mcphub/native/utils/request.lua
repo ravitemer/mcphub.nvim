@@ -1,9 +1,9 @@
 ---@class ToolRequest
----@field params table Tool arguments
----@field tool MCPTool Tool definition
----@field caller table Caller context
----@field hub MCPHub Hub class
----@field editor_info EditorInfo Editor information
+---@field params table Tool arguments (validated against inputSchema)
+---@field tool MCPTool Complete tool definition including dynamic fields
+---@field server NativeServer Server instance
+---@field caller table Additional context from caller
+---@field editor_info EditorInfo Current editor state
 local ToolRequest = {}
 ToolRequest.__index = ToolRequest
 
@@ -19,13 +19,13 @@ function ToolRequest:new(opts)
 end
 
 ---@class ResourceRequest
----@field params table Template parameters
----@field uri string Full resource URI
----@field uriTemplate string|nil Original template if from template
----@field resource MCPResource Resource definition
----@field caller table Additional context
----@field editor_info EditorInfo Editor information
----@field hub MCPHub Hub class
+---@field params table<string, string> Template parameters from URI
+---@field uri string Complete requested URI
+---@field uriTemplate string|nil Original template pattern if from template
+---@field resource MCPResource|MCPResourceTemplate Complete resource definition including dynamic fields
+---@field server NativeServer Server instance
+---@field caller table Additional context from caller
+---@field editor_info EditorInfo Current editor state
 local ResourceRequest = {}
 ResourceRequest.__index = ResourceRequest
 

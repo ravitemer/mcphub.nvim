@@ -376,4 +376,22 @@ README Content:
     )
 end
 
+--- Get the native server creation prompt from the guide file
+---@return string|nil The native server guide content or nil if not found
+function M.get_native_server_prompt()
+    -- Use source file path to find the guide
+    local source_path = debug.getinfo(1, "S").source:sub(2) -- Remove '@' prefix
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h") -- Go up three levels from prompt.lua
+    local guide_path = base_path .. "/native/NATIVE_SERVER_LLM.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+
+    local content = f:read("*all")
+    f:close()
+
+    return content
+end
+
 return M

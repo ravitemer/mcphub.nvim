@@ -4,12 +4,35 @@ local State = require("mcphub.state")
 local buf_utils = require("mcphub.native.neovim.utils.buffer")
 local log = require("mcphub.utils.log")
 
+---@class MCPTool
+---@field name string Tool identifier
+---@field description string|fun():string Tool description or function returning description
+---@field inputSchema? table|fun():table JSON Schema for input validation or function returning schema
+---@field handler fun(req: ToolRequest, res: ToolResponse) Tool handler function
+
+---@class MCPResource
+---@field name string Resource identifier
+---@field description string|fun():string Resource description or function returning description
+---@field uri string Static URI (e.g., "system://info")
+---@field handler fun(req: ResourceRequest, res: ResourceResponse) Resource handler function
+
+---@class MCPResourceTemplate
+---@field name string Template identifier
+---@field description string|fun():string Template description or function returning description
+---@field uriTemplate string URI with parameters (e.g., "buffer://{bufnr}/lines")
+---@field handler fun(req: ResourceRequest, res: ResourceResponse) Template handler function
+
+---@class MCPCapabilities
+---@field tools MCPTool[] List of tools
+---@field resources MCPResource[] List of resources
+---@field resourceTemplates MCPResourceTemplate[] List of resource templates
+
 ---@class NativeServer
 ---@field name string Server name
 ---@field displayName string Display name
 ---@field status string Server status (connected|disconnected|disabled)
 ---@field error string|nil Error message if any
----@field capabilities table Server capabilities
+---@field capabilities MCPCapabilities Server capabilities
 ---@field uptime number Server uptime
 ---@field lastStarted number Last started timestamp
 local NativeServer = {}

@@ -51,6 +51,12 @@ function M.get_directory_info(path)
 end
 ---@class BufferInfo
 ---@field name string
+---@field filename string
+---@field windows number[]
+---@field winnr number
+---@field cursor_pos number[]
+---@field filetype string
+---@field line_count number
 ---@field is_visible boolean
 ---@field is_modified boolean
 ---@field is_loaded boolean

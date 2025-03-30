@@ -3,6 +3,7 @@ local NuiLine = require("mcphub.utils.nuiline")
 local Text = require("mcphub.utils.text")
 local highlights = require("mcphub.utils.highlights").groups
 local Installers = require("mcphub.utils.installers")
+local prompt_utils = require("mcphub.utils.prompt")
 
 ---@class CreateServerHandler : CapabilityHandler
 ---@field super CapabilityHandler
@@ -37,12 +38,11 @@ function CreateServerHandler:handle_action(line)
                 end,
             }, function(choice)
                 if choice then
-                    return vim.notify("Yet to implement")
-                    -- local installer = Installers[choice.id]
-                    -- if installer then
-                    --     self.view.ui:cleanup()
-                    --     installer.create_native_server()
-                    -- end
+                    local installer = Installers[choice.id]
+                    if installer then
+                        self.view.ui:cleanup()
+                        installer:create_native_server()
+                    end
                 end
             end)
         else
@@ -57,21 +57,22 @@ function CreateServerHandler:render(line_offset)
 
     local lines = {}
 
-    -- Introduction text
-    local intro_text = {
+    -- Description text
+    local description = {
         "Native Lua servers allow you to create custom MCP-compatible servers directly in Lua.",
         "These servers can provide tools and resources that integrate seamlessly with mcphub.nvim.",
         "Perfect for plugin-specific functionality, file operations, or any custom Neovim integration.",
         "Create your own server to extend mcphub with your unique tools and resources.",
     }
 
-    for _, line in ipairs(intro_text) do
+    for _, line in ipairs(description) do
         table.insert(lines, Text.pad_line(line, highlights.muted))
     end
 
     table.insert(lines, Text.empty_line())
+    table.insert(lines, self.view:divider())
+    table.insert(lines, Text.empty_line())
 
-    -- Install section
     local install_line = NuiLine()
         :append(" " .. Text.icons.install .. " ", highlights.active_item)
         :append("Install", highlights.active_item)
@@ -104,8 +105,30 @@ function CreateServerHandler:render(line_offset)
     table.insert(lines, self.view:divider())
     table.insert(lines, Text.empty_line())
 
-    -- Detailed info section (blank for now)
-    -- Will be populated later with examples, best practices etc.
+    -- Show the LLM prompt content
+    local guide = prompt_utils.get_native_server_prompt()
+    if guide then
+        -- Add heading for the section
+        table.insert(lines, Text.pad_line("Native Server Guide (LLM Prompt)", highlights.title))
+        table.insert(lines, Text.empty_line())
+
+        -- Format guide content with proper highlighting
+        for line in vim.gsplit(guide, "\n") do
+            if line:match("^#+ ") then
+                -- Headers
+                table.insert(lines, Text.pad_line(line, highlights.title))
+            elseif line:match("^```") or line:match("^```lua") then
+                -- Code block start
+                table.insert(lines, Text.pad_line(line, highlights.title))
+            elseif line:match("^```$") then
+                -- Code block end
+                table.insert(lines, Text.pad_line(line, highlights.title))
+            else
+                -- Regular text, preserving any markdown formatting
+                table.insert(lines, Text.pad_line(line, highlights.muted))
+            end
+        end
+    end
 
     return lines
 end
