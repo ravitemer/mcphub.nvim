@@ -8,30 +8,32 @@ local log = require("mcphub.utils.log")
 ---@field name string Tool identifier
 ---@field description string|fun():string Tool description or function returning description
 ---@field inputSchema? table|fun():table JSON Schema for input validation or function returning schema
----@field handler fun(req: ToolRequest, res: ToolResponse) Tool handler function
+---@field handler fun(req: ToolRequest, res: ToolResponse): nil | table Tool handler function
 
 ---@class MCPResource
----@field name string Resource identifier
----@field description string|fun():string Resource description or function returning description
+---@field name? string Resource identifier
+---@field description? string|fun():string Resource description or function returning description
+---@field mimeType? string Resource MIME type (e.g., "text/plain")
 ---@field uri string Static URI (e.g., "system://info")
----@field handler fun(req: ResourceRequest, res: ResourceResponse) Resource handler function
+---@field handler fun(req: ResourceRequest, res: ResourceResponse): nil | table Resource handler function
 
 ---@class MCPResourceTemplate
----@field name string Template identifier
----@field description string|fun():string Template description or function returning description
+---@field name? string Template identifier
+---@field description? string|fun():string Template description or function returning description
+---@field mimeType? string Template MIME type (e.g., "text/plain")
 ---@field uriTemplate string URI with parameters (e.g., "buffer://{bufnr}/lines")
----@field handler fun(req: ResourceRequest, res: ResourceResponse) Template handler function
+---@field handler fun(req: ResourceRequest, res: ResourceResponse): nil | table Template handler function
 
 ---@class MCPCapabilities
----@field tools MCPTool[] List of tools
----@field resources MCPResource[] List of resources
----@field resourceTemplates MCPResourceTemplate[] List of resource templates
+---@field tools? MCPTool[] List of tools
+---@field resources? MCPResource[] List of resources
+---@field resourceTemplates? MCPResourceTemplate[] List of resource templates
 
 ---@class NativeServer
 ---@field name string Server name
 ---@field displayName string Display name
 ---@field status string Server status (connected|disconnected|disabled)
----@field error string|nil Error message if any
+---@field error? string|nil Error message if any
 ---@field capabilities MCPCapabilities Server capabilities
 ---@field uptime number Server uptime
 ---@field lastStarted number Last started timestamp

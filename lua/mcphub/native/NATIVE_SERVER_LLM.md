@@ -79,41 +79,46 @@ You can create native servers in two ways:
 ### 1. Configuration-based Setup
 Define complete server in your Neovim config:
 ```lua
-require('mcphub').config({
-  native_servers = {
-    weather = {
-      name = "weather",
-      capabilities = {
+return {
+    name = "weather",
+    capabilities = {
         tools = {
-          {
-            name = "get_weather",
-            description = "Get weather for a city",
-            inputSchema = {
-              type = "object",
-              properties = {
-                city = {
-                  type = "string",
-                  description = "City name"
-                }
-              }
-            },
-            handler = function(req, res)
-              return res:text("Weather in " .. req.params.city .. ": Sunny"):send()
-            end
-          }
+            {
+                name = "get_weather",
+                description = "Get weather for a city",
+                inputSchema = {
+                    type = "object",
+                    properties = {
+                        city = {
+                            type = "string",
+                            description = "City name"
+                        }
+                    }
+                },
+                handler = function(req, res)
+                    return res:text("Weather in " .. req.params.city .. ": Sunny"):send()
+                end
+            }
         },
         resources = {
-          {
-            name = "current",
-            uri = "weather://london",
-            description = "Current London weather",
-            handler = function(req, res)
-              return res:text("London: Sunny, 22°C"):send()
-            end
-          }
+            {
+                name = "current",
+                uri = "weather://london",
+                description = "Current London weather",
+                handler = function(req, res)
+                    return res:text("London: Sunny, 22°C"):send()
+                end
+            }
         }
-      }
     }
+}
+```
+
+Then, add it to your existing config:
+```lua
+require('mcphub').config({
+  native_servers = {
+    weather = require('path.to.weather_server')
   }
 })
 ```
@@ -155,7 +160,36 @@ mcphub.add_resource_template("weather", {
     return res:text(req.params.city .. ": Sunny, 20°C"):send()
   end
 })
+
+-- or add a complete server dynamically
+mcphub.add_server("my_server", {
+  name = "my_server",
+  displayName = "My Server",
+  capabilities = {
+    tools = {
+      {
+        name = "my_tool",
+        description = "My tool",
+        handler = function(req, res)
+          return res:text("Hello world"):send()
+        end
+      }
+    },
+    resources = {
+      {
+        name = "my_resource",
+        uri = "my://resource",
+        description = "My resource",
+        handler = function(req, res)
+          return res:text("Resource content"):send()
+        end
+      }
+    }
+  }
+})
 ```
+
+Then you should require the file where you have added the tools and resources after calling `mcphub.setup({})`.
 
 Both methods allow you to:
 - Create new servers with custom functionality
@@ -469,3 +503,13 @@ mcphub.add_resource_template("git", {
   end
 })
 ```
+
+### Instructions for LLM
+
+- You need to first ask the user to point to the file where `mcphub.setup({})` is called. You should read this file to determine to determine how you should create the Native MCP Server.
+- For the 1st Configuration-based setup, you should return a server schema table from another file and add it to the `native_servers` table in the `mcphub.setup({})` function.
+- For the 2nd Incremental Creation setup, you should call the `mcphub.add_tool()`, `mcphub.add_resource()`, and `mcphub.add_resource_template()` functions to in another file and require the file after `mcphub.setup({})` call.
+- Ask the user for any clarification if needed. Do not assume anything about the user's setup.
+- Once you have successfully created the Native MCP Server and set it up in user's configuration, you should advise the user to reload neovim(so that the new configuration is loaded) and test the server in hub ui with `:MCPHub`
+- Unless otherwise specified by the user, you should use the builtin neovim server's tools like `write_file`, `read_file`, `list_directory`, `replace_in_file` etc to complete the setup.
+

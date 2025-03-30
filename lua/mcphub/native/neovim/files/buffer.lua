@@ -28,13 +28,7 @@ local function get_marks(buf_info)
                 context = context:gsub("%%", "%%%%")
                 table.insert(
                     result,
-                    string.format(
-                        "%s: line %d, col %d: %s",
-                        mark.mark:sub(-1),
-                        mark.pos[2],
-                        mark.pos[3],
-                        context
-                    )
+                    string.format("%s: line %d, col %d: %s", mark.mark:sub(-1), mark.pos[2], mark.pos[3], context)
                 )
             end
         end
@@ -102,5 +96,5 @@ Cursor: line %d
         )
 
         return res:text(text):send()
-    end
+    end,
 }

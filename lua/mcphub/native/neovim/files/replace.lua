@@ -137,18 +137,14 @@ local function handle_replace_file(req, res)
 
     local p = Path:new(req.params.path)
     local path = p:absolute()
-
     -- Validate file existence
-    if not p:exists() then
-        return res:error("File not found: " .. path)
+    local original_content = ""
+    if p:exists() then
+        original_content = p:read()
+    else
+        -- Ensure parent directories exist
+        p:touch({ parents = true })
     end
-
-    -- Read original content
-    local original_content = p:read()
-    if not original_content then
-        return res:error("Failed to read file: " .. path)
-    end
-
     -- Parse and apply diff blocks
     local new_content = apply_diff_blocks(original_content, req.params.diff)
     if not new_content then

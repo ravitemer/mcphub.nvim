@@ -23,7 +23,7 @@ function Native.is_native_server(server_name)
             return server
         end
     end
-    return false
+    return nil
 end
 
 local function handle_error(err)
@@ -164,6 +164,7 @@ end
 
 function Native.setup()
     require("mcphub.native.neovim")
+    require("mcphub.native.mcphub")
 end
 
 return Native
