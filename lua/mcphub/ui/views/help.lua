@@ -16,26 +16,35 @@ HelpView.__index = HelpView
 
 function HelpView:new(ui)
     local self = View:new(ui, "help")
-    self.active_tab = "readme"
+    self.tabs = {
+        { id = "welcome", text = "Welcome" },
+        { id = "troubleshooting", text = "Troubleshooting" },
+        { id = "readme", text = "README" },
+        { id = "native", text = "Native Servers" },
+        { id = "changelog", text = "Changelog" },
+    }
+    self.active_tab = self.tabs[1].id
     self = setmetatable(self, HelpView)
     return self
 end
 
+function HelpView:cycle_tab()
+    for i, tab in ipairs(self.tabs) do
+        if tab.id == self.active_tab then
+            -- Move to next tab or wrap around to first
+            self.active_tab = (self.tabs[i + 1] or self.tabs[1]).id
+            break
+        end
+    end
+end
+
 function HelpView:render_tabs()
-    local tabs = {
-        {
-            text = "README",
-            selected = self.active_tab == "readme",
-        },
-        {
-            text = "Native Servers",
-            selected = self.active_tab == "native",
-        },
-        {
-            text = "Changelog",
-            selected = self.active_tab == "changelog",
-        },
-    }
+    local tabs = vim.tbl_map(function(tab)
+        return {
+            text = tab.text,
+            selected = self.active_tab == tab.id,
+        }
+    end, self.tabs)
     return Text.create_tab_bar(tabs, self:get_width())
 end
 
@@ -52,13 +61,7 @@ function HelpView:before_enter()
     self.keymaps = {
         ["<Tab>"] = {
             action = function()
-                if self.active_tab == "readme" then
-                    self.active_tab = "native"
-                elseif self.active_tab == "native" then
-                    self.active_tab = "changelog"
-                else
-                    self.active_tab = "readme"
-                end
+                self:cycle_tab()
                 self:draw()
             end,
             desc = "Switch tab",
@@ -78,7 +81,92 @@ function HelpView:render()
     local prompt_utils = require("mcphub.utils.prompt")
 
     -- Render content based on active tab
-    if self.active_tab == "readme" then
+    if self.active_tab == "welcome" then
+        -- Welcome message
+        local welcome_content = [[
+# Welcome to MCPHub!
+
+A powerful Neovim plugin that integrates MCP (Model Context Protocol) servers into your workflow. Configure and manage MCP servers through a centralized config file while providing an intuitive UI for browsing, installing and testing tools and resources.
+
+## Support Development
+
+MCPHub is an open-source project that relies on community support to stay active and improve. Your support helps maintain and enhance the plugin.
+
+- [GitHub Sponsors](https://github.com/sponsors/ravitemer)
+- [Buy me a coffee](https://www.buymeacoffee.com/ravitemer)
+- [⭐ Star us on GitHub](https://github.com/ravitemer/mcphub.nvim)
+
+## Quick Links
+
+### Get Help & Contribute
+- [Open a Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) - Ask questions and share ideas
+- [Create an Issue](https://github.com/ravitemer/mcphub.nvim/issues) - Report bugs
+- [Report Security Issues](https://github.com/ravitemer/mcphub.nvim/blob/main/SECURITY.md)
+- [View Documentation](lua/mcphub/native/README.md) - Learn more about MCPHub
+
+### Share with the Community
+- Create your own Native MCP Servers and share them in [Show and Tell](https://github.com/ravitemer/mcphub.nvim/discussions/categories/show-and-tell)
+- Share your custom workflows and setups in [Native Servers](https://github.com/ravitemer/mcphub.nvim/discussions/categories/native-servers)
+- Help others by sharing your configuration tips and tricks
+- Showcase your innovative uses of MCPHub
+
+### Join & Connect
+- [Discord Community](https://discord.gg/NTqfxXsNuN) - Get help and discuss features
+- [Follow on Twitter](https://x.com/ravitemer) - Stay updated on new releases
+- Star the repository to show your support!
+
+### Stay Updated
+- Check the **Changelog** tab for latest features
+- Watch **Discussions** for announcements and community showcases
+- Browse **Marketplace** for new MCP servers
+]]
+        vim.list_extend(lines, Text.render_markdown(welcome_content))
+    elseif self.active_tab == "troubleshooting" then
+        local troubleshooting_content = [[
+# 🔨 Troubleshooting
+
+1. **Environment Requirements**
+
+   - Ensure these are installed as they're required by most MCP servers:
+     ```bash
+     node --version    # Should be >= 18.0.0
+     python --version  # Should be installed
+     uvx --version    # Should be installed
+     ```
+   - Most server commands use `npx` or `uvx` - verify these work in your terminal
+
+2. **Port Issues**
+
+   - If you get `EADDRINUSE` error, kill the existing process:
+     ```bash
+     lsof -i :[port]  # Find process ID
+     kill [pid]       # Kill the process
+     ```
+
+3. **Configuration File**
+
+   - Ensure config path is absolute
+   - Verify file contains valid JSON with `mcpServers` key
+   - Check server-specific configuration requirements
+   - Validate server command and args are correct for your system
+
+4. **MCP Server Issues**
+
+   - Validate server configurations using either:
+     - [MCP Inspector](https://github.com/modelcontextprotocol/inspector): GUI tool for verifying server operation
+     - [mcp-cli](https://github.com/wong2/mcp-cli): Command-line tool for testing servers with config files
+   - Check server logs in MCPHub UI (Logs view)
+   - Test tools and resources individually to isolate issues
+
+5. **Need Help?**
+   - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388)
+   - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
+   - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
+
+Note: You can also access the Express server directly at http://localhost:[port]/api
+]]
+        vim.list_extend(lines, Text.render_markdown(troubleshooting_content))
+    elseif self.active_tab == "readme" then
         local readme = prompt_utils.get_plugin_docs()
         if readme then
             vim.list_extend(lines, Text.render_markdown(readme))
