@@ -1,7 +1,7 @@
 local mcphub = require("mcphub")
 local prompt_utils = require("mcphub.utils.prompt")
 
-mcphub.add_resource("mcphub", {
+mcphub.add_resource("neovim", {
     name = "MCPHub Plugin Docs",
     mimeType = "text/plain",
     uri = "mcphub://docs",
@@ -15,7 +15,7 @@ mcphub.add_resource("mcphub", {
     end,
 })
 
-mcphub.add_resource("mcphub", {
+mcphub.add_resource("neovim", {
     name = "MCPHub Native Server Guide",
     mimeType = "text/plain",
     uri = "mcphub://native-server/guide",
@@ -31,7 +31,7 @@ Access this guide whenever you need information on how to create a native server
     end,
 })
 
-mcphub.add_resource("mcphub", {
+mcphub.add_resource("neovim", {
     name = "MCPHub Changelog",
     mimeType = "text/plain",
     uri = "mcphub://changelog",
