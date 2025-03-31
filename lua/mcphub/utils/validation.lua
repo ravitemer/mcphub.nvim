@@ -341,7 +341,7 @@ function M.validate_inputSchema(inputSchema, tool_name)
         if schema.type ~= "object" then
             return false, "type must be 'object'"
         end
-        if not schema.properties or type(schema.properties) ~= "table" then
+        if schema.properties and type(schema.properties) ~= "table" then
             return false, "must have a properties table"
         end
         return true
