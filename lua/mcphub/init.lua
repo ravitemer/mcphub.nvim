@@ -170,6 +170,13 @@ function M.setup(opts)
 end
 
 function M.on(event, callback)
+    --if event is an array then add each event
+    if type(event) == "table" then
+        for _, e in ipairs(event) do
+            State:add_event_listener(e, callback)
+        end
+        return
+    end
     State:add_event_listener(event, callback)
 end
 

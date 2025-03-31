@@ -849,6 +849,35 @@ end
 
 --- Get servers with their tools filtered based on server config
 ---@return table[] Array of connected servers with disabled tools filtered out
+-- Helper to filter server capabilities based on config
+local function filter_server_capabilities(server, config)
+    local filtered_server = vim.deepcopy(server)
+
+    if filtered_server.capabilities then
+        -- Common function to filter capabilities
+        local function filter_capabilities(capabilities, disabled_list, id_field)
+            return vim.tbl_filter(function(item)
+                return not vim.tbl_contains(disabled_list, item[id_field])
+            end, capabilities)
+        end
+
+        -- Filter all capability types with their respective config fields
+        local capability_filters = {
+            tools = { list = "disabled_tools", id = "name" },
+            resources = { list = "disabled_resources", id = "uri" },
+            resourceTemplates = { list = "disabled_resourceTemplates", id = "uriTemplate" },
+        }
+
+        for cap_type, filter in pairs(capability_filters) do
+            if filtered_server.capabilities[cap_type] then
+                filtered_server.capabilities[cap_type] =
+                    filter_capabilities(filtered_server.capabilities[cap_type], config[filter.list] or {}, filter.id)
+            end
+        end
+    end
+    return filtered_server
+end
+
 function MCPHub:get_servers()
     if not self:is_ready() then
         return {}
@@ -859,16 +888,7 @@ function MCPHub:get_servers()
     for _, server in ipairs(State.server_state.servers or {}) do
         if server.status == "connected" then
             local server_config = State.servers_config[server.name] or {}
-            local disabled_tools = server_config.disabled_tools or {}
-
-            -- Create a copy of the server with filtered tools
-            local filtered_server = vim.deepcopy(server)
-            if filtered_server.capabilities and filtered_server.capabilities.tools then
-                -- Filter out disabled tools
-                filtered_server.capabilities.tools = vim.tbl_filter(function(tool)
-                    return not vim.tbl_contains(disabled_tools, tool.name)
-                end, filtered_server.capabilities.tools)
-            end
+            local filtered_server = filter_server_capabilities(server, server_config)
             table.insert(filtered_servers, filtered_server)
         end
     end
@@ -877,16 +897,7 @@ function MCPHub:get_servers()
     for _, server in ipairs(State.server_state.native_servers or {}) do
         if server.status == "connected" then
             local server_config = State.native_servers_config[server.name] or {}
-            local disabled_tools = server_config.disabled_tools or {}
-
-            -- Create a copy of the server with filtered tools
-            local filtered_server = vim.deepcopy(server)
-            if filtered_server.capabilities and filtered_server.capabilities.tools then
-                -- Filter out disabled tools
-                filtered_server.capabilities.tools = vim.tbl_filter(function(tool)
-                    return not vim.tbl_contains(disabled_tools, tool.name)
-                end, filtered_server.capabilities.tools)
-            end
+            local filtered_server = filter_server_capabilities(server, server_config)
             table.insert(filtered_servers, filtered_server)
         end
     end

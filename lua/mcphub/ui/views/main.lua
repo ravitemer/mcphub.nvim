@@ -225,29 +225,44 @@ function MainView:handle_server_toggle()
                 end,
             })
         end
-    elseif type == "tool" and context and State.hub_instance then
+    elseif (type == "tool" or type == "resource" or type == "resourceTemplate") and context and State.hub_instance then
         local server_name = context.server_name
         local is_native = native.is_native_server(server_name)
-        local tool_name = context.def.name
         local server_config = (
             is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
         ) or {}
-        local disabled_tools = vim.deepcopy(server_config.disabled_tools or {})
-        local is_disabled = vim.tbl_contains(disabled_tools, tool_name)
 
-        -- Update disabled_tools list based on desired state
+        local type_config = {
+            tool = { id_field = "name", config_field = "disabled_tools" },
+            resource = { id_field = "uri", config_field = "disabled_resources" },
+            resourceTemplate = { id_field = "uriTemplate", config_field = "disabled_resourceTemplates" },
+        }
+
+        local config = type_config[type]
+        local capability_id = context.def[config.id_field]
+        local disabled_list = vim.deepcopy(server_config[config.config_field] or {})
+        local is_disabled = vim.tbl_contains(disabled_list, capability_id)
+
+        -- Update disabled list based on desired state
         if is_disabled then
-            for i, name in ipairs(disabled_tools) do
-                if name == tool_name then
-                    table.remove(disabled_tools, i)
+            for i, item_id in ipairs(disabled_list) do
+                if item_id == capability_id then
+                    table.remove(disabled_list, i)
                     break
                 end
             end
         else
-            table.insert(disabled_tools, tool_name)
+            table.insert(disabled_list, capability_id)
         end
-        State.hub_instance:update_server_config(server_name, {
-            disabled_tools = disabled_tools,
+
+        -- Update server config with new disabled list
+        local updates = {}
+        updates[config.config_field] = disabled_list
+        State.hub_instance:update_server_config(server_name, updates)
+        State:emit(type .. "_list_changed", {
+            server_name = server_name,
+            config_field = config.config_field,
+            disabled_list = disabled_list,
         })
     elseif type == "customInstructions" and context then
         -- Toggle custom instructions state

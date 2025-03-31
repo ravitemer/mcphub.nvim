@@ -5,8 +5,11 @@ function M.setup_codecompanion_variables(enabled)
     end
     local mcphub = require("mcphub")
     --setup event listners to update variables, tools etc
-    mcphub.on("servers_updated", function(opts)
-        local hub = opts.hub
+    mcphub.on({ "servers_updated", "resource_list_changed" }, function(_)
+        local hub = mcphub.get_hub_instance()
+        if not hub then
+            return
+        end
         local resources = hub:get_resources()
         local ok, config = pcall(require, "codecompanion.config")
         if not ok then

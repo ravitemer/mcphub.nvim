@@ -74,8 +74,15 @@ function M.render_cap_section(items, title, server_name, type, current_line)
     end
 
     for _, item in ipairs(items) do
-        local is_disabled = type == "tool" and vim.tbl_contains(disabled_tools, item.name) or false
         local name = item.name or item.uri or item.uriTemplate or "NO NAME"
+        local is_disabled = false
+        if type == "tool" then
+            is_disabled = vim.tbl_contains(disabled_tools, item.name)
+        elseif type == "resource" then
+            is_disabled = vim.tbl_contains(server_config.disabled_resources or {}, item.uri)
+        elseif type == "resourceTemplate" then
+            is_disabled = vim.tbl_contains(server_config.disabled_resourceTemplates or {}, item.uriTemplate)
+        end
 
         local line = NuiLine()
         if is_disabled then
@@ -92,12 +99,10 @@ function M.render_cap_section(items, title, server_name, type, current_line)
         local hint
         if type == "tool" then
             hint = is_disabled and "Press 't' to enable tool" or "Press <CR> to use tool, 't' to disable"
-        else
-            hint = "Press <CR> to "
-                .. ({
-                    resource = "access resource",
-                    resourceTemplate = "create from template",
-                })[type]
+        elseif type == "resource" then
+            hint = is_disabled and "Press 't' to enable resource" or "Press <CR> to access resource, 't' to disable"
+        elseif type == "resourceTemplate" then
+            hint = is_disabled and "Press 't' to enable template" or "Press <CR> to access template, 't' to disable"
         end
 
         table.insert(mappings, {
@@ -254,32 +259,53 @@ function M.render_server_line(server, active)
                 is_disabled and Text.highlights.muted or Text.highlights.success
             )
         end
-        if #server.capabilities.tools > 0 then
-            local current_tool_names = vim.tbl_map(function(tool)
-                return tool.name
-            end, server.capabilities.tools)
-            local disabled_tools = server_config.disabled_tools or {}
-            disabled_tools = vim.tbl_filter(function(tool)
-                return vim.tbl_contains(current_tool_names, tool)
-            end, disabled_tools)
-            local enabled_tools = #server.capabilities.tools - #disabled_tools
 
-            line:append(" ", Text.highlights.muted):append(Text.icons.tool, Text.highlights.info):append(
-                " "
-                    .. tostring(enabled_tools)
-                    .. (#disabled_tools > 0 and "/" .. tostring(#server.capabilities.tools) or ""),
+        -- Helper to render capability count with active/total
+        local function render_capability_count(capabilities, disabled_list, id_field, icon, highlight)
+            if #capabilities > 0 then
+                local current_ids = vim.tbl_map(function(cap)
+                    return cap[id_field]
+                end, capabilities)
+                local disabled = vim.tbl_filter(function(item)
+                    return vim.tbl_contains(current_ids, item)
+                end, disabled_list or {})
+                local enabled = #capabilities - #disabled
+
+                line:append(" ", Text.highlights.muted)
+                    :append(icon, highlight)
+                    :append(
+                        " " .. tostring(enabled) .. (#disabled > 0 and "/" .. tostring(#capabilities) or ""),
+                        highlight
+                    )
+            end
+        end
+
+        if #server.capabilities.tools > 0 then
+            render_capability_count(
+                server.capabilities.tools,
+                server_config.disabled_tools,
+                "name",
+                Text.icons.tool,
                 Text.highlights.info
             )
         end
         if #server.capabilities.resources > 0 then
-            line:append(" ", Text.highlights.muted)
-                :append(Text.icons.resource, Text.highlights.warning)
-                :append(" " .. tostring(#server.capabilities.resources), Text.highlights.warning)
+            render_capability_count(
+                server.capabilities.resources,
+                server_config.disabled_resources,
+                "uri",
+                Text.icons.resource,
+                Text.highlights.warning
+            )
         end
         if #server.capabilities.resourceTemplates > 0 then
-            line:append(" ", Text.highlights.muted)
-                :append(Text.icons.resourceTemplate, Text.highlights.error)
-                :append(" " .. tostring(#server.capabilities.resourceTemplates), Text.highlights.error)
+            render_capability_count(
+                server.capabilities.resourceTemplates,
+                server_config.disabled_resourceTemplates,
+                "uriTemplate",
+                Text.icons.resourceTemplate,
+                Text.highlights.error
+            )
         end
     end
 
