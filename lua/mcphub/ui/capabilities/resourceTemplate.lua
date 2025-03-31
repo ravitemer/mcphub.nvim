@@ -26,6 +26,11 @@ function ResourceTemplateHandler:execute()
         vim.notify("Resource template access is already in progress", vim.log.levels.WARN)
         return
     end
+    if not self.state.input_value or vim.trim(self.state.input_value or "") == "" then
+        self.state.error = "URI is required"
+        self.view:draw()
+        return
+    end
 
     -- Set executing state
     self.state.is_executing = true
@@ -48,12 +53,25 @@ function ResourceTemplateHandler:execute()
     end
 end
 
+function ResourceTemplateHandler:handle_input_update(input)
+    -- Update value
+    self.state.input_value = input
+    self.view:draw()
+end
+
 function ResourceTemplateHandler:handle_input_action()
     self:handle_input(string.format("URI: "), self.state.input_value, function(input)
-        -- Update value
-        self.state.input_value = input
-        self.view:draw()
+        self:handle_input_update(input)
     end)
+end
+
+function ResourceTemplateHandler:handle_text_box(line)
+    local type = self:get_line_info(line)
+    if type == "input" then
+        self:open_text_box("Resource Template URI", self.state.input_value or "", function(input)
+            self:handle_input_update(input)
+        end)
+    end
 end
 
 function ResourceTemplateHandler:handle_action(line)

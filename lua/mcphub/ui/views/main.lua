@@ -142,6 +142,31 @@ function MainView:handle_action()
     end
 end
 
+function MainView:handle_cursor_move()
+    -- Clear previous highlight
+    if self.cursor_highlight then
+        vim.api.nvim_buf_del_extmark(self.ui.buffer, self.hover_ns, self.cursor_highlight)
+        self.cursor_highlight = nil
+    end
+
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+    if self.active_capability then
+        self.active_capability:handle_cursor_move(self, line)
+    else
+        -- Get line info
+        local type, context = self:get_line_info(line)
+        if type then
+            -- Add virtual text without line highlight
+            self.cursor_highlight = vim.api.nvim_buf_set_extmark(self.ui.buffer, self.hover_ns, line - 1, 0, {
+                virt_text = { { context and context.hint or "Press <CR> to interact", Text.highlights.muted } },
+                virt_text_pos = "eol",
+            })
+        end
+    end
+end
+
 function MainView:setup_active_mode()
     if self.active_capability then
         self.keymaps = {
@@ -153,10 +178,18 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Execute/Submit",
             },
+            ["o"] = {
+                action = function()
+                    if self.active_capability.handle_text_box then
+                        self.active_capability:handle_text_box(vim.api.nvim_win_get_cursor(0)[1])
+                    end
+                end,
+                desc = "Open text box",
+            },
             ["<Esc>"] = {
                 action = function()
-                    -- Store capability line before exiting
-                    self.cursor_positions.capability_line = vim.api.nvim_win_get_cursor(0)
+                    -- -- Store capability line before exiting
+                    -- self.cursor_positions.capability_line = vim.api.nvim_win_get_cursor(0)
 
                     -- Clear active capability
                     self.active_capability = nil
@@ -465,7 +498,7 @@ function MainView:after_enter()
     local line_count = vim.api.nvim_buf_line_count(self.ui.buffer)
     -- Restore appropriate cursor position
     if self.active_capability then
-        local cap_pos = self.active_capability:get_cursor_position()
+        local cap_pos = self.cursor_positions.capability_line or self.active_capability:get_cursor_position()
         if cap_pos then
             local new_pos = { math.min(cap_pos[1], line_count), cap_pos[2] }
             vim.api.nvim_win_set_cursor(0, new_pos)

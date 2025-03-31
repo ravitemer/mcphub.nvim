@@ -102,7 +102,7 @@ function ToolHandler:validate_all_params()
     end
 
     local errors = {}
-    local params = self:get_ordered_params()
+    local params = self:get_ordered_params(self.parsedInputSchema)
 
     for _, param in ipairs(params) do
         local value = self.state.params.values[param.name]
@@ -128,6 +128,34 @@ function ToolHandler:validate_all_params()
 end
 
 -- Action handling
+-- Common callback logic for input handling
+function ToolHandler:handle_param_update(param_name, input)
+    -- Clear previous error
+    self.state.params.errors[param_name] = nil
+
+    -- Handle empty input
+    if input == "" then
+        -- Check if field is required
+        local is_required = vim.tbl_contains(self.parsedInputSchema.required or {}, param_name)
+        if is_required then
+            self.state.params.errors[param_name] = "Required parameter"
+        else
+            -- For optional fields, clear value and error
+            self.state.params.values[param_name] = nil
+        end
+    else
+        -- Only validate non-empty input
+        local ok, err = self:validate_param(param_name, input)
+        if not ok then
+            self.state.params.errors[param_name] = err
+        else
+            -- Update value
+            self.state.params.values[param_name] = input
+        end
+    end
+    self.view:draw()
+end
+
 function ToolHandler:handle_input_action(param_name)
     local param_schema = self.parsedInputSchema.properties[param_name]
     if not param_schema then
@@ -138,32 +166,28 @@ function ToolHandler:handle_input_action(param_name)
         string.format("%s (%s): ", param_name, self:format_param_type(param_schema)),
         self.state.params.values[param_name],
         function(input)
-            -- Clear previous error
-            self.state.params.errors[param_name] = nil
-
-            -- Handle empty input
-            if input == "" then
-                -- Check if field is required
-                local is_required = vim.tbl_contains(self.parsedInputSchema.required or {}, param_name)
-                if is_required then
-                    self.state.params.errors[param_name] = "Required parameter"
-                else
-                    -- For optional fields, clear value and error
-                    self.state.params.values[param_name] = nil
-                end
-            else
-                -- Only validate non-empty input
-                local ok, err = self:validate_param(param_name, input)
-                if not ok then
-                    self.state.params.errors[param_name] = err
-                else
-                    -- Update value
-                    self.state.params.values[param_name] = input
-                end
-            end
-            self.view:draw()
+            self:handle_param_update(param_name, input)
         end
     )
+end
+
+function ToolHandler:handle_text_box(line)
+    local type, context = self:get_line_info(line)
+    if type == "input" then
+        local param_name = context
+        local param_schema = self.parsedInputSchema.properties[param_name]
+        if not param_schema then
+            return
+        end
+
+        self:open_text_box(
+            string.format("%s (%s)", param_name, self:format_param_type(param_schema)),
+            self.state.params.values[param_name] or "",
+            function(input)
+                self:handle_param_update(param_name, input)
+            end
+        )
+    end
 end
 
 function ToolHandler:handle_action(line)
