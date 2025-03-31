@@ -1,4 +1,5 @@
 local M = {}
+local State = require("mcphub.state")
 
 function M.mcp_tool()
     return {
@@ -63,8 +64,10 @@ function M.mcp_tool()
             if params.action == "use_mcp_tool" and not params.tool_name then
                 return nil, "tool_name is required"
             end
-            local show_show_prompt = vim.g.mcphub_auto_approve ~= true
-            if show_show_prompt then
+
+            -- local should_show_prompt = vim.g.mcphub_auto_approve ~= true
+            local should_show_prompt = State.config.extensions.avante.auto_approve_mcp_tool_calls ~= true
+            if should_show_prompt then
                 local utils = require("mcphub.extensions.utils")
                 local confirmed = utils.show_mcp_tool_prompt({
                     action = params.action,

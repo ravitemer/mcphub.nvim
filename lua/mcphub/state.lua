@@ -8,7 +8,7 @@ local log = require("mcphub.utils.log")
 local State = {
     -- Setup state
     setup_state = "not_started",
-    -- config.config
+    -- config
     config = {},
     --config.mcpServers
     servers_config = {},

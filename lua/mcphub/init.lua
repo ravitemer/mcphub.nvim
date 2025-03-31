@@ -56,7 +56,11 @@ function M.setup(opts)
         },
         extensions = {
             codecompanion = {
+                show_result_in_chat = true,
                 make_vars = true,
+            },
+            avante = {
+                auto_approve_mcp_tool_calls = false,
             },
         },
         on_ready = function() end,

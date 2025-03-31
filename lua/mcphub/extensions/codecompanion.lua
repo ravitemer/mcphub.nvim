@@ -2,6 +2,7 @@
 *MCP Servers Tool*
 This tool can be used to call tools and resources from the MCP Servers.
 --]]
+local State = require("mcphub.state")
 local config = require("codecompanion.config")
 local xml2lua = require("codecompanion.utils.xml.xml2lua")
 
@@ -243,15 +244,31 @@ The Model Context Protocol (MCP) enables communication with locally running MCP 
 
             -- Show text content if present
             if result.text and result.text ~= "" then
-                self.chat:add_buf_message({
-                    role = config.constants.USER_ROLE,
-                    content = string.format(
-                        [[The `%s` call returned the following text: 
+                if State.config.extensions.codecompanion.show_result_in_chat == true then
+                    self.chat:add_buf_message({
+                        role = config.constants.USER_ROLE,
+                        content = string.format(
+                            [[The `%s` call returned the following text: 
 %s]],
-                        action_name,
-                        result.text
-                    ),
-                })
+                            action_name,
+                            result.text
+                        ),
+                    })
+                else
+                    self.chat:add_message({
+                        role = config.constants.USER_ROLE,
+                        content = string.format(
+                            [[The `%s` call returned the following text: 
+%s]],
+                            action_name,
+                            result.text
+                        ),
+                    })
+                    self.chat:add_buf_message({
+                        role = config.constants.USER_ROLE,
+                        content = "I've shared the result of the `mcp` tool with you.\n",
+                    })
+                end
             end
 
             -- Show image content if present
@@ -267,11 +284,6 @@ The Model Context Protocol (MCP) enables communication with locally running MCP 
             --     end, result.images),
             -- }, { visible = false })
             -- end
-
-            -- self.chat:add_buf_message({
-            --     role = config.constants.USER_ROLE,
-            --     content = "I've shared the result of the `mcp` tool with you.\n",
-            -- })
         end,
     },
 }
