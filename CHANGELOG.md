@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2025-04-01
+
+### Added
+
+- Zero Configuration Support
+  - Default port to 37373
+  - Default config path to ~/.config/mcphub/servers.json
+  - Auto-create config file with empty mcpServers object
+  - Works out of the box with just require("mcphub").setup({})
+
+- Installation Improvements
+  - Added bundled installation option for users without global npm access
+  - Added `build = "bundled_build.lua"` alternative
+  - Auto-updates with plugin updates
+  - Flexible cmd and cmdArgs configuration for custom environments
+
+- UI Window Customization
+  - Configurable width and height (ratio, percentage, or raw number)
+  - Border style options
+  - Relative positioning
+  - Z-index control
+
+- Lualine Integration
+  - Dynamic status indicator
+  - Server connection state
+  - Active operation spinner
+  - Total connected servers display
+
+- Native MCP Servers Support
+  - Write once, use everywhere design
+  - Clean chained API for tools and resources
+  - Full URI-based resource system with templates
+  - Centralized lifecycle management
+  - Auto-generate Native MCP servers with LLMs
+
+- Built-in Neovim MCP Server
+  - Common utility tools and resources
+  - Configurable tool enablement
+  - Interactive file operations with diff view
+  - Improved write_file tool with editor integration
+
+- MCP Resources to Chat Variables
+  - Real-time variable updates
+  - CodeCompanion integration
+  - LSP diagnostics support
+
+### Changed
+
+- Enhanced UI features
+  - Added syntax highlighting for config view and markdown text
+  - Added multiline input textarea support with "o" keymap
+  - Improved Hub view with breadcrumb preview
+  - Updated Help view
+
+- Improved Integration Features
+  - Configure auto-approve behavior in Avante
+  - Configure tool call results in CodeCompanion
+  - Enhanced tool and resource handling
+
 ## [3.5.0] - 2025-03-19
 
 ### Added
