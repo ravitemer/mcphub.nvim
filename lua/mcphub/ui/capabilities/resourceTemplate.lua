@@ -26,6 +26,11 @@ function ResourceTemplateHandler:execute()
         vim.notify("Resource template access is already in progress", vim.log.levels.WARN)
         return
     end
+    if not self.state.input_value or vim.trim(self.state.input_value or "") == "" then
+        self.state.error = "URI is required"
+        self.view:draw()
+        return
+    end
 
     -- Set executing state
     self.state.is_executing = true
@@ -35,6 +40,10 @@ function ResourceTemplateHandler:execute()
     -- Access resource with user provided URI
     if State.hub_instance then
         State.hub_instance:access_resource(self.server_name, self.state.input_value, {
+            caller = {
+                type = "hubui",
+                hubui = State.ui_instance,
+            },
             parse_response = true,
             callback = function(response, err)
                 self:handle_response(response, err)
@@ -44,12 +53,25 @@ function ResourceTemplateHandler:execute()
     end
 end
 
+function ResourceTemplateHandler:handle_input_update(input)
+    -- Update value
+    self.state.input_value = input
+    self.view:draw()
+end
+
 function ResourceTemplateHandler:handle_input_action()
     self:handle_input(string.format("URI: "), self.state.input_value, function(input)
-        -- Update value
-        self.state.input_value = input
-        self.view:draw()
+        self:handle_input_update(input)
     end)
+end
+
+function ResourceTemplateHandler:handle_text_box(line)
+    local type = self:get_line_info(line)
+    if type == "input" then
+        self:open_text_box("Resource Template URI", self.state.input_value or "", function(input)
+            self:handle_input_update(input)
+        end)
+    end
 end
 
 function ResourceTemplateHandler:handle_action(line)
@@ -73,21 +95,20 @@ function ResourceTemplateHandler:render(line_offset)
 
     -- Template details
     local details = {
-        NuiLine():append("Name: ", highlights.muted):append(self.info.name, highlights.success),
-        NuiLine():append("Template: ", highlights.muted):append(self.info.uriTemplate, highlights.info),
+        NuiLine()
+            :append("Name: ", highlights.muted)
+            :append(self.def.name or "N/A", self.def.name and highlights.success or highlights.muted),
+        NuiLine():append("Template: ", highlights.muted):append(self.def.uriTemplate, highlights.info),
     }
 
-    if self.info.mimeType then
-        table.insert(details, NuiLine():append("Type: ", highlights.muted):append(self.info.mimeType, highlights.info))
+    if self.def.mimeType then
+        table.insert(details, NuiLine():append("Type: ", highlights.muted):append(self.def.mimeType, highlights.info))
     end
 
     vim.list_extend(lines, self:render_section_content(details, 2))
 
-    -- Description if any
-    if self.info.description then
-        table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(self.info.description, highlights.muted), 2))
-    end
+    table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
+    vim.list_extend(lines, self:render_section_content(Text.multiline(self:get_description(), highlights.muted), 2))
 
     vim.list_extend(lines, self:render_section_end())
 

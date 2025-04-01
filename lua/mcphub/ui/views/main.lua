@@ -7,6 +7,7 @@ local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
+local native = require("mcphub.native")
 local renderer = require("mcphub.utils.renderer")
 local utils = require("mcphub.utils")
 
@@ -35,6 +36,21 @@ function MainView:new(ui)
     return self
 end
 
+function MainView:show_prompts_view()
+    -- Store current cursor position before switching
+    self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
+
+    -- Switch to prompts capability
+    self.active_capability = Capabilities.create_handler("prompts", "MCP Servers", { name = "System Prompts" }, self)
+    self:setup_active_mode()
+    self:draw()
+    -- Move to capability's preferred position
+    local cap_pos = self.active_capability:get_cursor_position()
+    if cap_pos then
+        vim.api.nvim_win_set_cursor(0, cap_pos)
+    end
+end
+
 function MainView:handle_action()
     local go_to_cap_line = false
     -- Get current line
@@ -43,7 +59,9 @@ function MainView:handle_action()
 
     -- Get line info
     local type, context = self:get_line_info(line)
-    if type == "server" then
+    if type == "breadcrumb" then
+        self:show_prompts_view()
+    elseif type == "server" then
         -- Toggle expand/collapse for server
         if context.status == "connected" then
             if self.expanded_server == context.name then
@@ -88,26 +106,26 @@ function MainView:handle_action()
                 end
             end
         end
+    elseif type == "create_server" then
+        -- Store browse mode position before switching
+        self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
+
+        -- Switch to create server capability
+        self.active_capability =
+            Capabilities.create_handler("createServer", "Native Servers", { name = "Create Server" }, self)
+        self:setup_active_mode()
+        self:draw()
+        -- Move to capability's preferred position
+        local cap_pos = self.active_capability:get_cursor_position()
+        if cap_pos then
+            vim.api.nvim_win_set_cursor(0, cap_pos)
+        end
     elseif
         (type == "tool" or type == "resource" or type == "resourceTemplate" or type == "customInstructions") and context
     then
-        -- Check if tool is disabled
-        local is_tool_disabled = false
-        if type == "tool" then
-            local server_config = State.servers_config[context.server_name] or {}
-            local disabled_tools = server_config.disabled_tools or {}
-            is_tool_disabled = vim.tbl_contains(disabled_tools, context.name)
-            if is_tool_disabled then
-                return
-            end
+        if context.disabled then
+            return
         end
-        if type == "customInstructions" then
-            local is_disabled = context.disabled
-            if is_disabled then
-                return
-            end
-        end
-
         -- Store browse mode position before entering capability
         self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
 
@@ -124,6 +142,31 @@ function MainView:handle_action()
     end
 end
 
+function MainView:handle_cursor_move()
+    -- Clear previous highlight
+    if self.cursor_highlight then
+        vim.api.nvim_buf_del_extmark(self.ui.buffer, self.hover_ns, self.cursor_highlight)
+        self.cursor_highlight = nil
+    end
+
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+    if self.active_capability then
+        self.active_capability:handle_cursor_move(self, line)
+    else
+        -- Get line info
+        local type, context = self:get_line_info(line)
+        if type then
+            -- Add virtual text without line highlight
+            self.cursor_highlight = vim.api.nvim_buf_set_extmark(self.ui.buffer, self.hover_ns, line - 1, 0, {
+                virt_text = { { context and context.hint or "Press <CR> to interact", Text.highlights.muted } },
+                virt_text_pos = "eol",
+            })
+        end
+    end
+end
+
 function MainView:setup_active_mode()
     if self.active_capability then
         self.keymaps = {
@@ -135,10 +178,18 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Execute/Submit",
             },
+            ["o"] = {
+                action = function()
+                    if self.active_capability.handle_text_box then
+                        self.active_capability:handle_text_box(vim.api.nvim_win_get_cursor(0)[1])
+                    end
+                end,
+                desc = "Open text box",
+            },
             ["<Esc>"] = {
                 action = function()
-                    -- Store capability line before exiting
-                    self.cursor_positions.capability_line = vim.api.nvim_win_get_cursor(0)
+                    -- -- Store capability line before exiting
+                    -- self.cursor_positions.capability_line = vim.api.nvim_win_get_cursor(0)
 
                     -- Clear active capability
                     self.active_capability = nil
@@ -170,6 +221,12 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Expand/Collapse",
             },
+            ["gd"] = {
+                action = function()
+                    self:show_prompts_view()
+                end,
+                desc = "View prompts",
+            },
         }
     end
     self:apply_keymaps()
@@ -182,72 +239,86 @@ function MainView:handle_server_toggle()
 
     -- Get line info
     local type, context = self:get_line_info(line)
-    if type == "server" and context then
-        -- Toggle server state
-        if State.hub_instance then
-            if context.status == "disabled" then
-                vim.notify("Enabling server: " .. context.name)
-                State.hub_instance:start_mcp_server(context.name, {
-                    callback = function(response, err)
-                        -- if err then
-                        --     vim.notify("Failed to enable server: " .. err, vim.log.levels.ERROR)
-                        -- end
-                    end,
-                })
-            else
-                vim.notify("Disabling server: " .. context.name)
-                State.hub_instance:stop_mcp_server(context.name, true, {
-                    callback = function(response, err)
-                        if err then
-                            vim.notify("Failed to disable server: " .. err, vim.log.levels.ERROR)
-                        end
-                    end,
-                })
-            end
+    if type == "server" and context and State.hub_instance then
+        -- Handle regular MCP server
+        if context.status == "disabled" then
+            State.hub_instance:start_mcp_server(context.name, {
+                callback = function(response, err)
+                    if err then
+                        vim.notify("Failed to enable server: " .. err, vim.log.levels.ERROR)
+                    end
+                end,
+            })
+        else
+            State.hub_instance:stop_mcp_server(context.name, true, {
+                callback = function(response, err)
+                    if err then
+                        vim.notify("Failed to disable server: " .. err, vim.log.levels.ERROR)
+                    end
+                end,
+            })
         end
-    elseif type == "tool" and context then
-        -- Toggle tool state
-        if State.hub_instance then
-            local server_config = State.servers_config[context.server_name] or {}
-            local disabled_tools = server_config.disabled_tools or {}
-            local is_disabled = vim.tbl_contains(disabled_tools, context.name)
+    elseif (type == "tool" or type == "resource" or type == "resourceTemplate") and context and State.hub_instance then
+        local server_name = context.server_name
+        local is_native = native.is_native_server(server_name)
+        local server_config = (
+            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
+        ) or {}
 
-            if is_disabled then
-                vim.notify("Enabling tool: " .. context.name)
-            else
-                vim.notify("Disabling tool: " .. context.name)
+        local type_config = {
+            tool = { id_field = "name", config_field = "disabled_tools" },
+            resource = { id_field = "uri", config_field = "disabled_resources" },
+            resourceTemplate = { id_field = "uriTemplate", config_field = "disabled_resourceTemplates" },
+        }
+
+        local config = type_config[type]
+        local capability_id = context.def[config.id_field]
+        local disabled_list = vim.deepcopy(server_config[config.config_field] or {})
+        local is_disabled = vim.tbl_contains(disabled_list, capability_id)
+
+        -- Update disabled list based on desired state
+        if is_disabled then
+            for i, item_id in ipairs(disabled_list) do
+                if item_id == capability_id then
+                    table.remove(disabled_list, i)
+                    break
+                end
             end
-
-            State.hub_instance:update_tool_config(context.server_name, context.name, not is_disabled)
-            -- self:draw()
+        else
+            table.insert(disabled_list, capability_id)
         end
+
+        -- Update server config with new disabled list
+        local updates = {}
+        updates[config.config_field] = disabled_list
+        State.hub_instance:update_server_config(server_name, updates)
+        State:emit(type .. "_list_changed", {
+            server_name = server_name,
+            config_field = config.config_field,
+            disabled_list = disabled_list,
+        })
     elseif type == "customInstructions" and context then
         -- Toggle custom instructions state
-        if State.hub_instance then
-            local server_config = State.servers_config[context.server_name] or {}
-            local custom_instructions = server_config.custom_instructions or {}
-            local is_disabled = custom_instructions.disabled
+        local server_name = context.server_name
+        local is_native = native.is_native_server(server_name)
+        local server_config = (
+            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
+        ) or {}
+        local custom_instructions = server_config.custom_instructions or {}
+        local is_disabled = custom_instructions.disabled
 
-            if is_disabled then
-                vim.notify("Enabling custom instructions for: " .. context.server_name)
-            else
-                vim.notify("Disabling custom instructions for: " .. context.server_name)
-            end
-
-            State.hub_instance:update_server_config(context.server_name, {
-                custom_instructions = vim.tbl_extend("force", custom_instructions, {
-                    disabled = not is_disabled,
-                }),
-            })
-            -- self:draw()
-        end
+        State.hub_instance:update_server_config(server_name, {
+            custom_instructions = {
+                disabled = not is_disabled,
+            },
+        })
     end
 end
 
 function MainView:get_initial_cursor_position()
     -- Position after server status section
-    local lines = self:render_header()
-    vim.list_extend(lines, self:render_hub_status(self:get_width()))
+    local lines = self:render_header(false)
+    -- vim.list_extend(lines, self:render_hub_status(self:get_width()))
     -- In browse mode, restore last browse position
     if not self.active_capability and self.cursor_positions.browse_mode then
         return self.cursor_positions.browse_mode[1]
@@ -302,98 +373,52 @@ local function sort_servers(servers)
     return servers
 end
 
---- Render server capabilities section
----@param items table[] List of items
+--- Render a server section
 ---@param title string Section title
----@param server_name string Server name
----@param type string Item type
+---@param servers table[] List of servers
+---@param config_source table Config source for the servers
 ---@param current_line number Current line number
----@return NuiLine[],number,table[] Lines, new current line, mappings
-local function render_cap_section(items, title, server_name, type, current_line)
+---@return NuiLine[], number Lines and new current line
+function MainView:render_servers_section(title, servers, config_source, current_line)
     local lines = {}
-    local mappings = {}
 
-    local icons = {
-        tool = Text.icons.tool,
-        resource = Text.icons.resource,
-        resourceTemplate = Text.icons.resourceTemplate,
-    }
-    table.insert(
-        lines,
-        Text.pad_line(NuiLine():append(" " .. icons[type] .. " " .. title .. ": ", Text.highlights.muted), nil, 4)
-    )
-
-    if type == "tool" then
-        -- For tools, sort by name and move disabled ones to end
-        local sorted_items = vim.deepcopy(items)
-        local server_config = State.servers_config[server_name] or {}
-        local disabled_tools = server_config.disabled_tools or {}
-
-        table.sort(sorted_items, function(a, b)
-            local a_disabled = vim.tbl_contains(disabled_tools, a.name)
-            local b_disabled = vim.tbl_contains(disabled_tools, b.name)
-            if a_disabled ~= b_disabled then
-                return not a_disabled
-            end
-            return a.name < b.name
-        end)
-        items = sorted_items
+    if title then
+        -- Section header
+        table.insert(lines, Text.pad_line(NuiLine():append(title, Text.highlights.title)))
+        current_line = current_line + 1
     end
 
-    for _, item in ipairs(items) do
-        local is_disabled = false
-        if type == "tool" then
-            local server_config = State.servers_config[server_name] or {}
-            local disabled_tools = server_config.disabled_tools or {}
-            is_disabled = vim.tbl_contains(disabled_tools, item.name)
-        end
-
-        local line = NuiLine()
-        if is_disabled then
-            line:append(Text.icons.circle .. " ", Text.highlights.muted):append(item.name, Text.highlights.muted)
-        else
-            line:append(Text.icons.arrowRight .. " ", Text.highlights.muted):append(item.name, Text.highlights.info)
-        end
-
-        if item.mimeType then
-            line:append(" (" .. item.mimeType .. ")", Text.highlights.muted)
-        end
-        table.insert(lines, Text.pad_line(line, nil, 6))
-
-        local hint
-        if type == "tool" then
-            hint = is_disabled and "Press 't' to enable tool" or "Press <CR> to use tool, 't' to disable"
-        else
-            hint = "Press <CR> to "
-                .. ({
-                    resource = "access resource",
-                    resourceTemplate = "create from template",
-                })[type]
-        end
-
-        table.insert(mappings, {
-            line = current_line + #lines,
-            type = type,
-            context = vim.tbl_extend("force", item, {
-                server_name = server_name,
-                hint = hint,
-            }),
-        })
+    -- If no servers in section
+    if not servers or #servers == 0 then
+        table.insert(
+            lines,
+            Text.pad_line(
+                NuiLine():append("No servers connected " .. "(Install from Marketplace)", Text.highlights.muted)
+            )
+        )
+        table.insert(lines, Text.empty_line())
+        return lines, current_line + 2
     end
 
-    return lines, current_line + #lines, mappings
+    -- Sort and render servers
+    local sorted = sort_servers(vim.deepcopy(servers))
+    for _, server in ipairs(sorted) do
+        current_line = renderer.render_server_capabilities(server, lines, current_line, config_source, self)
+    end
+
+    return lines, current_line
 end
 
---- Render connected servers section
+--- Render all server sections
 ---@return NuiLine[]
 function MainView:render_servers(line_offset)
     local lines = {}
     local current_line = line_offset
 
-    -- Section header with token information
+    -- Start with top-level MCP Servers header
     local header_line = NuiLine():append("MCP Servers", Text.highlights.title)
 
-    -- Add token count if connected
+    -- Add token count on MCP Servers section if connected
     if State.server_state.status == "connected" and State.hub_instance and State.hub_instance:is_ready() then
         local prompts = State.hub_instance:get_prompts()
         if prompts then
@@ -411,124 +436,53 @@ function MainView:render_servers(line_offset)
             end
         end
     end
-
     table.insert(lines, Text.pad_line(header_line))
     current_line = current_line + 1
+    -- Track breadcrumb line for interaction
+    self:track_line(current_line, "breadcrumb", {
+        hint = "Press <CR> to preview system prompts",
+    })
     table.insert(lines, self:divider())
     current_line = current_line + 1
 
-    if not State.server_state.servers or #State.server_state.servers == 0 then
-        -- No servers connected
-        table.insert(lines, Text.pad_line(NuiLine():append("No servers connected", Text.highlights.muted)))
-        table.insert(lines, Text.empty_line())
-        current_line = current_line + 1
-        return lines
-    end
-    -- Sort servers (enabled first)
-    local sorted_servers = sort_servers(vim.deepcopy(State.server_state.servers))
+    -- Render MCP servers section (without title since we already added it)
+    local mcp_lines, new_line =
+        self:render_servers_section(nil, State.server_state.servers, State.servers_config, current_line)
+    vim.list_extend(lines, mcp_lines)
+    current_line = new_line
 
-    for _, server in ipairs(sorted_servers) do
-        local server_name_line = renderer.render_server_line(server, self.expanded_server == server.name)
-        table.insert(lines, Text.pad_line(server_name_line, nil, 3))
-        current_line = current_line + 1
-        -- Prepare hover hint based on server status
-        local hint
-        if server.status == "disabled" then
-            hint = "Press 't' to enable server"
-        elseif server.status == "disconnected" then
-            hint = "Press 't' to disable server"
-        else
-            hint = self.expanded_server == server.name and "Press <CR> to collapse"
-                or "Press <CR> to expand, 't' to disable"
-        end
+    -- Add spacing between sections
+    table.insert(lines, Text.empty_line())
+    current_line = current_line + 1
 
-        self:track_line(current_line, "server", {
-            name = server.name,
-            status = server.status,
-            hint = hint,
-        })
+    -- Native servers section header
+    table.insert(lines, Text.pad_line(NuiLine():append("Native Servers", Text.highlights.title)))
+    current_line = current_line + 1
 
-        -- Show expanded server capabilities
-        if server.status == "connected" and server.capabilities and self.expanded_server == server.name then
-            local server_config = State.servers_config[server.name] or {}
-            if
-                #server.capabilities.tools + #server.capabilities.resources + #server.capabilities.resourceTemplates
-                == 0
-            then
-                table.insert(
-                    lines,
-                    Text.pad_line(NuiLine():append("No capabilities available", Text.highlights.muted), nil, 6)
-                )
-                table.insert(lines, Text.empty_line())
-                current_line = current_line + 2
-            end
+    -- Render Native servers first
+    local native_lines, native_line = self:render_servers_section(
+        nil, -- No title since we added it above
+        State.server_state.native_servers,
+        State.native_servers_config,
+        current_line
+    )
+    vim.list_extend(lines, native_lines)
+    current_line = native_line
 
-            local custom_instructions = server_config.custom_instructions or {}
-            local is_disabled = custom_instructions.disabled == true
-            local has_instructions = custom_instructions.text and #custom_instructions.text > 0
-            local ci_line = NuiLine()
-                :append(is_disabled and Text.icons.circle or Text.icons.arrowRight, Text.highlights.muted)
-                :append(
-                    " Custom Instructions" .. (not is_disabled and not has_instructions and " (empty)" or ""),
-                    (is_disabled or not has_instructions) and Text.highlights.muted or Text.highlights.info
-                )
-            table.insert(lines, Text.pad_line(ci_line, nil, 5))
-            current_line = current_line + 1
-            self:track_line(current_line, "customInstructions", {
-                server_name = server.name,
-                disabled = is_disabled,
-                name = Text.icons.instructions .. " Custom Instructions",
-                hint = is_disabled and "Press 't' to enable instructions" or "Press <CR> to edit, 't' to disable",
-            })
-            table.insert(lines, Text.empty_line())
-            current_line = current_line + 1
-            -- Tools section if any
-            if #server.capabilities.tools > 0 then
-                local section_lines, new_line, mappings =
-                    render_cap_section(server.capabilities.tools, "Tools", server.name, "tool", current_line)
-                vim.list_extend(lines, section_lines)
-                for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
-                end
-                table.insert(lines, Text.empty_line())
-                current_line = new_line + 1
-            end
-
-            -- Resources section if any
-            if #server.capabilities.resources > 0 then
-                local section_lines, new_line, mappings = render_cap_section(
-                    server.capabilities.resources,
-                    "Resources",
-                    server.name,
-                    "resource",
-                    current_line
-                )
-                vim.list_extend(lines, section_lines)
-                for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
-                end
-                table.insert(lines, Text.empty_line())
-                current_line = new_line + 1
-            end
-
-            -- Resource Templates section if any
-            if #server.capabilities.resourceTemplates > 0 then
-                local section_lines, new_line, mappings = render_cap_section(
-                    server.capabilities.resourceTemplates,
-                    "Resource Templates",
-                    server.name,
-                    "resourceTemplate",
-                    current_line
-                )
-                vim.list_extend(lines, section_lines)
-                for _, m in ipairs(mappings) do
-                    self:track_line(m.line, m.type, m.context)
-                end
-                table.insert(lines, Text.empty_line())
-                current_line = new_line + 1
-            end
-        end
-    end
+    -- Add create server option
+    -- table.insert(lines, Text.empty_line())
+    table.insert(
+        lines,
+        Text.pad_line(
+            NuiLine()
+                :append(" " .. Text.icons.edit .. " ", Text.highlights.muted)
+                :append("Auto Create Server", Text.highlights.muted)
+        )
+    )
+    -- Track line for interaction
+    self:track_line(current_line + 1, "create_server", {
+        hint = "Press <CR> to create server",
+    })
 
     return lines
 end
@@ -544,7 +498,7 @@ function MainView:after_enter()
     local line_count = vim.api.nvim_buf_line_count(self.ui.buffer)
     -- Restore appropriate cursor position
     if self.active_capability then
-        local cap_pos = self.active_capability:get_cursor_position()
+        local cap_pos = self.cursor_positions.capability_line or self.active_capability:get_cursor_position()
         if cap_pos then
             local new_pos = { math.min(cap_pos[1], line_count), cap_pos[2] }
             vim.api.nvim_win_set_cursor(0, new_pos)
@@ -554,7 +508,7 @@ function MainView:after_enter()
         if self.cursor_positions.browse_mode then
             local new_pos = {
                 math.min(self.cursor_positions.browse_mode[1], line_count),
-                self.cursor_positions.browse_mode[2],
+                self.cursor_positions.browse_mode[2] or 2,
             }
             vim.api.nvim_win_set_cursor(0, new_pos)
         end
@@ -592,9 +546,10 @@ function MainView:render()
         local capability_view_lines = self:render_header(false)
         -- Add breadcrumb
         local breadcrumb = NuiLine()
+        breadcrumb
             :append(self.active_capability.server_name, Text.highlights.muted)
             :append(" > ", Text.highlights.muted)
-            :append(" " .. self.active_capability.info.name .. " ", Text.highlights.info)
+            :append(self.active_capability.name, Text.highlights.info)
         table.insert(capability_view_lines, Text.pad_line(breadcrumb))
         table.insert(capability_view_lines, self:divider())
         -- Let capability render its content

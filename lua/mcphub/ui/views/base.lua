@@ -371,8 +371,16 @@ function View:render()
     return lines
 end
 
+function View:open()
+    return self.ui.window and vim.api.nvim_win_is_valid(self.ui.window)
+end
+
 --- Draw view content to buffer
 function View:draw()
+    if not self:open() then
+        return
+    end
+
     -- Track cursor position before drawing
     self:track_cursor()
 

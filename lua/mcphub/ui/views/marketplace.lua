@@ -676,7 +676,7 @@ function MarketplaceView:render_details_mode(line_offset)
                 self:center(NuiLine():append(" " .. Text.icons.resource .. " README ", Text.highlights.header))
             )
             table.insert(lines, Text.pad_line(NuiLine()))
-            vim.list_extend(lines, vim.tbl_map(Text.pad_line, Text.multiline(readme)))
+            vim.list_extend(lines, Text.render_markdown(readme))
             table.insert(lines, Text.pad_line(NuiLine()))
         end
     end

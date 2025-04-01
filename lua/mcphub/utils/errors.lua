@@ -22,6 +22,16 @@ Error.Types = {
         INVALID_CMD = "INVALID_CMD",
         INVALID_CMD_ARGS = "INVALID_CMD_ARGS",
     },
+    NATIVE = {
+        INVALID_TOOL = "INVALID_TOOL", -- Invalid tool definition
+        INVALID_RESOURCE = "INVALID_RESOURCE", -- Invalid resource definition
+        INVALID_TEMPLATE = "INVALID_TEMPLATE", -- Invalid resource template
+        INVALID_SCHEMA = "INVALID_SCHEMA", -- Invalid input schema
+        INVALID_HANDLER = "INVALID_HANDLER", -- Invalid handler function
+        INVALID_NAME = "INVALID_NAME", -- Invalid name field
+        INVALID_URI = "INVALID_URI", -- Invalid URI format
+        INVALID_PROPS = "INVALID_PROPS", -- Invalid properties
+    },
     MARKETPLACE = {
         FETCH_ERROR = "FETCH_ERROR", -- Failed to fetch marketplace data
         SERVER_NOT_FOUND = "SERVER_NOT_FOUND", -- Server not found in catalog

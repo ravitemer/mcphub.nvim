@@ -1,4 +1,4 @@
-local Error = require("mcphub.errors")
+local Error = require("mcphub.utils.errors")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 

@@ -1,4 +1,5 @@
 local M = {}
+local State = require("mcphub.state")
 
 function M.mcp_tool()
     return {
@@ -64,9 +65,30 @@ function M.mcp_tool()
                 return nil, "tool_name is required"
             end
 
+            -- local should_show_prompt = vim.g.mcphub_auto_approve ~= true
+            local should_show_prompt = State.config.extensions.avante.auto_approve_mcp_tool_calls ~= true
+            if should_show_prompt then
+                local utils = require("mcphub.extensions.utils")
+                local confirmed = utils.show_mcp_tool_prompt({
+                    action = params.action,
+                    server_name = params.server_name,
+                    tool_name = params.tool_name,
+                    uri = params.uri,
+                    arguments = params.arguments or {},
+                })
+
+                if not confirmed then
+                    return nil, "User cancelled the operation"
+                end
+            end
+            local sidebar = require("avante").get()
             if params.action == "access_mcp_resource" then
                 hub:access_resource(params.server_name, params.uri, {
                     parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                    },
                     callback = function(result, err)
                         --result has .text and .images [{mimeType, data}]
                         on_complete(result.text, err)
@@ -75,6 +97,10 @@ function M.mcp_tool()
             elseif params.action == "use_mcp_tool" then
                 hub:call_tool(params.server_name, params.tool_name, params.arguments, {
                     parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                    },
                     callback = function(result, err)
                         on_complete(result.text, err)
                     end,

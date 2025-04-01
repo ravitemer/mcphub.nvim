@@ -5,6 +5,7 @@ local Text = require("mcphub.utils.text")
 local highlights = require("mcphub.utils.highlights").groups
 local Handlers = require("mcphub.utils.handlers")
 local log = require("mcphub.utils.log")
+local validation = require("mcphub.utils.validation")
 
 ---@class ToolHandler : CapabilityHandler
 ---@field super CapabilityHandler
@@ -13,31 +14,33 @@ local ToolHandler = setmetatable({}, {
 })
 ToolHandler.__index = ToolHandler
 ToolHandler.type = "tool"
+ToolHandler.parsedInputSchema = {}
 
 function ToolHandler:new(server_name, capability_info, view)
-    local handler = Base.new(self, server_name, capability_info, view)
-    handler.state = vim.tbl_extend("force", handler.state, {
+    local self = Base:new(server_name, capability_info, view)
+    setmetatable(self, ToolHandler)
+    self.state = vim.tbl_extend("force", self.state, {
         params = {
             values = {},
             errors = {},
         },
     })
-    return handler
+    return self
 end
 
 -- Parameter ordering
-function ToolHandler:get_ordered_params()
-    if not self.info.inputSchema or not self.info.inputSchema.properties then
+function ToolHandler:get_ordered_params(inputSchema)
+    if not inputSchema or not inputSchema.properties then
         return {}
     end
 
     local params = {}
-    for name, prop in pairs(self.info.inputSchema.properties) do
+    for name, prop in pairs(inputSchema.properties) do
         table.insert(params, {
             name = name,
             type = prop.type,
             description = prop.description,
-            required = vim.tbl_contains(self.info.inputSchema.required or {}, name),
+            required = vim.tbl_contains(inputSchema.required or {}, name),
             default = prop.default,
             value = self.state.params.values[name],
         })
@@ -56,7 +59,7 @@ end
 
 -- Parameter handling
 function ToolHandler:validate_param(name, value)
-    local param_schema = self.info.inputSchema.properties[name]
+    local param_schema = self.parsedInputSchema.properties[name]
     if not param_schema or not param_schema.type then
         return false, "Invalid parameter schema"
     end
@@ -77,7 +80,7 @@ function ToolHandler:validate_param(name, value)
 end
 
 function ToolHandler:convert_param(name, value)
-    local param_schema = self.info.inputSchema.properties[name]
+    local param_schema = self.parsedInputSchema.properties[name]
     local handler = Handlers.TypeHandlers[param_schema.type]
     if not handler then
         return value
@@ -94,12 +97,12 @@ function ToolHandler:format_param_type(param)
 end
 
 function ToolHandler:validate_all_params()
-    if not self.info.inputSchema then
-        return false, "No parameters to validate"
+    if not self.parsedInputSchema then
+        return true, nil, {}
     end
 
     local errors = {}
-    local params = self:get_ordered_params()
+    local params = self:get_ordered_params(self.parsedInputSchema)
 
     for _, param in ipairs(params) do
         local value = self.state.params.values[param.name]
@@ -125,8 +128,36 @@ function ToolHandler:validate_all_params()
 end
 
 -- Action handling
+-- Common callback logic for input handling
+function ToolHandler:handle_param_update(param_name, input)
+    -- Clear previous error
+    self.state.params.errors[param_name] = nil
+
+    -- Handle empty input
+    if input == "" then
+        -- Check if field is required
+        local is_required = vim.tbl_contains(self.parsedInputSchema.required or {}, param_name)
+        if is_required then
+            self.state.params.errors[param_name] = "Required parameter"
+        else
+            -- For optional fields, clear value and error
+            self.state.params.values[param_name] = nil
+        end
+    else
+        -- Only validate non-empty input
+        local ok, err = self:validate_param(param_name, input)
+        if not ok then
+            self.state.params.errors[param_name] = err
+        else
+            -- Update value
+            self.state.params.values[param_name] = input
+        end
+    end
+    self.view:draw()
+end
+
 function ToolHandler:handle_input_action(param_name)
-    local param_schema = self.info.inputSchema.properties[param_name]
+    local param_schema = self.parsedInputSchema.properties[param_name]
     if not param_schema then
         return
     end
@@ -135,32 +166,28 @@ function ToolHandler:handle_input_action(param_name)
         string.format("%s (%s): ", param_name, self:format_param_type(param_schema)),
         self.state.params.values[param_name],
         function(input)
-            -- Clear previous error
-            self.state.params.errors[param_name] = nil
-
-            -- Handle empty input
-            if input == "" then
-                -- Check if field is required
-                local is_required = vim.tbl_contains(self.info.inputSchema.required or {}, param_name)
-                if is_required then
-                    self.state.params.errors[param_name] = "Required parameter"
-                else
-                    -- For optional fields, clear value and error
-                    self.state.params.values[param_name] = nil
-                end
-            else
-                -- Only validate non-empty input
-                local ok, err = self:validate_param(param_name, input)
-                if not ok then
-                    self.state.params.errors[param_name] = err
-                else
-                    -- Update value
-                    self.state.params.values[param_name] = input
-                end
-            end
-            self.view:draw()
+            self:handle_param_update(param_name, input)
         end
     )
+end
+
+function ToolHandler:handle_text_box(line)
+    local type, context = self:get_line_info(line)
+    if type == "input" then
+        local param_name = context
+        local param_schema = self.parsedInputSchema.properties[param_name]
+        if not param_schema then
+            return
+        end
+
+        self:open_text_box(
+            string.format("%s (%s)", param_name, self:format_param_type(param_schema)),
+            self.state.params.values[param_name] or "",
+            function(input)
+                self:handle_param_update(param_name, input)
+            end
+        )
+    end
 end
 
 function ToolHandler:handle_action(line)
@@ -204,10 +231,14 @@ function ToolHandler:execute()
         converted_values[name] = self:convert_param(name, value)
     end
 
-    log.debug(string.format("Executing tool %s with parameters: %s", self.info.name, vim.inspect(converted_values)))
+    log.debug(string.format("Executing tool %s with parameters: %s", self.def.name, vim.inspect(converted_values)))
     -- Execute tool
     if State.hub_instance then
-        State.hub_instance:call_tool(self.server_name, self.info.name, converted_values, {
+        State.hub_instance:call_tool(self.server_name, self.def.name, converted_values, {
+            caller = {
+                type = "hubui",
+                hubui = State.ui_instance,
+            },
             parse_response = true,
             callback = function(response, err)
                 self:handle_response(response, err)
@@ -234,10 +265,16 @@ function ToolHandler:render_param_form(line_offset)
 
     local lines = {}
 
+    local inputSchema = self.def.inputSchema
+    local is_function = type(inputSchema) == "function"
     -- Parameters section
-    vim.list_extend(lines, self:render_section_start("Input Parameters"))
-
-    if not self.info.inputSchema or not next(self.info.inputSchema.properties or {}) then
+    vim.list_extend(
+        lines,
+        self:render_section_start((is_function and "(" .. Text.icons.event .. " Dynamic) " or "") .. "Input Params")
+    )
+    inputSchema = self:get_inputSchema(inputSchema)
+    self.parsedInputSchema = inputSchema
+    if not inputSchema or not next(inputSchema.properties or {}) then
         -- No parameters case
         local placeholder = NuiLine():append("No parameters required ", highlights.muted)
 
@@ -252,7 +289,7 @@ function ToolHandler:render_param_form(line_offset)
         self:track_line(line_offset + #lines, "submit")
     else
         -- Render each parameter
-        local params = self:get_ordered_params()
+        local params = self:get_ordered_params(inputSchema)
         for _, param in ipairs(params) do
             -- Parameter name and type
             local name_line = NuiLine()
@@ -302,16 +339,42 @@ function ToolHandler:render_param_form(line_offset)
     return lines
 end
 
+function ToolHandler:get_inputSchema(inputSchema)
+    local base = {
+        type = "object",
+        properties = {},
+    }
+    inputSchema = self.def.inputSchema
+    if not inputSchema or (type(inputSchema) ~= "function" and not next(inputSchema or {})) then
+        inputSchema = base
+    end
+    local parsedSchema = inputSchema
+    if type(inputSchema) == "function" then
+        local ok, schema = pcall(inputSchema, self.def)
+        if not ok then
+            local err = "Error in inputSchema function: " .. tostring(schema)
+            self.state.error = err
+            log.error(err)
+            parsedSchema = base
+        else
+            parsedSchema = schema or base
+        end
+    end
+    local res = validation.validate_inputSchema(parsedSchema, self.def.name)
+    if not res.ok then
+        local err = "Error in inputSchema function: " .. tostring(res.error)
+        self.state.error = err
+        log.error(err)
+        return base
+    end
+    return parsedSchema
+end
+
 function ToolHandler:render(line_offset)
     line_offset = line_offset or 0
     local lines = {}
-
-    -- Show description if any
-    if self.info.description then
-        vim.list_extend(lines, vim.tbl_map(Text.pad_line, Text.multiline(self.info.description, highlights.muted)))
-        table.insert(lines, Text.pad_line(NuiLine()))
-    end
-
+    vim.list_extend(lines, vim.tbl_map(Text.pad_line, Text.multiline(self:get_description(), highlights.muted)))
+    table.insert(lines, Text.pad_line(NuiLine()))
     -- Parameter form
     vim.list_extend(lines, self:render_param_form(line_offset + #lines))
 

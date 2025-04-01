@@ -7,7 +7,7 @@ local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.validation")
+local validation = require("mcphub.utils.validation")
 
 ---@class ConfigView
 ---@field super View
@@ -88,13 +88,11 @@ function ConfigView:render()
 
     if file_validation.json then
         -- Show file content
-        vim.list_extend(
-            lines,
-            vim.tbl_map(
-                Text.pad_line,
-                Text.multiline(utils.pretty_json(file_validation.content), Text.highlights.muted)
-            )
-        )
+        -- vim.list_extend(
+        --     lines,
+        --     vim.tbl_map(Text.pad_line, Text.multiline(Text.render_json(file_validation.content), Text.highlights.muted))
+        -- )
+        vim.list_extend(lines, Text.render_json(file_validation.content))
     end
     return lines
 end

@@ -31,7 +31,11 @@ function ResourceHandler:execute()
 
     -- Access resource
     if State.hub_instance then
-        State.hub_instance:access_resource(self.server_name, self.info.uri, {
+        State.hub_instance:access_resource(self.server_name, self.def.uri, {
+            caller = {
+                type = "hubui",
+                hubui = State.ui_instance,
+            },
             parse_response = true,
             callback = function(response, err)
                 self:handle_response(response, err)
@@ -60,19 +64,16 @@ function ResourceHandler:render(line_offset)
 
     -- Resource details
     local details = {
-        NuiLine():append("Name: ", highlights.muted):append(self.info.name, highlights.success),
-        NuiLine():append("Type: ", highlights.muted):append(self.info.mimeType or "unknown", highlights.info),
-        NuiLine():append("URI: ", highlights.muted):append(self.info.uri, highlights.link),
+        NuiLine()
+            :append("Name: ", highlights.muted)
+            :append(self.def.name or "N/A", self.def.name and highlights.success or highlights.muted),
+        NuiLine():append("Type: ", highlights.muted):append(self.def.mimeType or "unknown", highlights.info),
+        NuiLine():append("URI: ", highlights.muted):append(self.def.uri, highlights.link),
     }
 
     vim.list_extend(lines, self:render_section_content(details, 2))
-
-    -- Description if any
-    if self.info.description then
-        table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
-        vim.list_extend(lines, self:render_section_content(Text.multiline(self.info.description, highlights.muted), 2))
-    end
-
+    table.insert(lines, Text.pad_line(NuiLine():append("│", highlights.muted)))
+    vim.list_extend(lines, self:render_section_content(Text.multiline(self:get_description(), highlights.muted), 2))
     vim.list_extend(lines, self:render_section_end())
 
     -- Action section

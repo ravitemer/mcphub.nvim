@@ -6,6 +6,7 @@ local Text = require("mcphub.utils.text")
 ---@class CapabilityHandler
 ---@field server_name string Name of the server this capability belongs to
 ---@field info table Raw capability info from the server
+---@field def table Definition of the capability
 ---@field state table Current state of the capability execution
 ---@field interactive_lines { line: number, type: string, context: any}[] List of interactive lines
 local CapabilityHandler = {
@@ -15,8 +16,12 @@ CapabilityHandler.__index = CapabilityHandler
 
 function CapabilityHandler:new(server_name, capability_info, view)
     local handler = setmetatable({
+        name = capability_info.def
+                and (capability_info.def.name or capability_info.def.uri or capability_info.def.uriTemplate)
+            or (capability_info.name or ""),
         server_name = server_name,
         info = capability_info,
+        def = capability_info.def or {},
         view = view,
         state = {
             is_executing = false,
@@ -69,14 +74,14 @@ function CapabilityHandler:handle_cursor_move(view, line)
 
     if type == "submit" and not self.state.is_executing then
         view.cursor_highlight = vim.api.nvim_buf_set_extmark(view.ui.buffer, view.hover_ns, line - 1, 0, {
-            line_hl_group = highlights.active_item,
-            virt_text = { { "Press <CR> to submit", highlights.active_item_muted } },
+            -- line_hl_group = highlights.active_item,
+            virt_text = { { "Press <CR> to submit", highlights.muted } },
             virt_text_pos = "eol",
         })
     elseif type == "input" then
         view.cursor_highlight = vim.api.nvim_buf_set_extmark(view.ui.buffer, view.hover_ns, line - 1, 0, {
-            line_hl_group = highlights.active_item,
-            virt_text = { { "Press <CR> to edit", highlights.active_item_muted } },
+            -- line_hl_group = highlights.active_item,
+            virt_text = { { "Press <CR> to edit, 'o' for text box", highlights.muted } },
             virt_text_pos = "eol",
         })
     end
@@ -92,6 +97,102 @@ function CapabilityHandler:handle_input(prompt, default, callback)
             callback(input)
         end
     end)
+end
+
+-- Text box handling
+function CapabilityHandler:open_text_box(title, content, on_save)
+    -- Create a new scratch buffer
+    local bufnr = vim.api.nvim_create_buf(false, true)
+
+    -- Set buffer options
+    vim.api.nvim_buf_set_option(bufnr, "buftype", "acwrite")
+    vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
+    vim.api.nvim_buf_set_option(bufnr, "swapfile", false)
+
+    -- Set initial content
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(content or "", "\n"))
+
+    -- Calculate window size and position
+    local width = 80
+    local height = 10
+    local editor_width = vim.o.columns
+    local editor_height = vim.o.lines
+
+    local win_opts = {
+        relative = "editor",
+        width = width,
+        height = height,
+        col = math.floor((editor_width - width) / 2),
+        row = math.floor((editor_height - height) / 2),
+        style = "minimal",
+        border = "rounded",
+        title = " " .. title .. " ",
+        title_pos = "center",
+    }
+
+    -- Create floating window
+    local win = vim.api.nvim_open_win(bufnr, true, win_opts)
+
+    -- Set window options
+    vim.api.nvim_win_set_option(win, "number", false)
+    vim.api.nvim_win_set_option(win, "relativenumber", false)
+    vim.api.nvim_win_set_option(win, "wrap", true)
+    vim.api.nvim_win_set_option(win, "cursorline", true)
+
+    -- Create namespace for virtual text
+    local ns = vim.api.nvim_create_namespace("MCPHub" .. self.type .. "TextBox")
+
+    -- Function to update virtual text at cursor position
+    local function update_virtual_text()
+        vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+        if vim.fn.mode() == "n" then
+            local cursor = vim.api.nvim_win_get_cursor(0)
+            local row = cursor[1] - 1
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                virt_text = { { "Press <CR> to save", "Comment" } },
+                virt_text_pos = "eol",
+            })
+        end
+    end
+
+    -- Set up autocmd for cursor movement and mode changes
+    local group = vim.api.nvim_create_augroup("MCPHub" .. self.type .. "Cursor", { clear = true })
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "ModeChanged" }, {
+        buffer = bufnr,
+        group = group,
+        callback = update_virtual_text,
+    })
+
+    -- Set buffer local mappings
+    local function save_and_close()
+        local new_content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
+        new_content = vim.trim(new_content)
+        -- Close the window
+        vim.api.nvim_win_close(win, true)
+        -- Call save callback if content changed
+        if content ~= new_content then
+            on_save(new_content)
+        end
+    end
+
+    local function close_window()
+        vim.api.nvim_win_close(win, true)
+    end
+
+    -- Add mappings for normal mode
+    local mappings = {
+        ["<CR>"] = save_and_close,
+        ["<Esc>"] = close_window,
+        ["q"] = close_window,
+    }
+
+    -- Apply mappings
+    for key, action in pairs(mappings) do
+        vim.keymap.set("n", key, action, { buffer = bufnr, silent = true })
+    end
+
+    vim.api.nvim_win_set_cursor(win, { vim.api.nvim_buf_line_count(bufnr), 0 })
+    update_virtual_text() -- Show initial hint
 end
 
 -- Common section rendering utilities
@@ -143,22 +244,35 @@ function CapabilityHandler:render_result()
     -- Handle image content
     if self.state.result.images and #self.state.result.images > 0 then
         if #lines > 0 then
-            table.insert(lines, Text.pad_line(NuiLine())) -- Spacer
+            vim.list_extend(lines, self:render_section_content({ "  " }, 1))
         end
         for i, img in ipairs(self.state.result.images) do
             -- Save to temp file
-            local filepath = ImageCache.save_image(img.data, img.mimeType or "application/octet-stream")
+            local ok, filepath = pcall(ImageCache.save_image, img.data, img.mimeType or "application/octet-stream")
+            if ok and filepath then
+                -- Create filesystem URL
+                local url = "file://" .. filepath
+                -- Show friendly name with URL
+                local image_line = NuiLine()
+                    :append("Image " .. i .. ": ", highlights.muted)
+                    :append(" [", highlights.muted)
+                    :append(url, highlights.link)
+                    :append("]", highlights.muted)
+                vim.list_extend(lines, self:render_section_content({ image_line }, 1))
+            else
+                vim.list_extend(lines, self:render_section_content({ "Failed to save image: " .. filepath }, 1))
+            end
+        end
+    end
 
-            -- Create filesystem URL
-            local url = "file://" .. filepath
-            -- Show friendly name with URL
-            local image_line = NuiLine()
-                :append("Image " .. i .. ": ", highlights.muted)
-                :append(" [", highlights.muted)
-                :append(url, highlights.link)
-                :append("]", highlights.muted)
-
-            vim.list_extend(lines, self:render_section_content({ image_line }, 1))
+    --Handle blobs content
+    if self.state.result.blobs and #self.state.result.blobs > 0 then
+        if #lines > 0 then
+            vim.list_extend(lines, self:render_section_content({ "  " }, 1))
+        end
+        for i, blob in ipairs(self.state.result.blobs) do
+            local blob_line = NuiLine():append("Blob " .. i .. ": Blob data cannot be shown", highlights.muted)
+            vim.list_extend(lines, self:render_section_content({ blob_line }, 1))
         end
     end
 
@@ -173,10 +287,22 @@ function CapabilityHandler:handle_response(response, err)
         vim.notify(string.format("%s execution failed: %s", self.type, err), vim.log.levels.ERROR)
         self.state.error = err
     else
-        vim.notify(string.format("%s executed successfully", self.type), vim.log.levels.INFO)
         self.state.result = response
         self.state.error = nil
     end
+end
+
+function CapabilityHandler:get_description(def_description)
+    local description = def_description or self.def.description or ""
+    if type(description) == "function" then
+        local ok, desc = pcall(description, self.def)
+        if not ok then
+            description = "Failed to get description :" .. (desc or "")
+        else
+            description = "(" .. Text.icons.event .. " Dynamic) " .. (desc or "Nothing returned")
+        end
+    end
+    return description
 end
 
 -- Abstract methods to be implemented by subclasses

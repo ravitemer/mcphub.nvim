@@ -5,6 +5,9 @@
 ---@brief ]]
 local M = {}
 local State = require("mcphub.state")
+local log = require("mcphub.utils.log")
+local native = require("mcphub.native")
+local validation = require("mcphub.utils.validation")
 
 local function get_header()
     return [[
@@ -16,7 +19,9 @@ The Model Context Protocol (MCP) enables communication between the system and lo
 end
 
 local function format_custom_instructions(server_name)
-    local server_config = State.servers_config[server_name] or {}
+    local is_native = native.is_native_server(server_name)
+    local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
+        or {}
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
@@ -25,29 +30,96 @@ local function format_custom_instructions(server_name)
     return ""
 end
 
+function M.get_description(def)
+    local description = def.description or ""
+    if type(description) == "function" then
+        local ok, desc = pcall(description, def)
+        if not ok then
+            description = "Failed to get description :" .. (desc or "")
+        else
+            description = desc or ""
+        end
+    end
+    return description
+end
+
+function M.get_inputSchema(def)
+    local base = {
+        type = "object",
+        properties = {},
+    }
+    local inputSchema = def.inputSchema
+    if not inputSchema or (type(inputSchema) == "table" and not next(inputSchema)) then
+        inputSchema = base
+    end
+    local parsedSchema = inputSchema
+    if type(parsedSchema) == "function" then
+        local ok, schema = pcall(parsedSchema, def)
+        if not ok then
+            local err = "Error in inputSchema function: " .. tostring(schema)
+            log.error(err)
+            parsedSchema = base
+        else
+            parsedSchema = schema or base
+        end
+    end
+    local res = validation.validate_inputSchema(parsedSchema, def.name)
+    if not res.ok then
+        local err = "Error in inputSchema function: " .. tostring(res.error)
+        log.error(err)
+        return base
+    end
+    return parsedSchema
+end
+
 local function format_tools(tools)
     if not tools or #tools == 0 then
         return ""
     end
 
     local result = "\n\n### Available Tools"
-    for i, tool in ipairs(tools) do
-        result = result .. string.format("\n\n- %s: %s", tool.name, tool.description or "")
-        if tool.inputSchema then
-            result = result .. "\n    Input Schema:\n    " .. vim.inspect(tool.inputSchema):gsub("\n", "\n    ")
-        end
+    for _, tool in ipairs(tools) do
+        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool))
+        local inputSchema = M.get_inputSchema(tool)
+        result = result .. "\n    Input Schema:\n    " .. vim.inspect(inputSchema):gsub("\n", "\n    ")
     end
     return result
 end
 
-local function format_resources(resources)
+local function remove_functions(obj)
+    if type(obj) ~= "table" then
+        return obj
+    end
+    local new_obj = {}
+    for k, v in pairs(obj) do
+        if type(v) ~= "function" then
+            new_obj[k] = remove_functions(v)
+        end
+    end
+    return new_obj
+end
+
+local function format_resources(resources, templates)
     if not resources or #resources == 0 then
         return ""
     end
-
     local result = "\n\n### Available Resources"
-    for i, resource in ipairs(resources) do
-        result = result .. "\n\n" .. vim.inspect(resource)
+    for _, resource in ipairs(resources) do
+        result = result
+            .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
+        local desc = M.get_description(resource)
+        result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
+        -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
+    end
+    if not templates or #templates == 0 then
+        return result
+    end
+    result = result .. "\n\n### Available Resource Templates"
+    for _, template in ipairs(templates) do
+        result = result .. string.format("\n\n- %s", template.uriTemplate)
+        local desc = M.get_description(template)
+        result = result .. "\n  " .. (template.name or "") .. (desc == "" and "" or "\n  " .. desc)
+        -- result = result .. "\n\n" .. vim.inspect(remove_functions(template))
     end
     return result
 end
@@ -126,6 +198,7 @@ function M.get_active_servers_prompt(servers)
             and (
                 (server.capabilities.tools and #server.capabilities.tools > 0)
                 or (server.capabilities.resources and #server.capabilities.resources > 0)
+                or (server.capabilities.resourceTemplates and #server.capabilities.resourceTemplates > 0)
             )
         then
             -- Add server section
@@ -136,7 +209,9 @@ function M.get_active_servers_prompt(servers)
 
             -- Add capabilities
             prompt = prompt .. format_tools(server.capabilities.tools)
-            prompt = prompt .. format_resources(server.capabilities.resources)
+            prompt = prompt .. format_resources(server.capabilities.resources, server.capabilities.resourceTemplates)
+        else
+            prompt = prompt .. "\n\n(No tools or resources available)"
         end
     end
 
@@ -145,12 +220,13 @@ end
 
 function M.parse_tool_response(response)
     if response == nil then
-        return { text = "", images = {} }
+        return { text = "", images = {}, blobs = {} }
     end
 
     local result = response.result or {}
-    local output = { text = "", images = {} }
+    local output = { text = "", images = {}, blobs = {} }
     local images = {}
+    local blobs = {}
     local texts = {}
 
     -- parse tool response
@@ -163,6 +239,17 @@ function M.parse_tool_response(response)
                 data = v.data,
                 mimeType = v.mimeType or "application/octet-stream",
             })
+        elseif type == "resource" and v.resource then
+            -- Handle resource content by treating it as a resource response
+            local resource_result = M.parse_resource_response({
+                result = {
+                    contents = { v.resource },
+                },
+            })
+            -- Merge the results
+            table.insert(texts, resource_result.text)
+            vim.list_extend(images, resource_result.images)
+            vim.list_extend(blobs, resource_result.blobs)
         end
     end
 
@@ -172,35 +259,59 @@ function M.parse_tool_response(response)
         output.text = "The tool run failed with error.\n" .. output.text
     end
     output.images = images
+    output.blobs = blobs
 
     return output
 end
 
 function M.parse_resource_response(response)
     if response == nil then
-        return { text = "", images = {} }
+        return { text = "", images = {}, blobs = {} }
     end
 
     local result = response.result or {}
-    local output = { text = "", images = {} }
+    local output = { text = "", images = {}, blobs = {} }
     local images = {}
+    local blobs = {}
     local texts = {}
 
     for _, content in ipairs(result.contents or {}) do
-        -- If it has a blob, treat as image
-        if content.blob then
-            table.insert(images, {
-                data = content.blob,
-                mimeType = content.mimeType or "application/octet-stream",
-            })
-        -- Otherwise treat as text
-        elseif content.text then
-            table.insert(texts, string.format("Resource %s:\n%s", content.uri, content.text))
+        if content.uri then
+            if content.blob then
+                -- Handle blob data based on mimetype
+                if content.mimeType and content.mimeType:match("^image/") then
+                    -- It's an image
+                    table.insert(images, {
+                        data = content.blob,
+                        mimeType = content.mimeType,
+                    })
+                else
+                    -- It's a binary blob
+                    table.insert(blobs, {
+                        data = content.blob,
+                        mimeType = content.mimeType or "application/octet-stream",
+                        uri = content.uri,
+                    })
+                    -- Add blob info to text
+                    table.insert(
+                        texts,
+                        string.format(
+                            "Resource %s: <Binary data of type %s>",
+                            content.uri,
+                            content.mimeType or "application/octet-stream"
+                        )
+                    )
+                end
+            elseif content.text then
+                -- Text content
+                table.insert(texts, string.format("Resource %s:\n%s", content.uri, content.text))
+            end
         end
     end
 
     output.text = table.concat(texts, "\n\n")
     output.images = images
+    output.blobs = blobs
 
     return output
 end
@@ -218,7 +329,7 @@ function M.get_marketplace_server_prompt(details)
     local servers_path = home .. "/.mcphub/servers"
 
     -- Get current config content
-    local config_result = require("mcphub.validation").validate_config_file(details.config_file)
+    local config_result = validation.validate_config_file(details.config_file)
     local config_content = config_result.content or "{}"
 
     -- Build installation prompt
@@ -263,6 +374,54 @@ README Content:
         details.config_file,
         details.readmeContent or "No README available"
     )
+end
+
+--- Get the native server creation prompt from the guide file
+---@return string|nil The native server guide content or nil if not found
+function M.get_native_server_prompt()
+    -- Use source file path to find the guide
+    local source_path = debug.getinfo(1, "S").source:sub(2) -- Remove '@' prefix
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h") -- Go up three levels from prompt.lua
+    local guide_path = base_path .. "/native/NATIVE_SERVER_LLM.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+
+    local content = f:read("*all")
+    f:close()
+
+    return content
+end
+
+--- Get mcphub.nvim plugin documentation intended for llms
+---@return string|nil The plugin docs content or nil if not found
+function M.get_plugin_docs()
+    local source_path = debug.getinfo(1, "S").source:sub(2)
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h:h:h")
+    local guide_path = base_path .. "/README.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+    local content = f:read("*all")
+    f:close()
+    return content
+end
+
+--- Get the changelog for the mcphub.nvim plugin
+--- @return string|nil The changelog content or nil if not found
+function M.get_plugin_changelog()
+    local source_path = debug.getinfo(1, "S").source:sub(2)
+    local base_path = vim.fn.fnamemodify(source_path, ":h:h:h:h")
+    local guide_path = base_path .. "/CHANGELOG.md"
+    local f = io.open(guide_path)
+    if not f then
+        return nil
+    end
+    local content = f:read("*all")
+    f:close()
+    return content
 end
 
 return M

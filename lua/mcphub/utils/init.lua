@@ -22,13 +22,6 @@ function M.clean_args(args)
         :totable()
 end
 
---- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
----@return string Path to mcp-hub executable in bundled directory
-function M.get_bundled_mcp_path()
-    local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
-    return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
-end
-
 --- Format timestamp relative to now
 ---@param timestamp number Unix timestamp
 ---@return string
@@ -108,17 +101,85 @@ function M.format_token_count(count)
     end
 end
 
+--- Fire an autocommand event with data
+---@param name string The event name (without "User" prefix)
+---@param data? table Optional data to pass to the event
+function M.fire(name, data)
+    vim.api.nvim_exec_autocmds("User", {
+        pattern = name,
+        data = data,
+    })
+end
+
+--- Sort table keys recursively while preserving arrays
+---@param tbl table The table to sort
+---@return table sorted_tbl The sorted table
+local function sort_keys_recursive(tbl)
+    if type(tbl) ~= "table" then
+        return tbl
+    end
+
+    -- Check if table is an array
+    local is_array = true
+    local max_index = 0
+    for k, _ in pairs(tbl) do
+        if type(k) ~= "number" then
+            is_array = false
+            break
+        end
+        max_index = math.max(max_index, k)
+    end
+    if is_array and max_index == #tbl then
+        -- Process array values but preserve order
+        local result = {}
+        for i, v in ipairs(tbl) do
+            result[i] = sort_keys_recursive(v)
+        end
+        return result
+    end
+
+    -- Sort object keys alphabetically (case-insensitive)
+    local sorted = {}
+    local keys = {}
+
+    for k in pairs(tbl) do
+        table.insert(keys, k)
+    end
+    table.sort(keys)
+    for _, k in ipairs(keys) do
+        sorted[k] = sort_keys_recursive(tbl[k])
+    end
+    return sorted
+end
+
 --- Pretty print JSON string with optional unescaping of forward slashes
 ---@param str string JSON string to format
 ---@param unescape_slashes boolean? Whether to unescape forward slashes (default: true)
 ---@return string Formatted JSON string
 function M.pretty_json(str, unescape_slashes)
+    -- Parse JSON string to table
+    local ok, parsed = pcall(vim.json.decode, str)
+    if not ok then
+        vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
+        -- If parsing fails, return the original string formatted
+        return M.format_json_string(str)
+    end
+    -- Sort keys recursively
+    local sorted = sort_keys_recursive(parsed)
+    -- encode doesn't preserve the order but keeps it atleast kindof sorted
+    local encoded = vim.json.encode(sorted)
+    return M.format_json_string(encoded, unescape_slashes)
+end
+
+--- Format a JSON string with proper indentation
+---@param str string JSON string to format
+---@return string Formatted JSON string
+function M.format_json_string(str, unescape_slashes)
     local level = 0
     local result = ""
     local in_quotes = false
     local escape_next = false
     local indent = "  "
-
     -- Default to true if not specified
     if unescape_slashes == nil then
         unescape_slashes = true
@@ -155,8 +216,8 @@ function M.pretty_json(str, unescape_slashes)
                 -- Add space after colons for readability
                 result = result .. ": "
             elseif char == " " or char == "\n" or char == "\t" then
-            -- Skip whitespace in non-quoted sections
-            -- (vim.json.encode already adds its own whitespace)
+                -- Skip whitespace in non-quoted sections
+                -- (vim.json.encode already adds its own whitespace)
             else
                 result = result .. char
             end
@@ -168,11 +229,164 @@ function M.pretty_json(str, unescape_slashes)
     return result
 end
 
---- Get path to bundled mcp-hub executable
+--- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
 ---@return string Path to mcp-hub executable in bundled directory
 function M.get_bundled_mcp_path()
     local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
     return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
+end
+
+function M.safe_get(tbl, path)
+    -- Handle nil input
+    if tbl == nil then
+        return nil
+    end
+
+    -- Split path by dots
+    local parts = {}
+    for part in path:gmatch("[^.]+") do
+        parts[#parts + 1] = part
+    end
+
+    local current = tbl
+    for _, key in ipairs(parts) do
+        -- Convert string numbers to numeric indices
+        if tonumber(key) then
+            key = tonumber(key)
+        end
+
+        if type(current) ~= "table" then
+            return nil
+        end
+        current = current[key]
+        if current == nil then
+            return nil
+        end
+    end
+
+    return current
+end
+
+function M.parse_context(caller)
+    local bufnr = nil
+    local context = {}
+    local type = caller.type
+    local meta = caller.meta or {}
+    if type == "codecompanion" then
+        local is_within_variable = meta.is_within_variable == true
+        local chat
+        if is_within_variable then
+            chat = M.safe_get(caller, "codecompanion.Chat") or M.safe_get(caller, "codecompanion.inline")
+        else
+            chat = M.safe_get(caller, "codecompanion.chat")
+        end
+        bufnr = M.safe_get(chat, "context.bufnr") or 0
+    elseif type == "avante" then
+        bufnr = M.safe_get(caller, "avante.code.bufnr") or 0
+    elseif type == "hubui" then
+        context = M.safe_get(caller, "hubui.context") or {}
+    end
+    return vim.tbl_extend("force", {
+        bufnr = bufnr,
+    }, context)
+end
+
+---@param mode string
+---@return boolean
+local function is_visual_mode(mode)
+    return mode == "v" or mode == "V" or mode == "^V"
+end
+
+---Get the context of the current buffer.
+---@param bufnr? integer
+---@param args? table
+---@return table
+function M.get_buf_info(bufnr, args)
+    bufnr = bufnr or vim.api.nvim_get_current_buf()
+
+    -- Validate buffer
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+        error("Invalid buffer number: " .. tostring(bufnr))
+    end
+
+    -- Find the window displaying this buffer
+    local winnr
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_get_buf(win) == bufnr then
+            winnr = win
+            break
+        end
+    end
+
+    -- Fallback to current window if buffer isn't displayed
+    if not winnr then
+        winnr = vim.api.nvim_get_current_win()
+    end
+    local mode = vim.fn.mode()
+    local cursor_pos = { 1, 0 } -- Default to start of buffer
+
+    -- Only get cursor position if we have a valid window
+    if winnr and vim.api.nvim_win_is_valid(winnr) then
+        local ok, pos = pcall(vim.api.nvim_win_get_cursor, winnr)
+        if ok then
+            cursor_pos = pos
+        end
+    end
+
+    -- Get all buffer lines for context
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local start_line = cursor_pos[1]
+    local start_col = cursor_pos[2]
+    local end_line = cursor_pos[1]
+    local end_col = cursor_pos[2]
+
+    local is_visual = false
+    local is_normal = true
+
+    local function try_get_visual_selection()
+        local ok, result = pcall(function()
+            if args and args.range and args.range > 0 then
+                is_visual = true
+                is_normal = false
+                mode = "v"
+                return M.get_visual_selection(bufnr)
+            elseif is_visual_mode(mode) then
+                is_visual = true
+                is_normal = false
+                return M.get_visual_selection(bufnr)
+            end
+            return lines, start_line, start_col, end_line, end_col
+        end)
+
+        if not ok then
+            -- Fallback to current cursor position on error
+            vim.notify("Failed to get visual selection: " .. tostring(result), vim.log.levels.WARN)
+            is_visual = false
+            is_normal = true
+            return lines, start_line, start_col, end_line, end_col
+        end
+        return result
+    end
+
+    lines, start_line, start_col, end_line, end_col = try_get_visual_selection()
+
+    return {
+        winnr = winnr,
+        bufnr = bufnr,
+        mode = mode,
+        is_visual = is_visual,
+        is_normal = is_normal,
+        buftype = vim.api.nvim_buf_get_option(bufnr, "buftype") or "",
+        filetype = vim.api.nvim_buf_get_option(bufnr, "filetype") or "",
+        filename = vim.api.nvim_buf_get_name(bufnr),
+        cursor_pos = cursor_pos,
+        lines = lines,
+        line_count = vim.api.nvim_buf_line_count(bufnr),
+        start_line = start_line,
+        start_col = start_col,
+        end_line = end_line,
+        end_col = end_col,
+    }
 end
 
 return M
