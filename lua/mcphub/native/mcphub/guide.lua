@@ -18,7 +18,7 @@ mcphub.add_resource("neovim", {
 mcphub.add_resource("neovim", {
     name = "MCPHub Native Server Guide",
     mimeType = "text/plain",
-    uri = "mcphub://native-server/guide",
+    uri = "mcphub://native_server_guide",
     description = [[Documentation on how to create Lua Native MCP servers for mcphub.nvim plugin.
 This guide is intended for Large language models to help users create their own native servers for mcphub.nvim plugin.
 Access this guide whenever you need information on how to create a native server for mcphub.nvim plugin.]],

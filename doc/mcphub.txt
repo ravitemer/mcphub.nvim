@@ -40,6 +40,19 @@ Features:~
   - Real-time tool testing interface
   - Resource browsing and access
   - Built-in documentation and help
+- Native MCP Server Support
+  - Create Lua-based MCP servers directly in Neovim
+  - Automatically create lua native MCP servers using LLMs
+  - Write once, use everywhere design
+  - Clean chained API for tools and resources
+  - Full URI-based resource system with templates
+  - Centralized lifecycle management
+- Built-in MCP Servers
+  - Neovim Server: Pre-configured with essential development tools
+  - File operations (read, write, search, replace)
+  - Command execution and terminal integration
+  - LSP integration with diagnostics
+  - Buffer and environment access
 - Performance and Reliability
   - Parallel startup for improved performance
   - Automatic server lifecycle management
@@ -66,29 +79,63 @@ Using lazy.nvim: >lua
         dependencies = {
             "nvim-lua/plenary.nvim",  -- Required for Job and HTTP requests
         },
+        -- comment the following line to ensure hub will be ready at the earliest
+        cmd = "MCPHub",  -- lazy load by default
         build = "npm install -g mcp-hub@latest",
+        -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
+        -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts
         config = function()
-            require("mcphub").setup({
-                -- Required options
-                port = 3000,  -- Port for MCP Hub server
-                config = vim.fn.expand("~/mcpservers.json"),
-
-                -- Optional options
-                on_ready = function(hub)
-                    -- Called when hub is ready
-                end,
-                on_error = function(err)
-                    -- Called on errors
-                end,
-                log = {
-                    level = vim.log.levels.WARN,
-                    to_file = false,
-                    file_path = nil,
-                    prefix = "MCPHub"
-                },
-            })
+            require("mcphub").setup()
         end
     }
+<
+Advanced Configuration: >lua
+    require("mcphub").setup({
+        port = 37373,  -- Default port for MCP Hub
+        config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Path to config file
+        native_servers = {}, -- add your native servers here
+
+        -- Extensions configuration
+        extensions = {
+            avante = {
+                auto_approve_mcp_tool_calls = false, -- Auto approves mcp tool calls
+            },
+            codecompanion = {
+                show_result_in_chat = true, -- Show the mcp tool result in the chat buffer
+                make_vars = true, -- make chat #variables from MCP server resources
+            },
+        },
+
+        -- Default window settings
+        ui = {
+          window = {
+            width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+            height = 0.8,
+            relative = "editor",
+            zindex = 50,
+            border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+          },
+        },
+
+        -- Event callbacks
+        on_ready = function(hub)
+          -- Called when hub is ready
+        end,
+        on_error = function(err)
+          -- Called on errors
+        end,
+
+        --set this to true when using build = "bundled_build.lua"
+        use_bundled_binary = false,  -- Uses bundled mcp-hub instead of global installation
+
+        -- Logging configuration
+        log = {
+          level = vim.log.levels.WARN,
+          to_file = false,
+          file_path = nil,
+          prefix = "MCPHub"
+        }
+    })
 <
 ==============================================================================
 USAGE                                                      *mcphub-usage*
@@ -145,6 +192,89 @@ Core Functions:                                            *mcphub-functions*
     })
 <
 
+Native MCP Servers:                                        *mcphub-native-servers*
+
+Create Lua-based MCP servers directly in Neovim:
+>lua
+    -- Option 1: Add servers in setup config
+    require("mcphub").setup({
+        native_servers = { 
+            weather = {
+                name = "weather",
+                capabilities = {
+                    tools = {
+                        {
+                            name = "get_weather",
+                            description = "Get current weather information for a city",
+                            inputSchema = {
+                                type = "object",
+                                properties = {
+                                    city = {
+                                        type = "string",
+                                        description = "City name to get weather for",
+                                    }
+                                },
+                            },
+                            handler = function(req, res)
+                                res:text("Weather in " .. req.params.city .. ": ☀️ Sunny, 22°C"):send()
+                            end
+                        }
+                    },
+                    resources = {
+                        -- Resource definitions
+                    },
+                    resourceTemplates = {
+                        -- Resource template definitions
+                    }
+                }
+            }
+        }
+    })
+
+    -- Option 2: Build servers incrementally with the API
+    local mcphub = require("mcphub")
+    
+    -- Add a tool (creates server if not exists)
+    mcphub.add_tool("weather", {
+        name = "get_weather",
+        description = "Get current weather for a city",
+        inputSchema = {
+            type = "object",
+            properties = {
+                city = {
+                    type = "string",
+                    description = "City name",
+                    examples = ["London", "New York"],
+                },
+            },
+        },
+        handler = function(req, res)
+            -- Handler implementation
+            res:text("Weather data"):send()
+        end,
+    })
+
+    -- Add a static resource
+    mcphub.add_resource("weather", {
+        name = "london_weather",
+        uri = "weather://current/london",
+        description = "Current London weather",
+        handler = function(req, res)
+            res:text("London: ☀️ 22°C"):send()
+        end,
+    })
+
+    -- Add a resource template
+    mcphub.add_resource_template("weather", {
+        name = "city_weather",
+        uriTemplate = "weather://current/{city}",
+        description = "Get weather for any city",
+        handler = function(req, res)
+            -- Handler implementation
+            res:text("Weather data for " .. req.params.city):send()
+        end,
+    })
+<
 ==============================================================================
 EXTENSIONS                                                 *mcphub-extensions*
 
@@ -152,15 +282,51 @@ MCPHub.nvim provides extensions that integrate with popular Neovim chat plugins.
 These extensions allow you to use MCP tools and resources directly within your
 chat interfaces.
 
-CodeCompanion Integration:~
+Avante.nvim Integration:                                   *mcphub-avante*
+>lua
+    -- In mcphub setup
+    extensions = {
+        avante = {
+            auto_approve_mcp_tool_calls = true, -- Auto approves mcp tool calls
+        }
+    }
+
+    -- In avante setup
+    require("avante").setup({
+        -- The system_prompt type supports both a string and a function
+        system_prompt = function()
+            local hub = require("mcphub").get_hub_instance()
+            return hub:get_active_servers_prompt()
+        end,
+        -- The custom_tools type supports both a list and a function
+        custom_tools = function()
+            return {
+                require("mcphub.extensions.avante").mcp_tool(),
+            }
+        end,
+    })
+<
+
+CodeCompanion Integration:                                 *mcphub-codecompanion*
 Note: Breaking changes with codecompanion v13 in tool configuration.
 >lua
+    -- In mcphub setup
+    extensions = {
+        codecompanion = {
+            show_result_in_chat = true, -- Show the mcp tool result in the chat buffer
+            make_vars = true, -- make chat #variables from MCP server resources
+        }
+    }
+
+    -- In codecompanion setup
     require("codecompanion").setup({
         strategies = {
             chat = {
                 tools = {
                     ["mcp"] = {
-                        callback = require("mcphub.extensions.codecompanion"),
+                        callback = function() 
+                            return require("mcphub.extensions.codecompanion") 
+                        end,
                         description = "Call tools and resources from the MCP Servers",
                         opts = {
                             requires_approval = true,
@@ -171,8 +337,17 @@ Note: Breaking changes with codecompanion v13 in tool configuration.
         }
     })
 <
-See extensions/ folder for more examples and implementation details.
 
+Lualine Integration:                                       *mcphub-lualine*
+>lua
+    require('lualine').setup {
+        sections = {
+            lualine_x = {
+                {require('mcphub.extensions.lualine')},
+            },
+        },
+    }
+<
 ==============================================================================
 TROUBLESHOOTING                                           *mcphub-troubleshooting*
 
@@ -188,20 +363,42 @@ TROUBLESHOOTING                                           *mcphub-troubleshootin
    uvx --version
 <
 
-2. Port Issues~
+2. LLM Model Issues~
+   If the LLM isn't making correct tool calls:
+
+   - Schema Support:
+     - Models with function calling support (like claude-3.5) work best
+     - Only top-tier models handle XML-based tool formats correctly
+     - Consider upgrading to a better model if seeing incorrect tool usage
+
+   - Common Tool Call Issues:
+     - Missing `action` field
+     - Incorrect `server_name`
+     - Missing `tool_name` or `uri`
+     - Malformed arguments
+
+   - Recommended Models:
+     - GPT-4o
+     - Claude 3.5 Sonnet
+     - Claude 3.7
+     - Gemini 2.0 Flash
+     - Gemini 2.0 Pro
+     - Mistral Large
+
+3. Port Issues~
    If you get `EADDRINUSE` error:
 >sh
    lsof -i :[port]  # Find process ID
    kill [pid]       # Kill the process
 <
 
-3. Configuration File~
+4. Configuration File~
    - Ensure config path is absolute
    - Verify file contains valid JSON with `mcpServers` key
    - Check server-specific configuration requirements
    - Validate server command and args are correct for your system
 
-4. MCP Server Issues~
+5. MCP Server Issues~
    Ways to validate server configurations:
    - MCP Inspector: GUI tool for verifying server operation
      https://github.com/modelcontextprotocol/inspector
@@ -211,6 +408,8 @@ TROUBLESHOOTING                                           *mcphub-troubleshootin
    - Test tools and resources individually to isolate issues
 
 Need Help?~
+- First try testing it with minimal.lua: 
+  https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388
 - Create a Discussion: https://github.com/ravitemer/mcphub.nvim/discussions
 - Open an Issue: https://github.com/ravitemer/mcphub.nvim/issues
 

@@ -135,7 +135,30 @@ MCPHub is an open-source project that relies on community support to stay active
      ```
    - Most server commands use `npx` or `uvx` - verify these work in your terminal
 
-2. **Port Issues**
+2. LLM Model Issues
+
+   If the LLM isn't making correct tool calls:
+
+   1. **Schema Support**
+   - Models with function calling support (like claude-3.5) work best with Avante's schema format
+   - Only top-tier models handle XML-based tool formats correctly
+   - Consider upgrading to a better model if seeing incorrect tool usage
+
+   2. **Common Tool Call Issues**
+   - Missing `action` field
+   - Incorrect `server_name`
+   - Missing `tool_name` or `uri`
+   - Malformed arguments
+
+   3. **Recommended Models**
+   - GPT-4o
+   - Claude 3.5 Sonnet
+   - Claude 3.7
+   - Gemini 2.0 Flash
+   - Gemini 2.0 Pro
+   - Mistral Large
+
+3. **Port Issues**
 
    - If you get `EADDRINUSE` error, kill the existing process:
      ```bash
@@ -143,14 +166,14 @@ MCPHub is an open-source project that relies on community support to stay active
      kill [pid]       # Kill the process
      ```
 
-3. **Configuration File**
+4. **Configuration File**
 
    - Ensure config path is absolute
    - Verify file contains valid JSON with `mcpServers` key
    - Check server-specific configuration requirements
    - Validate server command and args are correct for your system
 
-4. **MCP Server Issues**
+5. **MCP Server Issues**
 
    - Validate server configurations using either:
      - [MCP Inspector](https://github.com/modelcontextprotocol/inspector): GUI tool for verifying server operation
@@ -158,8 +181,8 @@ MCPHub is an open-source project that relies on community support to stay active
    - Check server logs in MCPHub UI (Logs view)
    - Test tools and resources individually to isolate issues
 
-5. **Need Help?**
-   - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388)
+6. **Need Help?**
+   - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388) 
    - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
    - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
 

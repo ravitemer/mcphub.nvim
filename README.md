@@ -1,12 +1,13 @@
 # MCP Hub
 
-[![Neovim](https://img.shields.io/badge/NeoVim-%2357A143.svg?&style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
 [![NixOS](https://img.shields.io/badge/NixOS-5277C3?style=flat-square&logo=nixos&logoColor=white)](https://nixos.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Discord](https://img.shields.io/badge/Discord-Join-7289DA?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/NTqfxXsNuN)
 
 A powerful Neovim plugin that integrates MCP (Model Context Protocol) servers into your workflow. Configure and manage MCP servers through a centralized config file while providing an intuitive UI for browsing, installing and testing tools and resources. Perfect for LLM integration, offering both programmatic API access and interactive testing capabilities through the `:MCPHub` command.
+
+**Discord**: Join our [Discord server](https://discord.gg/NTqfxXsNuN) for discussions, help, and updates
 
 ```mermaid
 graph TD
@@ -89,21 +90,11 @@ O --> D
 
 </details>
 
+For detailed documentation, visit our [Wiki](https://github.com/ravitemer/mcphub.nvim/wiki):
+
 ## :raised_hands: Support MCPHub
 
-MCPHub is an open source project that relies on community support. You can help in several ways:
-
-### :coffee: Support
-
-- **GitHub Sponsors**: Support ongoing development via [GitHub Sponsors](https://github.com/sponsors/ravitemer)
-- **Buy Me A Coffee**: Make a one-time contribution on [Buy Me A Coffee](https://www.buymeacoffee.com/ravitemer)
-
-### :people_holding_hands: Join the Community
-
-- **Discord**: Join our [Discord server](https://discord.gg/NTqfxXsNuN) for discussions, help, and updates
-- **Twitter**: Follow [@ravitemer](https://x.com/ravitemer) for updates and announcements
-- **GitHub**: Star the repo, open issues, and contribute PRs
-- **Share**: Tell others about MCPHub if you find it useful
+MCPHub is an open source project that relies on your support. If you like this project, please consider supporting to help maintain and improve the project by [Sponsoring](https://github.com/sponsors/ravitemer) or :coffee: [Buying A Coffee](https://www.buymeacoffee.com/ravitemer)
 
 ### :purple_heart: Sponsors
 
@@ -155,15 +146,6 @@ Thank you to the following amazing people:
   - Command execution and terminal integration
   - LSP integration with diagnostics
   - Buffer and environment access
-  - Can be disabled if not needed
-
-- **MCPHub Server**: Provides LLM context for development
-  - Plugin documentation and implementation details
-  - Comprehensive guide for creating native MCP servers
-  - Example schemas and templates
-  - These resources help LLMs understand MCPHub's architecture
-  - Enables LLMs to assist in building custom native servers
-  - Makes the development process more intuitive
   - Can be disabled if not needed
 </details>
 
@@ -811,8 +793,33 @@ All tools, resources, and templates from the server above are converted into a c
      uvx --version    # Should be installed
      ```
    - Most server commands use `npx` or `uvx` - verify these work in your terminal
+   
+2. LLM Model Issues
 
-2. **Port Issues**
+   If the LLM isn't making correct tool calls:
+
+   1. **Schema Support**
+   - Models with function calling support (like claude-3.5) work best with Avante's schema format
+   - Only top-tier models handle XML-based tool formats correctly
+   - Consider upgrading to a better model if seeing incorrect tool usage
+
+   2. **Common Tool Call Issues**
+   - Missing `action` field
+   - Incorrect `server_name`
+   - Missing `tool_name` or `uri`
+   - Malformed arguments
+
+   3. **Recommended Models**
+   - GPT-4o
+   - Claude 3.5 Sonnet
+   - Claude 3.7
+   - Gemini 2.0 Flash
+   - Gemini 2.0 Pro
+   - Mistral Large
+
+
+
+3. **Port Issues**
 
    - If you get `EADDRINUSE` error, kill the existing process:
      ```bash
@@ -820,14 +827,14 @@ All tools, resources, and templates from the server above are converted into a c
      kill [pid]       # Kill the process
      ```
 
-3. **Configuration File**
+4. **Configuration File**
 
    - Ensure config path is absolute
    - Verify file contains valid JSON with `mcpServers` key
    - Check server-specific configuration requirements
    - Validate server command and args are correct for your system
 
-4. **MCP Server Issues**
+5. **MCP Server Issues**
 
    - Validate server configurations using either:
      - [MCP Inspector](https://github.com/modelcontextprotocol/inspector): GUI tool for verifying server operation
@@ -835,7 +842,7 @@ All tools, resources, and templates from the server above are converted into a c
    - Check server logs in MCPHub UI (Logs view)
    - Test tools and resources individually to isolate issues
 
-5. **Need Help?**
+6. **Need Help?**
    - First try testing it with [minimal.lua](https://gist.github.com/ravitemer/c85d69542bdfd1a45c6a9849301e4388) 
    - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
    - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
@@ -1004,3 +1011,19 @@ Thanks to:
 
 - [cline/mcp-marketplace](https://github.com/cline/mcp-marketplace) for providing the marketplace api
 - [nui.nvim](https://github.com/MunifTanjim/nui.nvim) for inspiring our text highlighting utilities
+
+## 📚 Documentation
+
+For detailed documentation, visit our [Wiki](https://github.com/ravitemer/mcphub.nvim/wiki):
+
+- [Installation Guide](https://github.com/ravitemer/mcphub.nvim/wiki/Installation)
+- [Configuration Guide](https://github.com/ravitemer/mcphub.nvim/wiki/Configuration-File)
+- [Extension Setup](https://github.com/ravitemer/mcphub.nvim/wiki/Extensions)
+- [Avante Integration](https://github.com/ravitemer/mcphub.nvim/wiki/Avante)
+- [CodeCompanion Integration](https://github.com/ravitemer/mcphub.nvim/wiki/CodeCompanion)
+- [Lualine Integration](https://github.com/ravitemer/mcphub.nvim/wiki/Lualine)
+- [Native MCP Servers](https://github.com/ravitemer/mcphub.nvim/wiki/Native-Servers)
+- [Example Implementations](https://github.com/ravitemer/mcphub.nvim/wiki/Example-Servers)
+- [API Reference](https://github.com/ravitemer/mcphub.nvim/wiki/API-Reference)
+- [Troubleshooting Guide](https://github.com/ravitemer/mcphub.nvim/wiki/Troubleshooting)
+
