@@ -464,6 +464,9 @@ Add MCP capabilities to CodeCompanion.
 * E.g LSP current file diagnostics
 ![image](https://github.com/user-attachments/assets/8aeaa5f6-f48a-46fd-b761-4f4e34aeb262)
 
+![image](https://github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32) 
+
+![image](https://github.com/user-attachments/assets/f1fa305a-5d48-4119-b3e6-e13a9176da07)
 
 > Set `show_result_in_chat = true` to view the mcp tool call result in the chat buffer. Note that, If the tool call return markdown with headers, the content after the headers wont be sent
 ```lua
@@ -992,6 +995,11 @@ sequenceDiagram
 
 - [x] Neovim MCP Server (kind of) with better editing, diffs, terminal integration etc (Ideas are welcome)
 - [x] Enhanced help view with comprehensive documentation
+- [x] MCP Resources as variables in chat plugins
+- [x] MCP Prompts as slash commands in chat plugins
+- [ ] Support for #variables, /slash_commands in avante
+- [ ] Support SSE transport
+
 
 ## 👏 Acknowledgements
 
