@@ -230,6 +230,7 @@ require("mcphub").setup({
     -- Extensions configuration
 	extensions = {
 		avante = {
+            make_slash_commands = true, -- make /slash commands from MCP server prompts
 		},
 		codecompanion = {
 			-- Show the mcp tool result in the chat buffer
@@ -249,6 +250,8 @@ require("mcphub").setup({
         zindex = 50,
         border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
       },
+      wo = { -- window-scoped options (vim.wo)
+      }
     },
 
     -- Event callbacks
@@ -306,6 +309,12 @@ MCPHub uses a JSON configuration file to define MCP servers. The default locatio
         "API_KEY": "",                 // Falls back to process.env.API_KEY
         "SERVER_URL": null,            // Falls back to process.env.SERVER_URL
         "DEBUG": "true"               // Direct value, no fallback
+      }
+    },
+    "remote-server": {
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-token"
       }
     }
   }
@@ -389,13 +398,19 @@ MCPHub.nvim provides extensions that integrate with popular Neovim chat plugins.
 
 </summary>
 
-Add MCP capabilities to Avante by including the MCP tool in your setup:
+Add MCP capabilities to Avante by including the MCP tools in your setup:
 
-> Set `config.auto_approve = true` or `vim.g.mcphub_auto_approve = true` to automatically approve mcp tool requests. 
+> Set `config.auto_approve = true` or `vim.g.mcphub_auto_approve = true` to automatically approve mcp tool requests.
+
+> Set `config.extensions.avante.make_slash_commands = true` to enable prompts as slash commands (enabled by default).
+Server prompts will be available as `/mcp:server_name:prompt_name` in chat.
+
+The `mcp_tool()` function now returns two separate tools (`use_mcp_tool` and `access_mcp_resource`) for better schema generation:
 
 ```lua
 extensions = {
     avante = {
+        make_slash_commands = true, -- make /slash commands from MCP server prompts
     }
 }
 ```
@@ -998,7 +1013,9 @@ sequenceDiagram
 - [x] MCP Resources as variables in chat plugins
 - [x] MCP Prompts as slash commands in chat plugins
 - [ ] Support for #variables, /slash_commands in avante
-- [ ] Support SSE transport
+- [x] Support SSE transport
+- [ ] Composio Integration
+- [ ] Better Docs and Wiki
 
 
 ## 👏 Acknowledgements

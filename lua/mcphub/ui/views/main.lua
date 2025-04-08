@@ -364,7 +364,12 @@ function MainView:render_hub_status()
     table.insert(lines, self:divider())
     if State.server_state.status ~= "connected" then
         vim.list_extend(lines, renderer.render_server_entries(State.server_output.entries, false))
+        local errors = renderer.render_hub_errors(nil, false)
+        if #errors > 0 then
+            vim.list_extend(lines, errors)
+        end
     end
+
     table.insert(lines, Text.empty_line())
     return lines
 end

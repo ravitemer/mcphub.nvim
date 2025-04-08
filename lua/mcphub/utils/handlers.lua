@@ -65,11 +65,35 @@ M.TypeHandlers = {
             if schema.properties then
                 local props = {}
                 for k, v in pairs(schema.properties) do
-                    table.insert(props, string.format("%s: %s", k, M.TypeHandlers[v.type].format(v)))
+                    if v.type then
+                        local type_handler = M.TypeHandlers[v.type]
+                        table.insert(
+                            props,
+                            string.format("%s: %s", k, type_handler and type_handler.format(v) or v.type)
+                        )
+                    elseif v.anyOf then
+                        table.insert(
+                            props,
+                            string.format(
+                                "%s: anyOf(%s)",
+                                k,
+                                vim.iter(v.anyOf)
+                                    :map(function(item)
+                                        return vim.inspect(item.type or "unknown")
+                                    end)
+                                    :join(",")
+                            )
+                        )
+                    else
+                        table.insert(props, string.format("%s: %s", k, "unknown"))
+                    end
                 end
                 return string.format("{%s}", table.concat(props, ", "))
             end
             return "object"
+        end,
+        convert = function(value)
+            return vim.fn.json_decode(value)
         end,
     },
     array = {

@@ -8,6 +8,9 @@ function M.setup(extension, config)
         -- utils.setup_codecompanion_tools(config.make_tools)
     end
     --TODO: Support for Avante
+    if extension == "avante" then
+        utils.setup_avante_slash_commands(config.make_slash_commands)
+    end
 end
 
 return M

@@ -84,6 +84,7 @@ local function log_internal(msg, level)
         [vim.log.levels.INFO] = "info",
         [vim.log.levels.WARN] = "warn",
         [vim.log.levels.ERROR] = "error",
+        [vim.log.levels.TRACE] = "trace",
     })[level] or "unknown"
 
     local formatted = format_message(msg, level_str:upper())
@@ -121,6 +122,10 @@ end
 --- @param msg string|table
 function M.error(msg)
     log_internal(msg, vim.log.levels.ERROR)
+end
+
+function M.trace(msg)
+    log_internal(msg, vim.log.levels.TRACE)
 end
 
 return M

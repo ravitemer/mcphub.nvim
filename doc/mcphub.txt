@@ -115,6 +115,9 @@ Advanced Configuration: >lua
             zindex = 50,
             border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
           },
+          wo = { -- window-scoped options (vim.wo)
+              winhl = "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border,
+          },
         },
 
         -- Event callbacks

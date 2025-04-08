@@ -16,6 +16,10 @@ M.highlights = hl.groups
 
 M.icons = {
 
+    server = "󰒋",
+    antenna = "󰖩",
+    antenna_off = "󰖪",
+    sse = "",
     auto = "󰁪",
     tower = "󰐻",
     tool = "",
