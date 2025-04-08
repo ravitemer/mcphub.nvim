@@ -20,6 +20,9 @@ UI.defaults = {
         relative = "editor",
         zindex = 50,
     },
+    wo = { -- window-scoped options (vim.wo)
+        winhl = "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border,
+    },
 }
 
 -- User configured options
@@ -197,12 +200,9 @@ function UI:create_window()
         zindex = win_opts.zindex,
     })
 
-    -- Apply window highlights
-    vim.api.nvim_win_set_option(
-        self.window,
-        "winhl",
-        "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border
-    )
+    for k, v in pairs(UI.opts.wo or {}) do
+        vim.api.nvim_set_option_value(k, v, { scope = "local", win = self.window })
+    end
 
     return self.window
 end
