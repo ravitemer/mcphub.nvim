@@ -219,10 +219,15 @@ end
 
 function M.collect_arguments(arguments, callback)
     local values = {}
-    local current_index = 1
     local should_proceed = true
 
-    local function create_input_window(arg)
+    local function collect_input(index)
+        if index > #arguments and should_proceed then
+            callback(values)
+            return
+        end
+
+        local arg = arguments[index]
         local width = math.floor(vim.o.columns * 0.6)
         local height = math.floor(vim.o.lines * 0.4)
         local row = math.floor((vim.o.lines - height) / 2)
@@ -248,7 +253,7 @@ function M.collect_arguments(arguments, callback)
         -- Add title and instructions
         local title = string.format("Enter value for %s%s", arg.name, arg.required and " (required)" or "")
         local default = arg.default or ""
-
+        
         local lines = {
             title,
             string.rep("─", #title),
@@ -258,17 +263,15 @@ function M.collect_arguments(arguments, callback)
             "",
             default,
         }
-
+        
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-        -- Set cursor position after the separator line
-        local cursor_line = 6 -- Position after the separator line
-        vim.api.nvim_win_set_cursor(win, { cursor_line, 0 })
+        -- Set cursor position and enter insert mode
+        vim.api.nvim_win_set_cursor(win, {6, 0})
+        vim.cmd("startinsert")
 
         local function submit_input()
-            -- Only get lines after the separator
             local lines = vim.api.nvim_buf_get_lines(buf, 5, -1, false)
-            -- Filter out empty lines and trim whitespace
             local filtered_lines = {}
             for _, line in ipairs(lines) do
                 local trimmed = line:match("^%s*(.-)%s*$")
@@ -285,12 +288,7 @@ function M.collect_arguments(arguments, callback)
 
             values[arg.name] = input
             vim.api.nvim_win_close(win, true)
-            current_index = current_index + 1
-            if current_index <= #arguments then
-                create_input_window(arguments[current_index])
-            else
-                callback(values)
-            end
+            collect_input(index + 1)
         end
 
         local function cancel_input()
@@ -299,6 +297,7 @@ function M.collect_arguments(arguments, callback)
             callback({})
         end
 
+        -- Key mappings
         vim.api.nvim_buf_set_keymap(buf, "n", "<C-s>", "", {
             callback = submit_input,
         })
@@ -311,21 +310,15 @@ function M.collect_arguments(arguments, callback)
         vim.api.nvim_buf_set_keymap(buf, "i", "<C-q>", "", {
             callback = cancel_input,
         })
-
-        -- Enter insert mode automatically
-        vim.cmd("startinsert")
     end
 
-    -- Handle the case where there are no arguments
-    if #arguments == 0 then
+    if #arguments > 0 then
+        vim.defer_fn(function()
+            collect_input(1)
+        end, 0)
+    else
         callback(values)
-        return
     end
-
-    -- Create a timer to ensure the window is created after any pending operations
-    vim.defer_fn(function()
-        create_input_window(arguments[1])
-    end, 0)
 end
 
 function M.setup_avante_slash_commands(enabled)
