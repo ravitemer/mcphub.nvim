@@ -2,6 +2,7 @@ local highlights = require("mcphub.utils.highlights").groups
 local ImageCache = require("mcphub.utils.image_cache")
 local NuiLine = require("mcphub.utils.nuiline")
 local Text = require("mcphub.utils.text")
+local ui_utils = require("mcphub.utils.ui")
 
 ---@class CapabilityHandler
 ---@field server_name string Name of the server this capability belongs to
@@ -101,100 +102,7 @@ end
 
 -- Text box handling
 function CapabilityHandler:open_text_box(title, content, on_save)
-    -- Create a new scratch buffer
-    local bufnr = vim.api.nvim_create_buf(false, true)
-
-    -- Set buffer options
-    vim.api.nvim_buf_set_option(bufnr, "buftype", "acwrite")
-    vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-    vim.api.nvim_buf_set_option(bufnr, "swapfile", false)
-
-    -- Set initial content
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(content or "", "\n"))
-
-    -- Calculate window size and position
-    local width = 80
-    local height = 10
-    local editor_width = vim.o.columns
-    local editor_height = vim.o.lines
-
-    local win_opts = {
-        relative = "editor",
-        width = width,
-        height = height,
-        col = math.floor((editor_width - width) / 2),
-        row = math.floor((editor_height - height) / 2),
-        style = "minimal",
-        border = "rounded",
-        title = " " .. title .. " ",
-        title_pos = "center",
-    }
-
-    -- Create floating window
-    local win = vim.api.nvim_open_win(bufnr, true, win_opts)
-
-    -- Set window options
-    vim.api.nvim_win_set_option(win, "number", false)
-    vim.api.nvim_win_set_option(win, "relativenumber", false)
-    vim.api.nvim_win_set_option(win, "wrap", true)
-    vim.api.nvim_win_set_option(win, "cursorline", true)
-
-    -- Create namespace for virtual text
-    local ns = vim.api.nvim_create_namespace("MCPHub" .. self.type .. "TextBox")
-
-    -- Function to update virtual text at cursor position
-    local function update_virtual_text()
-        vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-        if vim.fn.mode() == "n" then
-            local cursor = vim.api.nvim_win_get_cursor(0)
-            local row = cursor[1] - 1
-            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
-                virt_text = { { "Press <CR> to save", "Comment" } },
-                virt_text_pos = "eol",
-            })
-        end
-    end
-
-    -- Set up autocmd for cursor movement and mode changes
-    local group = vim.api.nvim_create_augroup("MCPHub" .. self.type .. "Cursor", { clear = true })
-    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "ModeChanged" }, {
-        buffer = bufnr,
-        group = group,
-        callback = update_virtual_text,
-    })
-
-    -- Set buffer local mappings
-    local function save_and_close()
-        local new_content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
-        new_content = vim.trim(new_content)
-        -- Close the window
-        vim.api.nvim_win_close(win, true)
-        -- Call save callback if content changed
-        if content ~= new_content then
-            on_save(new_content)
-        end
-    end
-
-    local function close_window()
-        vim.api.nvim_win_close(win, true)
-    end
-
-    -- Add mappings for normal mode
-    local mappings = {
-        ["<CR>"] = save_and_close,
-        ["<Esc>"] = close_window,
-        ["q"] = close_window,
-    }
-
-    -- Apply mappings
-    for key, action in pairs(mappings) do
-        vim.keymap.set("n", key, action, { buffer = bufnr, silent = true })
-    end
-
-    vim.api.nvim_win_set_cursor(win, { vim.api.nvim_buf_line_count(bufnr), 0 })
-    update_virtual_text() -- Show initial hint
-    --start insert mode
-    vim.cmd("startinsert")
+    ui_utils.multiline_input(title, content, on_save)
 end
 
 -- Common section rendering utilities

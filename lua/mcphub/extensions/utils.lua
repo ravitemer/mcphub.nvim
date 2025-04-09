@@ -1,4 +1,5 @@
 local M = {}
+local ui_utils = require("mcphub.utils.ui")
 
 function M.parse_params(params, action_name)
     params = params or {}
@@ -228,88 +229,32 @@ function M.collect_arguments(arguments, callback)
         end
 
         local arg = arguments[index]
-        local width = math.floor(vim.o.columns * 0.6)
-        local height = math.floor(vim.o.lines * 0.4)
-        local row = math.floor((vim.o.lines - height) / 2)
-        local col = math.floor((vim.o.columns - width) / 2)
-
-        local buf = vim.api.nvim_create_buf(false, true)
-        local win = vim.api.nvim_open_win(buf, true, {
-            relative = "editor",
-            width = width,
-            height = height,
-            row = row,
-            col = col,
-            style = "minimal",
-            border = "rounded",
-        })
-
-        -- Set buffer options
-        vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
-        vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-        vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-        vim.api.nvim_buf_set_option(buf, "modifiable", true)
-
-        -- Add title and instructions
-        local title = string.format("Enter value for %s%s", arg.name, arg.required and " (required)" or "")
+        local title = string.format("%s %s", arg.name, arg.required and "(required)" or "")
         local default = arg.default or ""
-        
-        local lines = {
-            title,
-            string.rep("─", #title),
-            "<C-s> to submit, <C-q> to cancel",
-            "Enter your input below.",
-            "───────────────────────────────",
-            "",
-            default,
-        }
-        
-        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-        -- Set cursor position and enter insert mode
-        vim.api.nvim_win_set_cursor(win, {6, 0})
-        vim.cmd("startinsert")
-
-        local function submit_input()
-            local lines = vim.api.nvim_buf_get_lines(buf, 5, -1, false)
-            local filtered_lines = {}
-            for _, line in ipairs(lines) do
-                local trimmed = line:match("^%s*(.-)%s*$")
-                if trimmed ~= "" then
-                    table.insert(filtered_lines, trimmed)
-                end
-            end
-            local input = table.concat(filtered_lines, "\n")
-
+        local function submit_input(input)
+            vim.notify("submit" .. input)
             if arg.required and (input == nil or input == "") then
                 vim.notify("Value for " .. arg.name .. " is required", vim.log.levels.ERROR)
+                should_proceed = false
                 return
             end
 
             values[arg.name] = input
-            vim.api.nvim_win_close(win, true)
             collect_input(index + 1)
         end
 
         local function cancel_input()
-            should_proceed = false
-            vim.api.nvim_win_close(win, true)
-            callback({})
+            vim.notify("cancel")
+            if arg.required then
+                vim.notify("Value for " .. arg.name .. " is required", vim.log.levels.ERROR)
+                should_proceed = false
+                return
+            end
+            values[arg.name] = nil
+            collect_input(index + 1)
         end
-
-        -- Key mappings
-        vim.api.nvim_buf_set_keymap(buf, "n", "<C-s>", "", {
-            callback = submit_input,
-        })
-        vim.api.nvim_buf_set_keymap(buf, "i", "<C-s>", "", {
-            callback = submit_input,
-        })
-        vim.api.nvim_buf_set_keymap(buf, "n", "<C-q>", "", {
-            callback = cancel_input,
-        })
-        vim.api.nvim_buf_set_keymap(buf, "i", "<C-q>", "", {
-            callback = cancel_input,
-        })
+        ui_utils.multiline_input(title, default, submit_input, cancel_input)
     end
 
     if #arguments > 0 then
