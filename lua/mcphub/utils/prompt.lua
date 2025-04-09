@@ -182,7 +182,7 @@ Example: Requesting to access an MCP resource
 end
 
 function M.get_active_servers_prompt(servers, add_example)
-    add_example = add_example or true
+    add_example = add_example ~= false
     local prompt = get_header()
 
     if not servers or #servers == 0 then
