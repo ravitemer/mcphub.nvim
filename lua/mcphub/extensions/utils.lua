@@ -219,32 +219,104 @@ end
 
 function M.collect_arguments(arguments, callback)
     local values = {}
+    local current_index = 1
     local should_proceed = true
-    local function collect_input(index)
-        if index > #arguments and should_proceed then
-            callback(values) -- All inputs collected, call the callback
-            return
+
+    local function create_input_window(arg)
+        local width = math.floor(vim.o.columns * 0.6)
+        local height = math.floor(vim.o.lines * 0.4)
+        local row = math.floor((vim.o.lines - height) / 2)
+        local col = math.floor((vim.o.columns - width) / 2)
+
+        local buf = vim.api.nvim_create_buf(false, true)
+        local win = vim.api.nvim_open_win(buf, true, {
+            relative = 'editor',
+            width = width,
+            height = height,
+            row = row,
+            col = col,
+            style = 'minimal',
+            border = 'rounded',
+        })
+
+        -- Set buffer options
+        vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+        vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+        vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+        vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+
+        -- Add title and instructions
+        local title = string.format("Enter value for %s%s", arg.name, arg.required and " (required)" or "")
+        local instructions = "Enter your input below. Press <CR> to submit, <C-q> to cancel."
+        local default = arg.default or ""
+        
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+            title,
+            string.rep("─", #title),
+            "",
+            instructions,
+            "",
+            default
+        })
+
+        -- Set cursor position after default value
+        vim.api.nvim_win_set_cursor(win, {6, 0})
+
+        local function submit_input()
+            local lines = vim.api.nvim_buf_get_lines(buf, 5, -1, false)
+            local input = table.concat(lines, '\n')
+            
+            if arg.required and (input == nil or input == "") then
+                vim.notify("Value for " .. arg.name .. " is required", vim.log.levels.ERROR)
+                return
+            end
+            
+            values[arg.name] = input
+            vim.api.nvim_win_close(win, true)
+            current_index = current_index + 1
+            if current_index <= #arguments then
+                create_input_window(arguments[current_index])
+            else
+                callback(values)
+            end
         end
 
-        local arg = arguments[index]
-        local arg_name = arg.name or ""
-        local required = arg.required or false
-        vim.ui.input({
-            prompt = arg_name .. (required and " (required): " or ": "),
-            default = arg.default or "",
-        }, function(input)
-            if required and (input == nil or input == "") then
-                vim.notify("Value for " .. arg_name .. " is required", vim.log.levels.ERROR)
-                should_proceed = false
-                return {}
-            end
-            if input ~= nil then
-                values[arg_name] = input
-            end
-            collect_input(index + 1) -- Move to the next argument
-        end)
+        local function cancel_input()
+            should_proceed = false
+            vim.api.nvim_win_close(win, true)
+            callback({})
+        end
+
+        -- Key mappings for normal mode
+        vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {
+            callback = submit_input
+        })
+        vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '', {
+            callback = cancel_input
+        })
+
+        -- Key mappings for insert mode
+        vim.api.nvim_buf_set_keymap(buf, 'i', '<C-s>', '', {
+            callback = submit_input
+        })
+        vim.api.nvim_buf_set_keymap(buf, 'i', '<C-q>', '', {
+            callback = cancel_input
+        })
+
+        -- Enter insert mode automatically
+        vim.cmd('startinsert')
     end
-    collect_input(1) -- Start with the first argument
+
+    -- Handle the case where there are no arguments
+    if #arguments == 0 then
+        callback(values)
+        return
+    end
+
+    -- Create a timer to ensure the window is created after any pending operations
+    vim.defer_fn(function()
+        create_input_window(arguments[1])
+    end, 0)
 end
 
 function M.setup_avante_slash_commands(enabled)
