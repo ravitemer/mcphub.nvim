@@ -37,8 +37,8 @@ function M.setup(opts)
         native_servers = {},
         auto_approve = false,
         use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
-        cmd = "mcp-hub",
-        cmdArgs = {},
+        cmd = nil, -- will be set based on system if not provided
+        cmdArgs = nil, -- will be set based on system if not provided
         log = {
             level = vim.log.levels.ERROR,
             to_file = false,
@@ -69,11 +69,9 @@ function M.setup(opts)
         on_error = function(str) end,
     }, opts or {})
 
-    -- Override cmd if using bundled binary
-    if config.use_bundled_binary then
-        config.cmd = utils.get_bundled_mcp_path()
-    end
-
+    local cmds = utils.get_default_cmds(config)
+    config.cmd = cmds.cmd
+    config.cmdArgs = cmds.cmdArgs
     if config.auto_approve then
         vim.g.mcphub_auto_approve = vim.g.mcphub_auto_approve == nil and true or vim.g.mcphub_auto_approve
     end

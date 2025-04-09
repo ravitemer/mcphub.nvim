@@ -216,8 +216,8 @@ function M.format_json_string(str, unescape_slashes)
                 -- Add space after colons for readability
                 result = result .. ": "
             elseif char == " " or char == "\n" or char == "\t" then
-                -- Skip whitespace in non-quoted sections
-                -- (vim.json.encode already adds its own whitespace)
+            -- Skip whitespace in non-quoted sections
+            -- (vim.json.encode already adds its own whitespace)
             else
                 result = result .. char
             end
@@ -229,11 +229,53 @@ function M.format_json_string(str, unescape_slashes)
     return result
 end
 
+function M.is_windows()
+    return vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+end
+
+function M.get_default_cmds(config)
+    local cmd, cmdArgs
+    local bin_name = nil
+    if config.use_bundled_binary then
+        bin_name = M.get_bundled_mcp_path()
+    else
+        if M.is_windows() then
+            bin_name = "mcp-hub.cmd"
+        else
+            bin_name = "mcp-hub"
+        end
+    end
+    -- set default cmds
+    if config.cmd == nil and config.cmdArgs == nil then
+        if M.is_windows() then
+            cmd = "cmd.exe"
+            cmdArgs = {
+                "/C",
+                bin_name,
+            }
+        else
+            cmd = bin_name
+            cmdArgs = {}
+        end
+    else
+        cmd = config.cmd or bin_name
+        cmdArgs = config.cmdArgs or {}
+    end
+    return {
+        cmd = cmd,
+        cmdArgs = cmdArgs,
+    }
+end
+
 --- Get path to bundled mcp-hub executable when build = "bundled_build.lua"
 ---@return string Path to mcp-hub executable in bundled directory
 function M.get_bundled_mcp_path()
     local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
-    return plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
+    local base_path = plugin_root .. "/bundled/mcp-hub/node_modules/.bin/mcp-hub"
+    if M.is_windows() then
+        return base_path .. ".cmd"
+    end
+    return base_path
 end
 
 function M.safe_get(tbl, path)

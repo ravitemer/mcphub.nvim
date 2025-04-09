@@ -93,7 +93,7 @@ function MCPHub:start(opts, restart_callback)
         self.server_job = Job:new({
             command = self.cmd,
             args = utils.clean_args({ self.cmdArgs, "--port", tostring(self.port), "--config", self.config }),
-            detached = true,
+            -- detached = true,
             on_stdout = vim.schedule_wrap(function(_, data)
                 if has_called_restart_callback == false then
                     if restart_callback then
@@ -1189,7 +1189,7 @@ function MCPHub:get_marketplace_server_details(mcpId, opts)
                     { mcpId = mcpId, error = err }
                 )
                 State:add_error(market_err)
-                -- Keep server details as nil to indicate error state
+            -- Keep server details as nil to indicate error state
             else
                 -- Update state with new details
                 State:update({
