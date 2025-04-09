@@ -230,47 +230,59 @@ function M.collect_arguments(arguments, callback)
 
         local buf = vim.api.nvim_create_buf(false, true)
         local win = vim.api.nvim_open_win(buf, true, {
-            relative = 'editor',
+            relative = "editor",
             width = width,
             height = height,
             row = row,
             col = col,
-            style = 'minimal',
-            border = 'rounded',
+            style = "minimal",
+            border = "rounded",
         })
 
         -- Set buffer options
-        vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
-        vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-        vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
-        vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+        vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+        vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+        vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+        vim.api.nvim_buf_set_option(buf, "modifiable", true)
 
         -- Add title and instructions
         local title = string.format("Enter value for %s%s", arg.name, arg.required and " (required)" or "")
-        local instructions = "Enter your input below. Press <CR> to submit, <C-q> to cancel."
         local default = arg.default or ""
-        
-        vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+
+        local lines = {
             title,
             string.rep("─", #title),
+            "<C-s> to submit, <C-q> to cancel",
+            "Enter your input below.",
+            "───────────────────────────────",
             "",
-            instructions,
-            "",
-            default
-        })
+            default,
+        }
 
-        -- Set cursor position after default value
-        vim.api.nvim_win_set_cursor(win, {6, 0})
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+        -- Set cursor position after the separator line
+        local cursor_line = 6 -- Position after the separator line
+        vim.api.nvim_win_set_cursor(win, { cursor_line, 0 })
 
         local function submit_input()
+            -- Only get lines after the separator
             local lines = vim.api.nvim_buf_get_lines(buf, 5, -1, false)
-            local input = table.concat(lines, '\n')
-            
+            -- Filter out empty lines and trim whitespace
+            local filtered_lines = {}
+            for _, line in ipairs(lines) do
+                local trimmed = line:match("^%s*(.-)%s*$")
+                if trimmed ~= "" then
+                    table.insert(filtered_lines, trimmed)
+                end
+            end
+            local input = table.concat(filtered_lines, "\n")
+
             if arg.required and (input == nil or input == "") then
                 vim.notify("Value for " .. arg.name .. " is required", vim.log.levels.ERROR)
                 return
             end
-            
+
             values[arg.name] = input
             vim.api.nvim_win_close(win, true)
             current_index = current_index + 1
@@ -287,24 +299,21 @@ function M.collect_arguments(arguments, callback)
             callback({})
         end
 
-        -- Key mappings for normal mode
-        vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {
-            callback = submit_input
+        vim.api.nvim_buf_set_keymap(buf, "n", "<C-s>", "", {
+            callback = submit_input,
         })
-        vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '', {
-            callback = cancel_input
+        vim.api.nvim_buf_set_keymap(buf, "i", "<C-s>", "", {
+            callback = submit_input,
         })
-
-        -- Key mappings for insert mode
-        vim.api.nvim_buf_set_keymap(buf, 'i', '<C-s>', '', {
-            callback = submit_input
+        vim.api.nvim_buf_set_keymap(buf, "n", "<C-q>", "", {
+            callback = cancel_input,
         })
-        vim.api.nvim_buf_set_keymap(buf, 'i', '<C-q>', '', {
-            callback = cancel_input
+        vim.api.nvim_buf_set_keymap(buf, "i", "<C-q>", "", {
+            callback = cancel_input,
         })
 
         -- Enter insert mode automatically
-        vim.cmd('startinsert')
+        vim.cmd("startinsert")
     end
 
     -- Handle the case where there are no arguments
