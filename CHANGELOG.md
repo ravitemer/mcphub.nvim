@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [4.6.1] - 2025-04-10
+
+### Added 
+- In cases where mcp-hub server is hosted somewhere, you can set `config.server_url` e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
+- `server_url` defaults to `http://localhost:{config.port}`
+
+### Added
+
+- Added support for Windows platform
+- Added configurable window options (#68)
+- Added examples to servers prompt for function based tools to improve model responses
+
 ## [4.6.0] - 2025-04-09
 
 ### Added
