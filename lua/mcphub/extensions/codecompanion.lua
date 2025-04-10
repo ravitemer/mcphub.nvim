@@ -295,6 +295,8 @@ The Model Context Protocol (MCP) enables communication with locally running MCP 
             --     end, result.images),
             -- }, { visible = false })
             -- end
+
+            self.chat:submit()
         end,
     },
 }
