@@ -92,6 +92,8 @@ Using lazy.nvim: >lua
 Advanced Configuration: >lua
     require("mcphub").setup({
         port = 37373,  -- Default port for MCP Hub
+        -- In cases where mcp-hub server is hosted somewhere, set this to the server URL e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
+        server_url = nil, -- defaults to `http://localhost:port`
         config = vim.fn.expand("~/.config/mcphub/servers.json"),  -- Path to config file
         native_servers = {}, -- add your native servers here
 
@@ -427,7 +429,7 @@ Setup Process:~
    - Checks for mcp-hub command installation
    - Verifies version compatibility
    - Starts mcp-hub with provided port and config file
-   - Creates Express server at localhost:[port]
+   - Creates Express server at `http://localhost:[config.port]` or at `config.server_url`
 
 2. After successful setup:
    - Calls on_ready callback with hub instance

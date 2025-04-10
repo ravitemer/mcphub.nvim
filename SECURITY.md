@@ -16,8 +16,8 @@ Use this section to tell people about which versions of MCPHub.nvim are currentl
 1. **Port Security**
 
    - The plugin communicates with MCP Hub on a local port
-   - Default port (3000) can be configured
-   - Only accepts connections from localhost
+   - Default port (37373) can be configured
+   - Creates Express server at `http://localhost:[config.port]` or at `config.server_url`
    - Ensure firewall rules don't expose the port externally
 
 2. **Configuration Security**

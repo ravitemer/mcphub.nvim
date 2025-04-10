@@ -16,6 +16,7 @@ local RESOURCE_TIMEOUT = 30000 -- 30s for resource access
 
 --- @class MCPHub
 --- @field port number The port number for the MCP Hub server
+--- @field server_url string In case of hosting mcp-hub somewhere, the url with `https://mydomain.com:5858`
 --- @field config string Path to the MCP servers configuration file
 --- @field cmd string The cmd to invoke the MCP Hub server
 --- @field cmdArgs table The args to pass to the cmd to spawn the server
@@ -35,6 +36,7 @@ function MCPHub:new(opts)
 
     -- Set up instance fields
     self.port = opts.port
+    self.server_url = opts.server_url
     self.config = opts.config
     self.cmd = opts.cmd
     self.cmdArgs = opts.cmdArgs
@@ -92,8 +94,16 @@ function MCPHub:start(opts, restart_callback)
 
         self.server_job = Job:new({
             command = self.cmd,
-            args = utils.clean_args({ self.cmdArgs, "--port", tostring(self.port), "--config", self.config }),
+            args = utils.clean_args({
+                self.cmdArgs,
+                "--port",
+                tostring(self.port),
+                "--config",
+                self.config,
+                "--auto-shutdown",
+            }),
             -- detached = true,
+            hide = true,
             on_stdout = vim.schedule_wrap(function(_, data)
                 if has_called_restart_callback == false then
                     if restart_callback then
@@ -599,9 +609,13 @@ end
 function MCPHub:api_request(method, path, opts)
     opts = opts or {}
     local callback = opts.callback
+    -- the url of the mcp-hub server if it is hosted somewhere (e.g. https://mydomain.com)
+    local base_url = self.server_url or string.format("http://localhost:%d", self.port)
+    --remove any trailing slashes
+    base_url = base_url:gsub("/+$", "")
 
     -- Build URL with query parameters if any
-    local url = string.format("http://localhost:%d/api/%s", self.port, path)
+    local url = string.format("%s/api/%s", base_url, path)
     if opts.query then
         local params = {}
         for k, v in pairs(opts.query) do

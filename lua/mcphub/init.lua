@@ -18,7 +18,7 @@ local M = {
 }
 
 --- Setup MCPHub plugin with error handling and validation
---- @param opts? { port?: number, cmd?: string, native_servers? : table, cmdArgs?: table, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
+--- @param opts? { port?: number, server_url?: string, cmd?: string, native_servers? : table, cmdArgs?: table, config?: string, log?: table, on_ready?: fun(hub: MCPHub), on_error?: fun(err: string) }
 function M.setup(opts)
     -- Return if already setup or in progress
     if State.setup_state ~= "not_started" then
@@ -33,6 +33,7 @@ function M.setup(opts)
     -- Set default options
     local config = vim.tbl_deep_extend("force", {
         port = 37373, -- Default port for MCP Hub
+        server_url = nil, -- In cases where mcp-hub is hosted somewhere, set this to the server URL e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
         config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
         native_servers = {},
         auto_approve = false,

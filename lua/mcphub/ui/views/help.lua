@@ -186,7 +186,7 @@ MCPHub is an open-source project that relies on community support to stay active
    - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
    - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
 
-Note: You can also access the Express server directly at http://localhost:[port]/api
+Note: You can also access the Express server directly at `http://localhost:[config.port]` or at `config.server_url`
 ]]
         vim.list_extend(lines, Text.render_markdown(troubleshooting_content))
     elseif self.active_tab == "readme" then

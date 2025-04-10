@@ -269,6 +269,8 @@ require("mcphub").setup({
     -- Custom Server command configuration
     --cmd = "node", -- The command to invoke the MCP Hub Server
     --cmdArgs = {"/path/to/node_modules/mcp-hub/dist/cli.js"},    -- Additional arguments for the command
+    -- In cases where mcp-hub server is hosted somewhere, set this to the server URL e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
+    -- server_url = nil, -- defaults to `http://localhost:port`
 
     -- Logging configuration
     log = {
@@ -841,7 +843,6 @@ All tools, resources, and templates from the server above are converted into a c
    - Feel free to open an [Issue](https://github.com/ravitemer/mcphub.nvim/issues) for bugs or doubts
    - Create a [Discussion](https://github.com/ravitemer/mcphub.nvim/discussions) for questions, showcase, or feature requests
 
- Note: You can also access the Express server directly at http://localhost:[port]/api
    </details>
 
 <details>
@@ -858,7 +859,7 @@ MCPHub.nvim uses an Express server to manage MCP servers and handle client reque
    - Checks for mcp-hub command installation
    - Verifies version compatibility
    - Starts mcp-hub with provided port and config file
-   - Creates Express server at localhost:[port]
+   - Creates Express server at `http://localhost:[config.port]` or at `config.server_url`
 
 2. After successful setup:
 
