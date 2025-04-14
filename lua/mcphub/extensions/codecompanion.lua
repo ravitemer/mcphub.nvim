@@ -141,8 +141,12 @@ local tool_schema = {
     },
 
     system_prompt = function(schema)
-        -- get the running hub instance
-        local hub = require("mcphub").get_hub_instance()
+        local prompts = require("mcphub").get_hub_instance():generate_prompts({
+            add_example = false,
+            use_mcp_tool_example = xml2lua.toXml({ tools = { schema[1] } }),
+            access_mcp_resource_example = xml2lua.toXml({ tools = { schema[2] } }),
+        })
+
         return string.format(
             [[### MCP Tool
 
@@ -205,13 +209,9 @@ The Model Context Protocol (MCP) enables communication with locally running MCP 
 
 %s]],
             '<![CDATA[{"city": "San Francisco", "days": 5}]]>',
-            hub:get_use_mcp_tool_prompt(xml2lua.toXml({
-                tools = { schema[1] },
-            })), -- gets the prompt for the use_mcp_tool action
-            hub:get_access_mcp_resource_prompt(xml2lua.toXml({
-                tools = { schema[2] },
-            })), -- gets the prompt for the access_mcp_resource action
-            hub:get_active_servers_prompt(false) -- generates prompt from currently running mcp servers
+            prompts.use_mcp_tool,
+            prompts.access_mcp_resource,
+            prompts.active_servers
         )
     end,
     output = {
