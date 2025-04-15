@@ -186,7 +186,7 @@ function M.pretty_json(str, unescape_slashes)
     end
     -- Sort keys recursively
     local sorted = sort_keys_recursive(parsed)
-    -- encode doesn't preserve the order but keeps it atleast kindof sorted
+    -- encode doesn't preserve the order but keeps it at least kindof sorted
     local encoded = vim.json.encode(sorted)
     return M.format_json_string(encoded, unescape_slashes)
 end
