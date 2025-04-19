@@ -7,7 +7,7 @@ M.use_mcp_tool() will return schema for calling tools on MCP servers.
 M.access_mcp_resource() will return schema for accessing resources on MCP servers.
 --]]
 local M = {}
-local utils = require("mcphub.extensions.utils")
+local shared = require("mcphub.extensions.shared")
 
 local tool_schemas = {
     use_mcp_tool = {
@@ -63,13 +63,13 @@ function M.mcp_tool()
             if not hub then
                 return nil, "MCP Hub not initialized"
             end
-            local params = utils.parse_params(args, action_name)
+            local params = shared.parse_params(args, action_name)
             if #params.errors > 0 then
                 return nil, table.concat(params.errors, "\n")
             end
             local auto_approve = vim.g.mcphub_auto_approve == true
             if not auto_approve then
-                local confirmed = utils.show_mcp_tool_prompt({
+                local confirmed = shared.show_mcp_tool_prompt({
                     action = params.action,
                     server_name = params.server_name,
                     tool_name = params.tool_name,

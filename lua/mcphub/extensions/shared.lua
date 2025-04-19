@@ -3,10 +3,19 @@ local ui_utils = require("mcphub.utils.ui")
 
 function M.parse_params(params, action_name)
     params = params or {}
+
     local server_name = params.server_name
     local tool_name = params.tool_name
     local uri = params.uri
     local arguments = params.tool_input or {}
+    if type(arguments) == "string" then
+        local json_ok, decode_result = pcall(vim.fn.json_decode, arguments or "{}")
+        if json_ok then
+            arguments = decode_result or {}
+        else
+            arguments = nil
+        end
+    end
     local errors = {}
     if not vim.tbl_contains({ "use_mcp_tool", "access_mcp_resource" }, action_name) then
         table.insert(errors, "Action must be one of `use_mcp_tool` or `access_mcp_resource`")
@@ -33,6 +42,7 @@ function M.parse_params(params, action_name)
         arguments = arguments or {},
     }
 end
+
 function M.setup_codecompanion_variables(enabled)
     if not enabled then
         return

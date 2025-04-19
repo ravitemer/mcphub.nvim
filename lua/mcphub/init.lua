@@ -61,11 +61,13 @@ function M.setup(opts)
         },
         extensions = {
             codecompanion = {
+                enabled = true,
                 show_result_in_chat = true,
                 make_slash_commands = true,
                 make_vars = true,
             },
             avante = {
+                enabled = true,
                 make_slash_commands = true,
             },
         },
