@@ -3,9 +3,7 @@ local os_utils = require("mcphub.native.neovim.utils.os")
 
 return {
     name = "Environment",
-    description = function()
-        return "This resource gives comprehensive information about the workspace, editor and OS. Includes directory structure, visible and loaded buffers along with the OS information."
-    end,
+    description = "This resource gives comprehensive information about the workspace, editor and OS. Includes directory structure, visible and loaded buffers along with the OS information.",
     uri = "neovim://workspace/info",
     mimeType = "text/plain",
     handler = function(req, res)

@@ -1006,6 +1006,38 @@ local function filter_server_capabilities(server, config)
     return filtered_server
 end
 
+---resolve any functions in the native servers
+---@param native_server NativeServer
+---@return table
+local function resolve_native_server(native_server)
+    local server = vim.deepcopy(native_server)
+    local possible_func_fields = {
+        tools = { "description", "inputSchema" },
+        resources = { "description" },
+        resourceTemplates = { "description" },
+        prompts = { "description" },
+    }
+    --first resolve the server desc itself
+    server.description = prompt_utils.get_description(server)
+
+    for cap_type, fields in pairs(possible_func_fields) do
+        for _, capability in ipairs(server.capabilities[cap_type] or {}) do
+            --remove handler as it is not in std protocol
+            capability.handler = nil
+            for _, field in ipairs(fields) do
+                if capability[field] then
+                    if field == "description" then --resolves to string
+                        capability[field] = prompt_utils.get_description(capability)
+                    elseif field == "inputSchema" then --resolves to inputSchema table
+                        capability[field] = prompt_utils.get_inputSchema(capability)
+                    end
+                end
+            end
+        end
+    end
+    return server
+end
+
 function MCPHub:get_servers(include_disabled)
     include_disabled = include_disabled == true
     if not self:is_ready() then
@@ -1027,7 +1059,9 @@ function MCPHub:get_servers(include_disabled)
         if server.status == "connected" or include_disabled then
             local server_config = State.native_servers_config[server.name] or {}
             local filtered_server = filter_server_capabilities(server, server_config)
-            table.insert(filtered_servers, filtered_server)
+            --INFO: this is for cases where chat plugins expect std MCP definations to remove mcphub specific enhancements
+            local resolved_server = resolve_native_server(filtered_server)
+            table.insert(filtered_servers, resolved_server)
         end
     end
 
@@ -1068,6 +1102,24 @@ function MCPHub:get_resources()
         end
     end
     return resources
+end
+
+function MCPHub:get_resource_templates()
+    local active_servers = self:get_servers()
+    local resource_templates = {}
+    for _, server in ipairs(active_servers) do
+        if server.capabilities and server.capabilities.resourceTemplates then
+            for _, resource_template in ipairs(server.capabilities.resourceTemplates) do
+                table.insert(
+                    resource_templates,
+                    vim.tbl_extend("force", resource_template, {
+                        server_name = server.name,
+                    })
+                )
+            end
+        end
+    end
+    return resource_templates
 end
 
 function MCPHub:get_tools()

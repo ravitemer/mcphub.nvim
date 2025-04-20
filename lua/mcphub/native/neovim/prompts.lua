@@ -1,34 +1,5 @@
 local mcphub = require("mcphub")
-local prompt_utils = require("mcphub.utils.prompt")
 local M = {}
-
-mcphub.add_prompt("neovim", {
-    name = "create_native_server",
-    description = "Create a native MCP server for mcphub.nvim",
-    arguments = {
-        {
-            name = "mcphub_setup_file",
-            description = "Path to file where mcphub.setup({}) is called.",
-            default = vim.fn.stdpath("config") .. "/",
-            required = true,
-        },
-    },
-    handler = function(req, res)
-        local guide = prompt_utils.get_native_server_prompt()
-        local setup_file_path = req.params.mcphub_setup_file
-        local prompt = string.format(
-            [[@mcp I have provided you a guide to create Lua native MCP servers for mcphub.nvim plugin. My Neovim config directory is `%s`. I have called mcphub.setup({}) in this file `%s`.
-
-I want to create a native MCP server for mcphub.nvim plugin. The server should have the following capabilities:
-
-]],
-            vim.fn.stdpath("config"),
-            setup_file_path
-        )
-        res:user():text(guide):text(prompt)
-        res:send()
-    end,
-})
 
 mcphub.add_prompt("neovim", {
     name = "parrot",
