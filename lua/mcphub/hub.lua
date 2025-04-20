@@ -1104,6 +1104,24 @@ function MCPHub:get_resources()
     return resources
 end
 
+function MCPHub:get_resource_templates()
+    local active_servers = self:get_servers()
+    local resource_templates = {}
+    for _, server in ipairs(active_servers) do
+        if server.capabilities and server.capabilities.resourceTemplates then
+            for _, resource_template in ipairs(server.capabilities.resourceTemplates) do
+                table.insert(
+                    resource_templates,
+                    vim.tbl_extend("force", resource_template, {
+                        server_name = server.name,
+                    })
+                )
+            end
+        end
+    end
+    return resource_templates
+end
+
 function MCPHub:get_tools()
     local active_servers = self:get_servers()
     local tools = {}
