@@ -50,6 +50,7 @@ M.icons = {
     link = "",
     pencil = "󰏫",
     edit = "󰏫",
+    plus = "",
     instructions = "",
 
     file = "",

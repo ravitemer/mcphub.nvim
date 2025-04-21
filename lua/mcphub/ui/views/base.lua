@@ -223,7 +223,7 @@ function View:handle_cursor_move()
     if type then
         -- Add virtual text without line highlight
         self.cursor_highlight = vim.api.nvim_buf_set_extmark(self.ui.buffer, self.hover_ns, line - 1, 0, {
-            virt_text = { { context and context.hint or "Press <CR> to interact", Text.highlights.muted } },
+            virt_text = { { context and context.hint or "[<l> Interact]", Text.highlights.muted } },
             virt_text_pos = "eol",
         })
     end
@@ -369,6 +369,14 @@ function View:render()
     table.insert(lines, Text.pad_line(NuiLine():append("No content implemented for this view", Text.highlights.muted)))
 
     return lines
+end
+
+function View:lock()
+    vim.api.nvim_buf_set_option(self.ui.buffer, "modifiable", false)
+end
+
+function View:unlock()
+    vim.api.nvim_buf_set_option(self.ui.buffer, "modifiable", true)
 end
 
 function View:open()

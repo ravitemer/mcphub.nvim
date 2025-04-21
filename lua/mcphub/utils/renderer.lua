@@ -139,8 +139,7 @@ function M.render_cap_section(items, title, server_name, type, current_line)
         end
         table.insert(lines, Text.pad_line(line, nil, 6))
 
-        local hint = is_disabled and ("Press 't' to enable " .. type)
-            or string.format("Press 'l' to use %s, 't' to disable", type)
+        local hint = is_disabled and "[<t> Toggle]" or string.format("[<l> open %s, <t> Toggle]", type)
         table.insert(mappings, {
             line = current_line + #lines,
             type = type,
@@ -163,19 +162,18 @@ end
 ---@param config_source table Config source for the server
 ---@param view MainView View instance for tracking
 ---@return number New current line
-function M.render_server_capabilities(server, lines, current_line, config_source, view)
+function M.render_server_capabilities(server, lines, current_line, config_source, view, is_native)
     local server_name_line = M.render_server_line(server, view.expanded_server == server.name)
     table.insert(lines, Text.pad_line(server_name_line, nil, 3))
     current_line = current_line + 1
 
     -- Prepare hover hint based on server status
-    local hint
-    if server.status == "disabled" then
-        hint = "Press 't' to enable server"
-    elseif server.status == "disconnected" then
-        hint = "Press 't' to disable server"
-    else
-        hint = view.expanded_server == server.name and "Press 'h' to collapse" or "Press 'l' to expand, 't' to disable"
+    local hint = is_native and "[<t> Toggle]" or "[<t> Toggle, <e> Edit, <d> Delete]"
+    local enabled_hint = is_native and "[<l> Expand, <t> Toggle]" or "[<l> Expand, <t> Toggle, <e> Edit, <d> Delete]"
+    local expanded_hint = is_native and "[<h> Collapse, <t> Toggle]"
+        or "[<h> Collapse, <t> Toggle, <e> Edit, <d> Delete]"
+    if server.status ~= "disabled" and server.status ~= "disconnected" then
+        hint = view.expanded_server == server.name and expanded_hint or enabled_hint
     end
 
     view:track_line(current_line, "server", {
@@ -209,8 +207,9 @@ function M.render_server_capabilities(server, lines, current_line, config_source
         local custom_instructions = server_config.custom_instructions or {}
         local is_disabled = custom_instructions.disabled == true
         local has_instructions = custom_instructions.text and #custom_instructions.text > 0
-        local ci_line =
-            NuiLine():append(is_disabled and Text.icons.circle or Text.icons.arrowRight, Text.highlights.muted):append(
+        local ci_line = NuiLine()
+            :append(is_disabled and Text.icons.circle or Text.icons.instructions, Text.highlights.muted)
+            :append(
                 " Custom Instructions" .. (not is_disabled and not has_instructions and " (empty)" or ""),
                 (is_disabled or not has_instructions) and Text.highlights.muted or Text.highlights.info
             )
@@ -220,7 +219,7 @@ function M.render_server_capabilities(server, lines, current_line, config_source
             server_name = server.name,
             disabled = is_disabled,
             name = Text.icons.instructions .. " Custom Instructions",
-            hint = is_disabled and "Press 't' to enable instructions" or "Press 'l' to edit, 't' to disable",
+            hint = is_disabled and "[<t> Toggle]" or "[<e> Edit, <t> Toggle]",
         })
         table.insert(lines, Text.empty_line())
         current_line = current_line + 1

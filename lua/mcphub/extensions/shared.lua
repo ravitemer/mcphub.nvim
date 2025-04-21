@@ -263,7 +263,7 @@ function M.collect_arguments(arguments, callback)
             values[arg.name] = nil
             collect_input(index + 1)
         end
-        ui_utils.multiline_input(title, default, submit_input, cancel_input)
+        ui_utils.multiline_input(title, default, submit_input, { on_cancel = cancel_input })
     end
 
     if #arguments > 0 then

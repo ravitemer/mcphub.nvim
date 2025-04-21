@@ -82,6 +82,119 @@ local function validate_custom_instructions(custom_instructions)
     return true
 end
 
+--- Validate server configuration
+---@param name string Server name to validate
+---@param config table Server configuration
+---@return ValidationResult
+function M.validate_server_config(name, config)
+    if type(config) ~= "table" then
+        return {
+            ok = false,
+            error = Error("VALIDATION", Error.Types.SETUP.INVALID_CONFIG, "Config must be a table"),
+        }
+    end
+
+    local has_stdio = config.command ~= nil
+    local has_sse = config.url ~= nil
+
+    -- Check for mixed fields
+    if has_stdio and has_sse then
+        return {
+            ok = false,
+            error = Error(
+                "VALIDATION",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Server '%s' cannot mix stdio and sse fields", name)
+            ),
+        }
+    end
+
+    -- Validate stdio config
+    if has_stdio then
+        if type(config.command) ~= "string" or config.command == "" then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid or missing command", name)
+                ),
+            }
+        end
+
+        if config.args and not vim.tbl_islist(config.args) then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' args must be an array", name)
+                ),
+            }
+        end
+
+        if config.env and type(config.env) ~= "table" then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid environment config", name)
+                ),
+            }
+        end
+    elseif has_sse then
+        -- Validate SSE config
+        if type(config.url) ~= "string" or config.url == "" then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid or missing url", name)
+                ),
+            }
+        end
+
+        -- Try parsing URL
+        local ok, err = pcall(function()
+            vim.uri_from_fname(config.url)
+        end)
+        if not ok then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid url format: %s", name, err)
+                ),
+            }
+        end
+
+        if config.headers and type(config.headers) ~= "table" then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid headers config", name)
+                ),
+            }
+        end
+    else
+        return {
+            ok = false,
+            error = Error(
+                "VALIDATION",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Server '%s' must include either command (for stdio) or url (for sse)", name)
+            ),
+        }
+    end
+
+    return { ok = true }
+end
+
 --- Validate MCP config file
 ---@param path string
 ---@return table {ok : string, json?: string, content?: string}

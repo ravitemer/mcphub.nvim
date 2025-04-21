@@ -72,8 +72,8 @@ function CreateServerHandler:render(line_offset)
     table.insert(lines, Text.empty_line())
 
     local install_line = NuiLine()
-        :append(" " .. Text.icons.install .. " ", highlights.active_item)
-        :append("Install", highlights.active_item)
+        :append(" " .. Text.icons.pencil .. " ", highlights.active_item)
+        :append("Create ", highlights.active_item)
         :append(" with: ", highlights.muted)
 
     -- Check each installer
@@ -96,7 +96,7 @@ function CreateServerHandler:render(line_offset)
     table.insert(lines, Text.pad_line(install_line))
     -- Track install line for interaction
     self:track_line(#lines + line_offset, "install", {
-        hint = "Press <CR> to select installer",
+        hint = "[<l> Select Installer]",
     })
 
     table.insert(lines, Text.empty_line())

@@ -7,6 +7,9 @@ local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
+local ui_utils = require("mcphub.utils.ui")
+local utils = require("mcphub.utils")
+local validation = require("mcphub.utils.validation")
 
 ---@class MarketplaceView
 ---@field super View
@@ -32,6 +35,44 @@ function MarketplaceView:new(ui)
     self.keymaps = {}
 
     return self
+end
+
+-- Add this new method to handle visual selection hints
+function MarketplaceView:update_visual_selection_hints()
+    -- Clear existing virtual text
+    if self._virt_namespace then
+        vim.api.nvim_buf_clear_namespace(self.ui.buffer, self._virt_namespace, 0, -1)
+    else
+        self._virt_namespace = vim.api.nvim_create_namespace("mcphub_visual_selection")
+    end
+    if not (ui_utils.is_visual_mode()) or self.active_mode ~= "details" then
+        return
+    end
+    local visual_context = ui_utils.get_selection(self.ui.buffer)
+    local end_line = visual_context.end_line
+    -- Show hint at the end of selection
+    vim.api.nvim_buf_set_extmark(self.ui.buffer, self._virt_namespace, end_line - 1, 0, {
+        virt_text = { { " [<a>: Add Config To Editor]", Text.highlights.success } },
+        virt_text_pos = "eol",
+    })
+
+    -- Set up keymap for the 'a' key in visual mode only
+    if not self._visual_keymap_set then
+        vim.api.nvim_buf_set_keymap(self.ui.buffer, "v", "a", "", {
+            callback = function()
+                local visual_context = ui_utils.get_selection(self.ui.buffer)
+                local lines = visual_context.lines
+                local selected_text = table.concat(lines, "\n")
+                if selected_text and #selected_text > 0 then
+                    self:open_config_editor(selected_text)
+                end
+            end,
+            noremap = true,
+            silent = true,
+            desc = "Add Config from selection",
+        })
+        self._visual_keymap_set = true
+    end
 end
 
 -- Extract unique categories and tags from catalog items
@@ -161,6 +202,7 @@ function MarketplaceView:before_enter()
     self:setup_active_mode()
 end
 
+-- Add this to the MarketplaceView:after_enter() function
 function MarketplaceView:after_enter()
     View.after_enter(self)
 
@@ -176,6 +218,24 @@ function MarketplaceView:after_enter()
         local install_line = self.interactive_lines[1]
         vim.api.nvim_win_set_cursor(0, { install_line and install_line.line or 7, 0 })
     end
+
+    -- Set up autocmd for visual selection in details mode
+    if self.active_mode == "details" then
+        -- Clear any existing autocmds for this buffer
+        vim.api.nvim_clear_autocmds({
+            buffer = self.ui.buffer,
+            group = self.ui.augroup,
+        })
+
+        -- Create autocmd for visual mode
+        vim.api.nvim_create_autocmd({ "CursorMoved", "ModeChanged" }, {
+            buffer = self.ui.buffer,
+            group = self.ui.augroup,
+            callback = function()
+                self:update_visual_selection_hints()
+            end,
+        })
+    end
 end
 
 function MarketplaceView:before_leave()
@@ -184,6 +244,16 @@ function MarketplaceView:before_leave()
         self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
     else
         self.cursor_positions.details_mode = vim.api.nvim_win_get_cursor(0)
+    end
+    -- Clear visual mode keymap if it was set
+    if self._visual_keymap_set then
+        pcall(vim.api.nvim_buf_del_keymap, self.ui.buffer, "v", "a")
+        self._visual_keymap_set = false
+    end
+
+    -- Clear virtual text
+    if self._virt_namespace then
+        pcall(vim.api.nvim_buf_clear_namespace, self.ui.buffer, self._virt_namespace, 0, -1)
     end
     View.before_leave(self)
 end
@@ -363,6 +433,8 @@ function MarketplaceView:setup_active_mode()
                                 vim.log.levels.ERROR
                             )
                         end
+                    elseif type == "manual_install" then
+                        self:open_config_editor()
                     end
                 end,
                 desc = "Install",
@@ -370,6 +442,36 @@ function MarketplaceView:setup_active_mode()
         }
     end
     self:apply_keymaps()
+end
+
+function MarketplaceView:open_config_editor(placeholder)
+    ui_utils.multiline_input("Paste server's json config", placeholder or "", function(content)
+        if not content or vim.trim(content) == "" then
+            return
+        end
+        --validated in validate field
+        local name, config = utils.parse_config_from_json(content)
+        State.hub_instance:update_server_config(name, config)
+        vim.notify("Server " .. name .. " added successfully", vim.log.levels.INFO)
+    end, {
+        filetype = "json",
+        start_insert = true,
+        show_footer = false,
+        --instead of closing the input, validate and show errors
+        validate = function(content)
+            local name, config = utils.parse_config_from_json(content)
+            if not name then
+                vim.notify(config, vim.log.levels.ERROR)
+                return false
+            end
+            local valid = validation.validate_server_config(name, config)
+            if not valid.ok then
+                vim.notify(valid.error.message, vim.log.levels.ERROR)
+                return false
+            end
+            return true
+        end,
+    })
 end
 
 -- Helper to find server at cursor line
@@ -475,7 +577,7 @@ function MarketplaceView:render_server_card(server, index, line_offset)
     self:track_line(line_offset, "server", {
         type = "server",
         mcpId = server.mcpId,
-        hint = "Press 'l' for details",
+        hint = "[<l> Details]",
     })
     table.insert(lines, Text.pad_line(title_line))
 
@@ -566,6 +668,11 @@ function MarketplaceView:render_details_mode(line_offset)
             is_url = true,
         },
         {
+            label = "ID       ",
+            icon = Text.icons.info,
+            value = server.mcpId,
+        },
+        {
             label = "Author   ",
             icon = Text.icons.octoface,
             value = server.author or "Unknown",
@@ -629,8 +736,8 @@ function MarketplaceView:render_details_mode(line_offset)
             button_line:append("Installed", Text.highlights.success)
         else
             -- Show install button with available installers
-            button_line:append(" " .. Text.icons.install .. " ", Text.highlights.active_item)
-            button_line:append("Install", Text.highlights.active_item)
+            button_line:append(" " .. Text.icons.octoface .. " ", Text.highlights.active_item)
+            button_line:append(" AI Install ", Text.highlights.active_item)
             button_line:append(" with: ", Text.highlights.muted)
 
             -- Check each installer
@@ -652,15 +759,50 @@ function MarketplaceView:render_details_mode(line_offset)
         end
         table.insert(lines, Text.pad_line(button_line))
 
-        -- Only track install button if server is not installed and not loading
         if not is_loading and not is_installed then
+            -- Only track install button if server is not installed and not loading
             self:track_line(#lines + line_offset, "install", {
                 type = "install",
                 mcpId = server.mcpId,
                 server = server,
-                hint = "Press 'l' to install",
+                hint = "[<l> Install]",
             })
+            local disclaimer = [[AI Install feature sends the below README to LLM with some additional instructions. 
+It might not always complete the setup for various reasons like restricted shell commands, outdated README etc
+Having issues? Visit the above url for latest README and install instructions]]
+            vim.list_extend(
+                lines,
+                vim.tbl_map(function(l)
+                    return Text.pad_line(l, nil, 4)
+                end, Text.multiline(disclaimer, Text.highlights.muted))
+            )
+
+            table.insert(lines, Text.pad_line(NuiLine()))
+            -- Install button or status
+            local manual_line = NuiLine()
+            manual_line:append(" " .. Text.icons.install .. " ", Text.highlights.active_item)
+            manual_line:append(" Manual Install ", Text.highlights.active_item)
+            table.insert(lines, Text.pad_line(manual_line))
+            self:track_line(#lines + line_offset, "manual_install", {
+                type = "manual_install",
+                mcpId = server.mcpId,
+                server = server,
+                hint = "[<l> Open Editor]",
+            })
+
+            local manual_disclaimer = [[Ideal for simple copy pasting of server configs
+  * Find the JSON config blocks in the README and paste them here OR
+  * Select them in visual mode and press <a> to add them to your editor
+Make sure to follow any setup instructions like installing dependencies
+Having issues? Visit the above url for latest README and install instructions]]
+            vim.list_extend(
+                lines,
+                vim.tbl_map(function(l)
+                    return Text.pad_line(l, nil, 4)
+                end, Text.multiline(manual_disclaimer, Text.highlights.muted))
+            )
         end
+
         table.insert(lines, Text.pad_line(NuiLine()))
         table.insert(lines, self:divider())
         table.insert(lines, Text.pad_line(NuiLine()))

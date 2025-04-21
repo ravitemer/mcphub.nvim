@@ -10,7 +10,9 @@ local View = require("mcphub.ui.views.base")
 local constants = require("mcphub.utils.constants")
 local native = require("mcphub.native")
 local renderer = require("mcphub.utils.renderer")
+local ui_utils = require("mcphub.utils.ui")
 local utils = require("mcphub.utils")
+local validation = require("mcphub.utils.validation")
 
 ---@class MainView
 ---@field super View
@@ -103,14 +105,155 @@ function MainView:handle_collapse()
     end
 end
 
-function MainView:handle_action()
-    local go_to_cap_line = false
+function MainView:handle_custom_instructions(context)
+    -- Get current instructions
+    local is_native = native.is_native_server(context.server_name)
+    local server_config = (
+        is_native and State.native_servers_config[context.server_name] or State.servers_config[context.server_name]
+    ) or {}
+    local custom_instructions = server_config.custom_instructions or {}
+    local text = custom_instructions.text or ""
+
+    -- Open text box using base class method
+    ui_utils.multiline_input("Custom Instructions", text, function(content)
+        if content ~= text then
+            State.hub_instance:update_server_config(context.server_name, {
+                custom_instructions = vim.tbl_extend("force", custom_instructions, { text = content }),
+            })
+            vim.notify("Updated custom instructions for " .. context.server_name, vim.log.levels.INFO)
+        end
+    end, {
+        filetype = "markdown",
+        start_insert = false,
+        show_footer = false,
+    })
+end
+
+function MainView:add_server()
+    ui_utils.multiline_input("Paste server's json config", "", function(content)
+        if not content or vim.trim(content) == "" then
+            return
+        end
+        --validated in validate field
+        local name, config = utils.parse_config_from_json(content)
+        State.hub_instance:update_server_config(name, config)
+        vim.notify("Server " .. name .. " added successfully", vim.log.levels.INFO)
+    end, {
+        filetype = "json",
+        start_insert = true,
+        show_footer = false,
+        --instead of closing the input, validate and show errors
+        validate = function(content)
+            local name, config = utils.parse_config_from_json(content)
+            if not name then
+                vim.notify(config, vim.log.levels.ERROR)
+                return false
+            end
+            local valid = validation.validate_server_config(name, config)
+            if not valid.ok then
+                vim.notify(valid.error.message, vim.log.levels.ERROR)
+                return false
+            end
+            return true
+        end,
+    })
+end
+
+function MainView:handle_edit()
     -- Get current line
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = cursor[1]
 
-    -- Get line info
     local type, context = self:get_line_info(line)
+    local server_name = context.name
+    if type == "server" then
+        local is_native = native.is_native_server(server_name)
+        if is_native then
+            return vim.notify("Native servers cannot be edited")
+        end
+        local config = State.servers_config[server_name] or {}
+        local text = utils.pretty_json(vim.json.encode({
+            [server_name] = config,
+        }))
+        ui_utils.multiline_input("Edit '" .. server_name .. "' Config", text, function(input)
+            if text == input then
+                return
+            end
+            local new_name, new_config = next(vim.json.decode(input))
+            if new_name ~= server_name then
+                State.hub_instance:remove_server_config(server_name)
+                vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
+            end
+            State.hub_instance:update_server_config(new_name, new_config, { merge = false })
+            vim.notify("Server " .. new_name .. " updated", vim.log.levels.INFO)
+        end, {
+            filetype = "json",
+            start_insert = false,
+            show_footer = false,
+            --instead of closing the input, validate and show errors
+            validate = function(content)
+                local success, result = pcall(vim.json.decode, content)
+                if not success then
+                    vim.notify("Invalid JSON: " .. result, vim.log.levels.ERROR)
+                    return
+                end
+                -- Case 3: Single server name:config pair
+                -- {
+                --   "server_name": {}
+                -- }
+                if vim.tbl_count(result) ~= 1 then
+                    vim.notify("Config should have exactly one key i.e server name", vim.log.levels.ERROR)
+                    return false
+                end
+                local new_name, new_config = next(result)
+                local valid = validation.validate_server_config(new_name, new_config)
+                if not valid.ok then
+                    vim.notify(valid.error.message, vim.log.levels.ERROR)
+                    return false
+                end
+                return true
+            end,
+        })
+    elseif (type == "customInstructions") and context then
+        self:handle_custom_instructions(context)
+    end
+end
+
+function MainView:handle_delete()
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+
+    local type, context = self:get_line_info(line)
+    if type == "server" then
+        local server_name = context.name
+        local is_native = native.is_native_server(server_name)
+        if is_native then
+            return vim.notify("Native servers cannot be deleted")
+        end
+        --confirm deletion
+        local confirm = vim.fn.confirm("Are you sure you want to delete " .. server_name .. "?", "&Yes\n&No", 2)
+        if confirm == 1 then
+            State.hub_instance:remove_server_config(server_name)
+            vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
+        end
+    end
+end
+
+function MainView:handle_action(line_override, context_override)
+    local go_to_cap_line = false
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = line_override or cursor[1]
+
+    -- Get line info from either override or current line
+    local type, context
+    if context_override then
+        type = context_override.type
+        context = context_override.context
+    else
+        type, context = self:get_line_info(line)
+    end
     if type == "breadcrumb" then
         self:show_prompts_view()
     elseif type == "server" then
@@ -162,9 +305,11 @@ function MainView:handle_action()
         -- Store browse mode position before switching
         self.cursor_positions.browse_mode = vim.api.nvim_win_get_cursor(0)
 
-        -- Switch to create server capability
-        self.active_capability =
-            Capabilities.create_handler("createServer", "Native Servers", { name = "Create Server" }, self)
+        -- Switch to createServer or addServer capability
+        if type == "create_server" then
+            self.active_capability =
+                Capabilities.create_handler("createServer", "Native Servers", { name = "Create Server" }, self)
+        end
         self:setup_active_mode()
         self:draw()
         -- Move to capability's preferred position
@@ -172,15 +317,7 @@ function MainView:handle_action()
         if cap_pos then
             vim.api.nvim_win_set_cursor(0, cap_pos)
         end
-    elseif
-        (
-            type == "tool"
-            or type == "resource"
-            or type == "resourceTemplate"
-            or type == "customInstructions"
-            or type == "prompt"
-        ) and context
-    then
+    elseif (type == "tool" or type == "resource" or type == "resourceTemplate" or type == "prompt") and context then
         if context.disabled then
             return
         end
@@ -197,6 +334,10 @@ function MainView:handle_action()
         if cap_pos then
             vim.api.nvim_win_set_cursor(0, cap_pos)
         end
+    elseif (type == "customInstructions") and context then
+        self:handle_custom_instructions(context)
+    elseif type == "add_server" then
+        self:add_server()
     end
 end
 
@@ -218,7 +359,7 @@ function MainView:handle_cursor_move()
         if type then
             -- Add virtual text without line highlight
             self.cursor_highlight = vim.api.nvim_buf_set_extmark(self.ui.buffer, self.hover_ns, line - 1, 0, {
-                virt_text = { { context and context.hint or "Press 'l' to interact", Text.highlights.muted } },
+                virt_text = { { context and context.hint or "[<l> Interact]", Text.highlights.muted } },
                 virt_text_pos = "eol",
             })
         end
@@ -244,6 +385,14 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Open text box",
             },
+            ["<Tab>"] = {
+                action = function()
+                    if self.active_capability.handle_tab then
+                        self.active_capability:handle_tab()
+                    end
+                end,
+                desc = "Switch tab",
+            },
             ["h"] = {
                 action = function()
                     -- -- Store capability line before exiting
@@ -267,6 +416,26 @@ function MainView:setup_active_mode()
     else
         -- Normal mode keymaps
         self.keymaps = {
+            ["e"] = {
+                action = function()
+                    self:handle_edit()
+                end,
+                desc = "Edit",
+            },
+            ["d"] = {
+                action = function()
+                    self:handle_delete()
+                end,
+                desc = "Delete",
+            },
+
+            ["A"] = {
+                action = function()
+                    -- Handle like an add_server action
+                    self:add_server()
+                end,
+                desc = "Add Server",
+            },
             ["t"] = {
                 action = function()
                     self:handle_server_toggle()
@@ -434,7 +603,7 @@ end
 ---@param config_source table Config source for the servers
 ---@param current_line number Current line number
 ---@return NuiLine[], number Lines and new current line
-function MainView:render_servers_section(title, servers, config_source, current_line)
+function MainView:render_servers_section(title, servers, config_source, current_line, is_native)
     local lines = {}
 
     if title then
@@ -458,7 +627,7 @@ function MainView:render_servers_section(title, servers, config_source, current_
     -- Sort and render servers
     local sorted = sort_servers(vim.deepcopy(servers))
     for _, server in ipairs(sorted) do
-        current_line = renderer.render_server_capabilities(server, lines, current_line, config_source, self)
+        current_line = renderer.render_server_capabilities(server, lines, current_line, config_source, self, is_native)
     end
 
     return lines, current_line
@@ -519,9 +688,25 @@ function MainView:render_servers(line_offset)
 
     -- Render MCP servers section (without title since we already added it)
     local mcp_lines, new_line =
-        self:render_servers_section(nil, State.server_state.servers, State.servers_config, current_line)
+        self:render_servers_section(nil, State.server_state.servers, State.servers_config, current_line, false)
     vim.list_extend(lines, mcp_lines)
     current_line = new_line
+    -- Add create server option
+    -- table.insert(lines, Text.empty_line())
+    table.insert(
+        lines,
+        Text.pad_line(
+            NuiLine()
+                :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
+                :append("Add Server (A)", Text.highlights.muted)
+        )
+    )
+    -- Track line for interaction
+    self:track_line(current_line + 1, "add_server", {
+        name = "Add Server",
+        hint = "[<l> Open Editor]",
+    })
+    current_line = current_line + 1
 
     -- Add spacing between sections
     table.insert(lines, Text.empty_line())
@@ -536,7 +721,8 @@ function MainView:render_servers(line_offset)
         nil, -- No title since we added it above
         State.server_state.native_servers,
         State.native_servers_config,
-        current_line
+        current_line,
+        true
     )
     vim.list_extend(lines, native_lines)
     current_line = native_line
@@ -548,12 +734,12 @@ function MainView:render_servers(line_offset)
         Text.pad_line(
             NuiLine()
                 :append(" " .. Text.icons.edit .. " ", Text.highlights.muted)
-                :append("Auto Create Server", Text.highlights.muted)
+                :append("Auto-create Server", Text.highlights.muted)
         )
     )
     -- Track line for interaction
     self:track_line(current_line + 1, "create_server", {
-        hint = "Press 'l' to create server",
+        hint = "[<l> Create Server]",
     })
 
     return lines

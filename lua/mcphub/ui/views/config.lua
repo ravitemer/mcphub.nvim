@@ -55,6 +55,14 @@ function ConfigView:get_initial_cursor_position()
     return #lines + 1
 end
 
+-- function ConfigView:after_enter()
+--     self:unlock()
+-- end
+
+-- function ConfigView:before_leave()
+--     self:lock()
+-- end
+
 function ConfigView:render()
     -- Get base header
     local lines = self:render_header(false)

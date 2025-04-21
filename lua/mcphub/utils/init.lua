@@ -359,6 +359,49 @@ local function is_visual_mode(mode)
     return mode == "v" or mode == "V" or mode == "^V"
 end
 
+function M.parse_config_from_json(text)
+    local ok, parsed = pcall(vim.json.decode, text)
+    if not ok then
+        return nil, "Invalid JSON format"
+    end
+
+    -- Case 1: Full mcpServers object
+    -- {
+    -- "mcpServers": {
+    -- "server_name": {}
+    -- }
+    -- }
+    if parsed.mcpServers then
+        local name, config = next(parsed.mcpServers)
+        if not name then
+            return nil, "No server config found in mcpServers"
+        end
+        return name, config
+    end
+
+    -- Case 2: Server config object
+    -- {
+    -- "command": "npx",
+    -- }
+    if parsed.command or parsed.url then
+        local is_string = parsed.command and type(parsed.command) == "string" or type(parsed.url) == "string"
+        if is_string then
+            return "unnamed", parsed
+        end
+    end
+
+    -- Case 3: Single server name:config pair
+    -- {
+    --   "server_name": {}
+    -- }
+    if vim.tbl_count(parsed) == 1 then
+        local name, config = next(parsed)
+        return name, config
+    end
+
+    return nil, "JSON should have a mcpServers key or name:config pair"
+end
+
 ---Get the context of the current buffer.
 ---@param bufnr? integer
 ---@param args? table

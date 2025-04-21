@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.9.0] - 2025-04-21
+
+### Added
+- Can add servers: Press 'A' in main view to open editor and paste server config
+- Can edit servers: Press 'e' to modify existing server configurations  
+- Can remove servers: Press 'd' to delete servers
+- Added manual installation support from marketplace
+
 ## [4.8.0] - 2025-04-14
 
 ### Added

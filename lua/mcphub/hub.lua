@@ -766,7 +766,7 @@ end
 --- Update server configuration in the MCP config file
 ---@param server_name string Name of the server to update
 ---@param updates table|nil Key-value pairs to update in the server config or nil to remove
----@param opts? { callback?: function } Optional callback(success: boolean)
+---@param opts? { callback?: function ,merge?:boolean} Optional callback(success: boolean)
 function MCPHub:update_server_config(server_name, updates, opts)
     opts = opts or {}
     -- Load and validate current config
@@ -777,8 +777,12 @@ function MCPHub:update_server_config(server_name, updates, opts)
     local is_native = native.is_native_server(server_name)
     local current_object = is_native and config.nativeMCPServers or config.mcpServers
     if updates then
-        -- Update mode: merge updates with existing config
-        current_object[server_name] = vim.tbl_deep_extend("force", current_object[server_name] or {}, updates)
+        if opts.merge ~= false then
+            -- Update mode: merge updates with existing config
+            current_object[server_name] = vim.tbl_deep_extend("force", current_object[server_name] or {}, updates)
+        else
+            current_object[server_name] = updates
+        end
     else
         -- Remove mode: delete server config
         current_object[server_name] = nil
@@ -795,11 +799,18 @@ function MCPHub:update_server_config(server_name, updates, opts)
     file:close()
 
     -- Update State
-    State:update({
-        servers_config = config.mcpServers,
-        native_servers_config = config.nativeMCPServers,
+    -- State:update({
+    --     servers_config = config.mcpServers,
+    --     native_servers_config = config.nativeMCPServers,
+    -- }, "setup")
+    -- update state manually to avoid deep extending
+    State.servers_config = config.mcpServers
+    State.native_servers_config = config.nativeMCPServers
+    -- Notify subscribers of state change
+    State:notify_subscribers({
+        servers_config = true,
+        native_servers_config = true,
     }, "setup")
-
     return true
 end
 
