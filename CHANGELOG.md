@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.0] - 2025-04-23
+
+### Added
+- Full support for MCP 2025-03-26 specification
+- Streamable-HTTP transport support with OAuth PKCE flow
+- SSE fallback transport for remote servers
+- Auto-detection of streamable-http/SSE transport
+- Auto OAuth authorization for remote servers
+- Comprehensive capabilities matrix in documentation
+
+### Documentation
+- Improved installation instructions 
+- Enhanced server configuration examples
+- Complete rewrite of features section
+- Added official spec references
+- Clarified transport protocols
+
 ## [4.9.0] - 2025-04-21
 
 ### Added

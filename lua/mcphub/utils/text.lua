@@ -52,6 +52,7 @@ M.icons = {
     edit = "󰏫",
     plus = "",
     instructions = "",
+    unauthorized = "󱅞",
 
     file = "",
     folder = "",

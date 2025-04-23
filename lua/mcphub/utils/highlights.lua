@@ -13,6 +13,7 @@ M.groups = {
     error = "MCPHubError",
     error_fill = "MCPHubErrorFill",
     warning = "MCPHubWarning",
+    warn = "MCPHubWarning",
     info = "MCPHubInfo",
     success = "MCPHubSuccess",
     success_fill = "MCPHubSuccessFill",
@@ -137,6 +138,10 @@ function M.setup()
             bold = true,
         },
         [M.groups.warning] = {
+            bg = "NONE",
+            fg = warn_color,
+        },
+        [M.groups.warn] = {
             bg = "NONE",
             fg = warn_color,
         },

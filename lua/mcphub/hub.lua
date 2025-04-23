@@ -191,6 +191,36 @@ function MCPHub:get_health(opts)
     return self:api_request("GET", "health", opts)
 end
 
+function MCPHub:get_server(name)
+    local is_native = native.is_native_server(name)
+    if is_native then
+        return is_native
+    end
+    for _, server in ipairs(State.server_state.servers) do
+        if server.name == name then
+            return server
+        end
+    end
+    return nil
+end
+
+function MCPHub:authorize_mcp_server(name, _)
+    -- local authUrl = self:get_server(name)["authorizationUrl"]
+    self:api_request("POST", "servers/authorize", {
+        body = {
+            server_name = name,
+        },
+        callback = function(response, _)
+            --Errors will be handled automatically
+            if response and response.authorizationUrl then
+                vim.notify("Opening Authorization URL: " .. response.authorizationUrl, vim.log.levels.INFO)
+            else
+                vim.notify("No Authorization URL found for server: " .. name, vim.log.levels.WARN)
+            end
+        end,
+    })
+end
+
 --- Start a disabled/disconnected MCP server
 ---@param name string Server name to start
 ---@param opts? { via_curl_request?:boolean,callback?: function } Optional callback(response: table|nil, error?: string)
@@ -753,7 +783,7 @@ function MCPHub:handle_capability_updates(data)
                 s.capabilities[field] = data[field] or {}
                 emit_data[field] = s.capabilities[field]
             end
-            State.emit(type, emit_data)
+            State:emit(type, emit_data)
             break
         end
     end

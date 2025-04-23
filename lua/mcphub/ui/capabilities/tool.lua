@@ -277,7 +277,6 @@ function ToolHandler:render_param_form(line_offset)
         self:render_section_start((is_function and "(" .. Text.icons.event .. " Dynamic) " or "") .. "Input Params")
     )
     inputSchema = self:get_inputSchema(inputSchema)
-    log.debug(vim.inspect(inputSchema))
     self.parsedInputSchema = inputSchema
     if not inputSchema or not next(inputSchema.properties or {}) then
         -- No parameters case

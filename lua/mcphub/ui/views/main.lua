@@ -300,6 +300,8 @@ function MainView:handle_action(line_override, context_override)
                     vim.api.nvim_win_set_cursor(0, { line, 3 })
                 end
             end
+        elseif context.status == "unauthorized" then
+            State.hub_instance:authorize_mcp_server(context.name)
         end
     elseif type == "create_server" then
         -- Store browse mode position before switching

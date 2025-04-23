@@ -53,6 +53,7 @@ function M.get_server_status_info(status, expanded)
             connected = (expanded and Text.icons.triangleDown or Text.icons.triangleRight) .. " ",
             connecting = "◉ ",
             restarting = "◉ ",
+            unauthorized = Text.icons.unauthorized .. " ",
             disconnecting = "○ ",
             disconnected = "○ ",
             disabled = "○ ",
@@ -61,6 +62,7 @@ function M.get_server_status_info(status, expanded)
         desc = ({
             connecting = " (connecting...)",
             disconnecting = " (disconnecting...)",
+            unauthorized = " (unauthorized)",
         })[status] or "",
 
         hl = ({
@@ -69,6 +71,7 @@ function M.get_server_status_info(status, expanded)
             restarting = Text.highlights.success,
             disconnecting = Text.highlights.warning,
             disconnected = Text.highlights.warning,
+            unauthorized = Text.highlights.warning,
             disabled = Text.highlights.muted,
         })[status] or Text.highlights.error,
     }
@@ -169,7 +172,10 @@ function M.render_server_capabilities(server, lines, current_line, config_source
 
     -- Prepare hover hint based on server status
     local hint = is_native and "[<t> Toggle]" or "[<t> Toggle, <e> Edit, <d> Delete]"
-    local enabled_hint = is_native and "[<l> Expand, <t> Toggle]" or "[<l> Expand, <t> Toggle, <e> Edit, <d> Delete]"
+    local needs_authorization = server.status == "unauthorized"
+    local enabled_hint = is_native and "[<l> Expand, <t> Toggle]"
+        or needs_authorization and "[<l> Authorize, <t> Toggle, <e> Edit, <d> Delete]"
+        or "[<l> Expand, <t> Toggle, <e> Edit, <d> Delete]"
     local expanded_hint = is_native and "[<h> Collapse, <t> Toggle]"
         or "[<h> Collapse, <t> Toggle, <e> Edit, <d> Delete]"
     if server.status ~= "disabled" and server.status ~= "disconnected" then

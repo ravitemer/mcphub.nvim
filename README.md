@@ -59,22 +59,13 @@ O --> D
 
 <div align="center">
 <p>
-<h4>MCP Hub UI</h4>
-<video controls muted src="https://github.com/user-attachments/assets/22d14360-5994-455b-8789-4fffd2b598e2"></video>
-</p>
-</div>
-
-
-
-<details>
-<summary>Video Demos</summary>
-
-<div align="center">
-<p>
-<h4>MCP Hub + <a href="https://github.com/yetone/avante.nvim">Avante</a> </h4>
+<h4>MCPHub + <a href="https://github.com/yetone/avante.nvim">Avante</a> + Figma </h4>
 <video controls muted src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d"></video>
 </p>
 </div>
+
+<details>
+<summary>Video Demos</summary>
 <div align="center">
 <p>
 <h4>Using <a href="https://github.com/olimorris/codecompanion.nvim">codecompanion</a></h4>
@@ -89,8 +80,6 @@ O --> D
 </div>
 
 </details>
-
-For detailed documentation, visit our [Wiki](https://github.com/ravitemer/mcphub.nvim/wiki):
 
 ## :raised_hands: Support MCPHub
 
@@ -110,24 +99,40 @@ Thank you to the following amazing people:
 
 </p>
 
-## ✨ Features
+## ✨ Features & Support Status
 
-<details>
-<summary> <strong>Simple Command Interface</strong> </summary>
+| Category | Feature | Support | Details |
+|----------|---------|---------|-------|
+| [**Capabilities**](https://modelcontextprotocol.io/specification/2025-03-26/server) ||||
+| | Tools | ✅ | Full support |
+| | 🔔 Tool List Changed | ✅ | Real-time updates |
+| | Resources | ✅ | Full support |
+| | 🔔 Resource List Changed | ✅ | Real-time updates |
+| | Resource Templates | ✅ | URI templates |
+| | Prompts | ✅ | Full support |
+| | 🔔 Prompts List Changed | ✅ | Real-time updates |
+| | Roots | ❌ | Not supported |
+| | Sampling | ❌ | Not supported |
+| **MCP Server Transports** ||||
+| | [Streamable-HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) | ✅ | Primary transport protocol for remote servers |
+| | [SSE](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#backwards-compatibility) | ✅ | Fallback transport for remote servers |
+| | [STDIO](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#stdio) | ✅ | For local servers |
+| **Authentication for remote servers** ||||
+| | [OAuth](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) | ✅ | With PKCE flow |
+| | Headers | ✅ | For API keys/tokens |
+| **Chat Integration** ||||
+| | [Avante.nvim](https://github.com/yetone/avante.nvim) | ✅ | Tools, resources, resourceTemplates, prompts(as slash_commands) |
+| | [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | ✅ | Tools, resources, resourceTemplates, prompts (as slash_commands) | 
+| | [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | ✅ | In-built support [Draft](https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029) | 
+| **Marketplace** ||||
+| | Server Discovery | ✅ | Browse from verified MCP servers |
+| | Installation | ✅ | Manual and auto install with AI |
+| **Advanced** ||||
+| | Smart File-watching | ✅ | Smart updates with config file watching |
+| | Multi-instance | ✅ | All neovim instances stay in sync |
+| | Shutdown-delay | ✅ | Can run as systemd service with configure delay before stopping the hub |
+| | Lua Native MCP Servers | ✅ | Write once , use everywhere. Can write tools, resources, prompts directly in lua |
 
-- Single command `:MCPHub` to access all functionality
-
-</details>
-
-<details>
-<summary><strong>Integrated Hub View</strong></summary>
-
-- Dynamically enable/disable servers and tools to optimize token usage
-- Start/stop servers with persistent state
-- Enable/disable specific tools per server
-- Configure custom instructions per server
-- State persists across restarts
-</details>
 
 <details>
 <summary><strong>Native MCP Server Support</strong></summary>
@@ -208,8 +213,8 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
     dependencies = {
       "nvim-lua/plenary.nvim",  -- Required for Job and HTTP requests
     },
-    -- comment the following line to ensure hub will be ready at the earliest
-    cmd = "MCPHub",  -- lazy load by default
+    -- uncomment the following line to load hub lazily
+    --cmd = "MCPHub",  -- lazy load 
     build = "npm install -g mcp-hub@latest",  -- Installs required mcp-hub npm module
     -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
     -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts  (see Advanced configuration)
@@ -238,9 +243,7 @@ require("mcphub").setup({
             make_slash_commands = true, -- make /slash commands from MCP server prompts
         },
         codecompanion = {
-            -- Show the mcp tool result in the chat buffer
-            -- NOTE:if the result is markdown with headers, content after the headers wont be sent by codecompanion
-            show_result_in_chat = false,
+            show_result_in_chat = true, -- Show the mcp tool result in the chat buffer
             make_vars = true, -- make chat #variables from MCP server resources
             make_slash_commands = true, -- make /slash commands from MCP server prompts
         },
@@ -298,12 +301,12 @@ MCPHub uses a JSON configuration file to define MCP servers. The default locatio
 
 #### Example Configuration
 
-```json
+```js
 {
   "mcpServers": {
     "fetch": {
       "command": "uvx",
-      "args": ["mcp-server-fetch"],
+      "args": ["mcp-server-fetch", "$API_KEY"], //replaces $API_KEY with API_KEY from env field
       "env": {
         "API_KEY": "",                 // Falls back to process.env.API_KEY
         "SERVER_URL": null,            // Falls back to process.env.SERVER_URL
@@ -311,8 +314,8 @@ MCPHub uses a JSON configuration file to define MCP servers. The default locatio
       }
     },
     "remote-server": {
-      "url": "https://api.example.com/mcp",
-      "headers": {
+      "url": "https://api.example.com/mcp", // Auto determine streamable-http or sse, Auto OAuth authorization
+      "headers": {                          // Explicit headers
         "Authorization": "Bearer your-token"
       }
     }
@@ -329,18 +332,17 @@ Configuration file (`~/.config/mcphub/servers.json`) is watched for changes and 
 
 * Local Stdio Servers:
     - `command`: The command to start the MCP server (required)
-    - `args`: Command arguments as array 
+    - `args`: Command arguments as array (replaces args starting with `$` from env)
     - `env`: Optional environment variables. Special values:
       - `""` (empty string): Falls back to process.env.[VAR_NAME]
       - `null`: Falls back to process.env.[VAR_NAME]
       - Any other value is used as-is
 
-* Remote SSE Servers:
-    - `url`: url for remote MCP Server (required)
+* Remote Servers: (Supports `streamable-http`, `sse` with `OAuth`)
+    - `url`: url for remote MCP Server (required) (Auto determines streamable-http or sse transport, auto OAuth authorization)
     - `headers`: Optional headers for the server
 
 * There are other plugin specific options for each server like `disabled`, `disabled_tools`, `custom_instructions` etc which can be easily updated from the UI.
-
 
 
 ## 🚀 Usage
@@ -1018,11 +1020,15 @@ sequenceDiagram
 - [x] Enhanced help view with comprehensive documentation
 - [x] MCP Resources as variables in chat plugins
 - [x] MCP Prompts as slash commands in chat plugins
-- [ ] Support for #variables, /slash_commands in avante
 - [x] Enable LLM to start and stop MCP Servers dynamically
 - [x] Support SSE transport
-- [ ] Composio Integration
+- [x] Support /slash_commands in avante
+- [x] Support streamable-http transport
+- [x] Support OAuth
+- [ ] Support #variables in avante
 - [ ] Better Docs and Wiki
+- [ ] ~Composio Integration~
+- [ ] ~Smithery Integration~
 
 
 ## 👏 Acknowledgements

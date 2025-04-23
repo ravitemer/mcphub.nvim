@@ -39,6 +39,7 @@ Error.Types = {
         CACHE_ERROR = "CACHE_ERROR", -- Error with marketplace cache
     },
     SERVER = {
+        AUTHORIZATION = "AUTHORIZATION", -- Authorization error
         RESTART = "RESTART", -- Server restart error
         CONNECTION = "CONNECTION",
         HEALTH_CHECK = "HEALTH_CHECK",
