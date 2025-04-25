@@ -532,13 +532,10 @@ require("codecompanion").setup({
 </summary>
 
 ```lua
-require('lualine').setup {
-    sections = {
-        lualine_x = {
-            {require('mcphub.extensions.lualine')},
-        },
-    },
-}
+local lualine = require("lualine")
+local config = lualine.get_config()
+table.insert(config.sections.lualine_x, require("mcphub.extensions.lualine"))
+lualine.setup(config)
 ```
 
 When connecting show warning state.
