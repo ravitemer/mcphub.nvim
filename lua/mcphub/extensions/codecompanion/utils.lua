@@ -69,20 +69,32 @@ function M.create_handler(action_name, has_function_calling)
     end
 end
 
+local function replace_headers(text)
+    local lines = vim.split(text, "\n")
+    for i, line in ipairs(lines) do
+        -- if line starts with #, ##, ###, #### etc replace them with >,>> ,>>> etc
+        lines[i] = line:gsub("^(#+)", function(hash)
+            local level = #hash
+            return string.rep(">", level)
+        end)
+    end
+    return table.concat(lines, "\n")
+end
 local function add_tool_output(action_name, tool, chat, llm_msg, is_error, has_function_calling)
     local show_result_in_chat = State.config.extensions.codecompanion.show_result_in_chat == true
+    local text = show_result_in_chat and replace_headers(llm_msg) or llm_msg
     if has_function_calling then
-        chat:add_tool_output(tool, llm_msg, (show_result_in_chat or is_error) and llm_msg or "Tool result shared")
+        chat:add_tool_output(tool, text, (show_result_in_chat or is_error) and text or "Tool result shared")
     else
         if show_result_in_chat or is_error then
             chat:add_buf_message({
                 role = config.constants.USER_ROLE,
-                content = llm_msg,
+                content = text,
             })
         else
             chat:add_message({
                 role = config.constants.USER_ROLE,
-                content = llm_msg,
+                content = text,
             })
             chat:add_buf_message({
                 role = config.constants.USER_ROLE,
@@ -115,7 +127,6 @@ function M.create_output_handlers(action_name, has_function_calling)
             local result = has_function_calling and stdout[1] or cmd[1]
             agent = has_function_calling and agent or self
             -- Show text content if present
-            -- TODO: add messages with role = `tool` when supported
             if result.text and result.text ~= "" then
                 local to_llm = string.format(
                     [[The `%s` call returned the following text:

@@ -76,6 +76,7 @@ The Model Context Protocol (MCP) enables communication with locally running MCP 
 
 7. **XML Structure Requirements**:
    - Format: ```xml<tools><tool name="tool_name"></tool></tools>```
+   - Must always enclose <tools> tag inside ```xml``` codeblock
    - When using the <tool name="use_mcp_tool"></tool> tool: The following are a MUST
      * The server_name child tag must be provided with a valid server name
      * The tool_name child tag must be provided with a valid tool name of the server_name
