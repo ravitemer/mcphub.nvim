@@ -29,20 +29,23 @@ end
 --- @param level_str string Level string for log prefix
 --- @return string formatted_message
 local function format_message(msg, level_str)
+    local str = ""
     if type(msg) == "table" then
         -- Handle structured logs (from server)
         if msg.code and msg.message then
-            local base = string.format("[%s] [%s] %s", config.prefix, msg.code, msg.message)
+            local base = string.format("[%s] %s", msg.code, msg.message)
             if msg.data then
-                return string.format("%s\nData: %s", base, vim.inspect(msg.data))
+                str = string.format("%s\nData: %s", base, vim.inspect(msg.data))
+            else
+                str = base
             end
-            return base
         end
         -- Regular table data
-        return string.format("[%s] [%s] %s", config.prefix, level_str, vim.inspect(msg))
+        str = vim.inspect(msg)
+    else
+        str = msg
     end
-    -- String message
-    return string.format("[%s] [%s] %s", config.prefix, level_str, msg)
+    return str
 end
 
 --- Write to log file
@@ -58,8 +61,8 @@ local function write_to_file(formatted, level_str, level)
         return false
     end
 
-    local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-    local log_line = string.format("%s [%s] %s\n", timestamp, level_str, formatted)
+    local timestamp = os.date("%H:%M:%S")
+    local log_line = string.format("(%s) %s [%s] %s\n", vim.fn.getpid(), timestamp, level_str, formatted)
 
     local f = io.open(config.file_path, "a")
     if f then

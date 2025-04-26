@@ -38,7 +38,13 @@ M.SSEHandlers = {
         if event == constants.EventTypes.HEARTBEAT then
             log.trace("Heartbeat event received")
         else
-            log.debug(string.format("Event: %s ", event))
+            log.debug(
+                string.format(
+                    "Event: %s %s ",
+                    event,
+                    (data.type or data.state) and ": " .. (data.type or data.state) or ""
+                )
+            )
         end
         if event == constants.EventTypes.HUB_STATE then
             local state = data.state
@@ -46,9 +52,11 @@ M.SSEHandlers = {
                 State:update_hub_state(state)
             end
             if state == constants.HubState.ERROR then
-                hub:handle_hub_error("Hub entered error state: " .. (data.message or "unknown error"))
+                hub:handle_hub_stopped("Hub entered error state: " .. (data.message or "unknown error"))
+            elseif state == constants.HubState.STOPPING then
+                hub:handle_hub_stopping()
             elseif state == constants.HubState.STOPPED then
-                hub:handle_hub_error("Hub stopped")
+                hub:handle_hub_stopped("Hub stopped")
             elseif state == constants.HubState.RESTARTING then
                 hub:handle_hub_restarting()
             elseif state == constants.HubState.READY or state == constants.HubState.RESTARTED then

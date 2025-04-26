@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.11.0] - 2025-04-25
+
+### Added
+- Added support for ${} placeholder values in env and headers (#100)
+- Modified "R" key to kill and restart mcp-hub to reload latest process.env (#98)
+
+### Fixed
+- Fixed notifications persisting from stopped servers
+- Fixed false positive modified triggers for servers with env field containing falsy values
+- Fixed system prompt to ensure exact server names are used
+
+### Documentation
+- Updated lualine documentation
+- Updated README with ${} placeholder support
+- Updated TODOs
+
 ## [4.10.0] - 2025-04-23
 
 ### Added
@@ -544,3 +560,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+

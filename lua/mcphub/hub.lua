@@ -58,18 +58,17 @@ function MCPHub:new(opts)
 end
 
 --- Start the MCP Hub server
---- @param opts? { on_ready: function, on_error: function }
-function MCPHub:start(opts, restart_callback)
-    opts = opts or State.config
-
+function MCPHub:start()
+    log.debug("Starting hub")
     -- Update state
     State:update_hub_state(constants.HubState.STARTING)
+    self.is_restarting = false
 
     -- Check if server is already running
     self:check_server(function(is_running, is_our_server)
         if is_running then
             if not is_our_server then
-                self:handle_hub_error("Port in use by non-MCP Hub server")
+                self:handle_hub_stopped("Port in use by non-MCP Hub server")
                 return
             end
             log.debug("MCP Hub already running")
@@ -107,15 +106,13 @@ function MCPHub:start(opts, restart_callback)
                 -- end
             end),
             on_exit = vim.schedule_wrap(function(j, code)
-                if code ~= 0 and not self.is_shutting_down then
-                    local stderr = table.concat(j:stderr_result() or {}, "\n")
-                    if stderr:match("EADDRINUSE") then
-                        -- Port was just taken, try connecting
-                        log.debug("Port taken, trying to connect...")
-                    else
-                        local err_msg = "Server process exited with code " .. code
-                        self:handle_hub_error(err_msg .. "\n" .. stderr, opts)
-                    end
+                local stderr = table.concat(j:stderr_result() or {}, "\n")
+                if stderr:match("EADDRINUSE") then
+                    -- Port was just taken, try connecting
+                    log.debug("Port taken, trying to connect...")
+                else
+                    local err_msg = "Server process exited with code " .. code
+                    self:handle_hub_stopped(err_msg .. "\n" .. stderr, code)
                 end
             end),
         })
@@ -126,6 +123,7 @@ end
 
 function MCPHub:handle_hub_ready()
     self.ready = true
+    self.is_restarting = false
     self.on_ready(self)
     self:update_servers()
     if State.marketplace_state.status == "empty" then
@@ -142,15 +140,17 @@ function MCPHub:_clean_up()
     State:update_hub_state(constants.HubState.STOPPED)
     self:fire_hub_update()
 end
-function MCPHub:handle_hub_error(msg)
-    if self.is_shutting_down then
-        return -- Skip error handling during shutdown
+function MCPHub:handle_hub_stopped(msg, code)
+    code = code ~= nil and code or 1
+    -- if self.is_shutting_down then
+    --     return -- Skip error handling during shutdown
+    -- end
+    if code ~= 0 then
+        -- Create error object
+        local err = Error("SERVER", Error.Types.SERVER.SERVER_START, msg)
+        State:add_error(err)
+        self.on_error(tostring(err))
     end
-    -- Create error object
-    local err = Error("SERVER", Error.Types.SERVER.SERVER_START, msg)
-    State:add_error(err)
-    State:update_hub_state(constants.HubState.STOPPED)
-    self.on_error(tostring(err))
     self:_clean_up()
 end
 
@@ -924,10 +924,7 @@ function MCPHub:connect_sse()
         end),
         on_exit = vim.schedule_wrap(function(j, code)
             log.debug("SSE JOB exited with " .. tostring(code))
-            -- if code ~= 0 and not self.is_shutting_down then
-            if not self.is_shutting_down then
-                self:handle_hub_error("SSE connection failed with code " .. tostring(code))
-            end
+            self:handle_hub_stopped("SSE connection failed with code " .. tostring(code), code)
             self.sse_job = nil
         end),
     })
@@ -972,6 +969,8 @@ function MCPHub:hard_refresh(callback)
 end
 
 function MCPHub:handle_hub_restarting()
+    --for non owner client
+    self.is_restarting = true
     State:update({
         errors = {
             items = {},
@@ -983,18 +982,29 @@ function MCPHub:handle_hub_restarting()
     self:fire_hub_update()
 end
 
+function MCPHub:handle_hub_stopping()
+    if self.is_restarting then
+        vim.defer_fn(function()
+            self:start()
+        end, 1000)
+    end
+end
+
 function MCPHub:restart(callback)
+    if self.is_restarting then
+        return vim.notify("Hub is restarting...")
+    end
+    self.is_restarting = true
     if not self:ensure_ready() then
         return
     end
-    self:api_request("POST", "restart", {
+    self:api_request("POST", "hard-restart", {
         callback = function(response, err)
             if err then
-                local restart_err = Error("SERVER", Error.Types.SERVER.RESTART, "Restart failed", {
+                local restart_err = Error("SERVER", Error.Types.SERVER.RESTART, "Hard restart failed", {
                     error = err,
                 })
                 State:add_error(restart_err)
-                self:refresh() --get latest status
                 if callback then
                     callback(false)
                 end

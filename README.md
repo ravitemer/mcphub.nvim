@@ -535,6 +535,7 @@ require("codecompanion").setup({
 require('lualine').setup {
     sections = {
         lualine_x = {
+            -- Other lualine components in "x" section
             {require('mcphub.extensions.lualine')},
         },
     },
