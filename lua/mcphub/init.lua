@@ -60,12 +60,6 @@ function M.setup(opts)
             },
         },
         extensions = {
-            codecompanion = {
-                enabled = true,
-                show_result_in_chat = true,
-                make_slash_commands = true,
-                make_vars = true,
-            },
             avante = {
                 enabled = true,
                 make_slash_commands = true,
@@ -222,7 +216,8 @@ function M._handle_version_check(j, code, config)
     -- Initialize image cache
     ImageCache.setup()
 
-    require("mcphub.extensions").setup("codecompanion", config.extensions.codecompanion)
+    --This will be setup using codecompanion's extensions api
+    -- require("mcphub.extensions").setup("codecompanion", config.extensions.codecompanion)
     require("mcphub.extensions").setup("avante", config.extensions.avante)
 
     -- Start hub

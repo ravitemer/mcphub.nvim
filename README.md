@@ -241,12 +241,7 @@ require("mcphub").setup({
     extensions = {
         avante = {
             make_slash_commands = true, -- make /slash commands from MCP server prompts
-        },
-        codecompanion = {
-            show_result_in_chat = true, -- Show the mcp tool result in the chat buffer
-            make_vars = true, -- make chat #variables from MCP server resources
-            make_slash_commands = true, -- make /slash commands from MCP server prompts
-        },
+        }
     },
 
 
@@ -470,14 +465,34 @@ Add MCP capabilities to CodeCompanion.
 
 > Set `config.auto_approve = true` or `vim.g.mcphub_auto_approve = true` to automatically approve tool requests.
 
+- Type @mcp in the chat (once submitted, it will add available MCP Servers to the system prompts and adds a tool so that the LLM can call tools, resources on MCP Servers etc)
+
 > Set `make_vars = true` to show resources as #variables in the chat buffer
 
 > Set `make_slash_commands = true` to show prompts as /slash_commands in the chat buffer
 
-- Type @mcp in the chat (once submitted, it will add available MCP Servers to the system prompts and adds a tool so that the LLM can call tools, resources on MCP Servers etc)
 - Server prompts become available as `/mcp:prompt_name` slash commands in chat (*Currently very few servers provide prompts, but you can add your own using `mcphub.add_prompt`*)
 - Prompts with arguments are handled using vim.ui.input (cancelling input for required arguments will abort the slash command)
 - If the last message from the `/mcp:prompt_name` message is of `user` role, it will be added to the chat buffer. 
+
+> Set `show_result_in_chat = true` to view the mcp tool call result in the chat buffer. 
+
+```lua
+require("codecompanion").setup({
+    extensions = {
+        mcphub = {
+            callback = "mcphub.extensions.codecompanion",
+            opts = {
+                show_result_in_chat = true, -- Show the mcp tool result in the chat buffer
+                make_vars = true, -- make chat #variables from MCP server resources
+                make_slash_commands = true, -- make /slash_commands from MCP server prompts
+            },
+        }
+    }
+})
+
+```
+
 
 * Whenever the servers are updated, the variables and slash_commands will also be updated in realtime
 ![image](https://github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a)
@@ -489,38 +504,6 @@ Add MCP capabilities to CodeCompanion.
 
 ![image](https://github.com/user-attachments/assets/f1fa305a-5d48-4119-b3e6-e13a9176da07)
 
-> Set `show_result_in_chat = true` to view the mcp tool call result in the chat buffer. 
-
-```lua
-
-require("mcphub").setup({
-    extensions = {
-        codecompanion = {
-            -- Show the mcp tool result in the chat buffer
-            show_result_in_chat = true,
-            make_vars = true, -- make chat #variables from MCP server resources
-            make_slash_commands = true, -- make /slash_commands from MCP server prompts
-        },
-    }
-})
-```
-
-```lua
-require("codecompanion").setup({
-    strategies = {
-        chat = {
-            tools = {
-                ["mcp"] = {
-                    -- calling it in a function would prevent mcphub from being loaded before it's needed
-                    callback = function() return require("mcphub.extensions.codecompanion") end,
-                    description = "Call tools and resources from the MCP Servers",
-                }
-            }
-        }
-    }
-})
-
-```
 </details>
 
 
