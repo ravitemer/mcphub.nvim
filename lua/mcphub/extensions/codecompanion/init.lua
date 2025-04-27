@@ -94,6 +94,7 @@ function M.create_tools(opts)
     for action_name, schema in pairs(tool_schemas) do
         tools[action_name] = {
             description = string.format("Call tools and resources from the MCP Servers."),
+            visible = false,
             callback = {
                 name = action_name,
                 cmds = { utils.create_handler(action_name, has_function_calling, opts) },
