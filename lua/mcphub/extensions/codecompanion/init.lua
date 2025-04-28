@@ -10,7 +10,7 @@ local tool_schemas = {
         type = "function",
         ["function"] = {
             name = "access_mcp_resource",
-            description = "Get resources on MCP servers.",
+            description = "get resources on MCP servers.",
             parameters = {
                 type = "object",
                 properties = {
@@ -36,7 +36,7 @@ local tool_schemas = {
         type = "function",
         ["function"] = {
             name = "use_mcp_tool",
-            description = "Calls tools on MCP servers.",
+            description = "calls tools on MCP servers.",
             parameters = {
                 type = "object",
                 properties = {
@@ -93,13 +93,13 @@ function M.create_tools(opts)
     }
     for action_name, schema in pairs(tool_schemas) do
         tools[action_name] = {
-            description = string.format("Call tools and resources from the MCP Servers."),
+            description = schema["function"].description,
             visible = false,
             callback = {
                 name = action_name,
                 cmds = { utils.create_handler(action_name, has_function_calling, opts) },
                 system_prompt = function()
-                    return ""
+                    return string.format("You can use the %s tool to %s\n", action_name, schema["function"].description)
                 end,
                 output = utils.create_output_handlers(action_name, has_function_calling, opts),
                 --for xml version we are not using schema anywhere so, no issue if we use function schema for xml also
