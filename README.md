@@ -1012,6 +1012,8 @@ sequenceDiagram
 - [x] Support /slash_commands in avante
 - [x] Support streamable-http transport
 - [x] Support OAuth
+- [ ] Add types
+- [ ] Add tests
 - [ ] Support #variables in avante
 - [ ] Better Docs and Wiki
 - [ ] ~Composio Integration~

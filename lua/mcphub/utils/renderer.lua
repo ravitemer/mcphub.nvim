@@ -316,7 +316,8 @@ function M.render_server_line(server, active)
 
     -- Add capabilities counts inline for connected servers
     if server.status == "connected" and server.capabilities then
-        if server_config.custom_instructions and server_config.custom_instructions.text ~= "" then
+        local custom_instructions = server_config.custom_instructions
+        if custom_instructions and custom_instructions.text and custom_instructions.text ~= "" then
             local is_disabled = server_config.custom_instructions.disabled
             line:append(
                 " " .. Text.icons.instructions .. " ",
