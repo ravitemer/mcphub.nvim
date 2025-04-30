@@ -111,10 +111,13 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
                 stderr = vim.inspect(stderr)
             end
             local err_msg = string.format(
-                [[ERROR: The `%s` call failed with the following error:
+                [[**`%s` Tool**: Failed with the following error:
+
+```                
 <error>
 %s
 </error>
+```
 ]],
                 action_name,
                 stderr
@@ -128,8 +131,11 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
             -- TODO: add messages with role = `tool` when supported
             if result.text and result.text ~= "" then
                 local to_llm = string.format(
-                    [[The `%s` call returned the following text:
-%s]],
+                    [[**`%s` Tool**: Returned the following:
+
+```
+%s
+```]],
                     action_name,
                     result.text
                 )
