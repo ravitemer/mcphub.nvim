@@ -216,6 +216,7 @@ function M.setup()
 
     -- Set highlights
     for name, val in pairs(highlights) do
+        val.default = true
         vim.api.nvim_set_hl(0, name, val)
     end
 end
