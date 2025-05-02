@@ -333,7 +333,52 @@ Configuration file (`~/.config/mcphub/servers.json`) is watched for changes and 
 
 * There are other plugin specific options for each server like `disabled`, `disabled_tools`, `custom_instructions` etc which can be easily updated from the UI.
 
+## Nix
 
+### Nixpkgs install
+
+> coming...
+
+### Flake install
+
+Just add it to your NixOS flake.nix or home-manager:
+
+```nix
+inputs = {
+  mcphub-nvim.url = "github:ravitemer/mcphub.nvim";
+  ...
+}
+```
+
+To integrate mcphub.nvim to your NixOS/Home Manager nvim configs, add the following to your [neovim.plugins](https://nixos.wiki/wiki/Neovim#Installing_Plugins) or your [neovim.packages](https://nixos.wiki/wiki/Neovim#System-wide_2)
+
+```nix
+inputs.mcphub-nvim.packages."${system}".default
+```
+
+and add the setup function in [lua code](https://nixos.wiki/wiki/Neovim#Note_on_Lua_plugins)
+
+### Nixvim example
+[Nixvim](https://github.com/nix-community/nixvim) example:
+
+```nix
+{ mcphub-nvim, ... }:
+{
+  extraPlugins = [mcphub-nvim];
+  extraConfigLua = ''
+    require("mcphub").setup()
+  '';
+}
+
+# where
+{
+  # For nixpkgs (not available yet)
+  # ...
+
+  # For flakes
+  mcphub-nvim = inputs.mcphub-nvim.packages."${system}".default;
+}
+```
 ## 🚀 Usage
 
 Open the MCPHub UI to manage servers, test tools and monitor status:
