@@ -1,5 +1,5 @@
 {
-  description = "A Neovim plugin for Minecraft mod development assistance";
+  description = "A powerful Neovim plugin for managing MCP (Model Context Protocol) servers";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -21,8 +21,10 @@
           nvimSkipModule = [
             "mcphub"
             "mcphub.hub"
-            "mcphub.extensions.codecompanion"
             "bundled_build"
+            "mcphub.extensions.avante"
+            "mcphub.extensions.codecompanion"
+            "mcphub.extensions.codecompanion.xml_tool"
             "mcphub.extensions.lualine"
             "mcphub.native.neovim.lsp"
             "mcphub.native.neovim.terminal"
@@ -35,7 +37,6 @@
             "mcphub.native.neovim.prompts"
             "mcphub.native.mcphub.init"
             "mcphub.native.mcphub.guide"
-            "mcphub.extensions.codecompanion.xml_tool"
           ];
         };
       };
