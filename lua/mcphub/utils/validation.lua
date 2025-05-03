@@ -229,7 +229,7 @@ function M.validate_config_file(path)
             }
         else
             -- Creation succeeded. Write the default config.
-            local default_config = { mcpServers = {} }
+            local default_config = { mcpServers = vim.empty_dict() }
             local json_string = vim.json.encode(default_config) -- Convert to JSON string
 
             create_file:write(json_string) -- Write the JSON string to the file
