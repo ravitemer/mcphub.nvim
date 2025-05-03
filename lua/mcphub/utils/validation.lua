@@ -207,11 +207,18 @@ function M.validate_config_file(path)
     end
     local file = io.open(path, "r")
     if not file then
-        -- File doesn't exist or can't be opened for reading.  Attempt to create it with default content.
+        -- File doesn't exist or can't be opened for reading. Attempt to create it with default content.
+
+        -- Ensure parent directory exists
+        local dir_path = vim.fn.fnamemodify(path, ":h")
+        if vim.fn.isdirectory(dir_path) == 0 then
+            vim.fn.mkdir(dir_path, "p")
+        end
+
         local create_file, create_err = io.open(path, "w")
 
         if not create_file then
-            -- Creation failed.  Return an error.
+            -- Creation failed. Return an error.
             return {
                 ok = false,
                 error = Error(
@@ -398,6 +405,7 @@ function M.validate_config_file(path)
         content = content,
     }
 end
+
 --- Validate MCP Hub version
 ---@param ver_str string Version string to validate
 ---@return ValidationResult
