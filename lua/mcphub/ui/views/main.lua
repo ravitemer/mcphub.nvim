@@ -231,12 +231,21 @@ function MainView:handle_delete()
         if is_native then
             return vim.notify("Native servers cannot be deleted")
         end
-        --confirm deletion
-        local confirm = vim.fn.confirm("Are you sure you want to delete " .. server_name .. "?", "&Yes\n&No", 2)
-        if confirm == 1 then
-            State.hub_instance:remove_server_config(server_name)
-            vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
-        end
+        
+        -- Using vim.ui.select instead of vim.fn.confirm
+        vim.ui.select(
+            { "Yes", "No" },
+            {
+                prompt = "Are you sure you want to delete " .. server_name .. "?",
+                format_item = function(item) return item end,
+            },
+            function(choice)
+                if choice == "Yes" then
+                    State.hub_instance:remove_server_config(server_name)
+                    vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
+                end
+            end
+        )
     end
 end
 
