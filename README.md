@@ -87,7 +87,7 @@ Thank you to the following people:
 
 
 <!-- coffee --><!-- coffee -->
-<!-- sponsors --> <p align="center"> <a href="https://github.com/yingmanwumen"><img src="https://github.com/yingmanwumen.png" width="60px" alt="yingmanwumen" /></a> <a href="https://github.com/yetone"><img src="https://github.com/yetone.png" width="60px" alt="Yetone" /></a> <a href="https://github.com/omarcresp"><img src="https://github.com/omarcresp.png" width="60px" alt="omarcresp" /></a> <a href="https://github.com/petermoser"><img src="https://github.com/petermoser.png" width="60px" alt="petermoser" /></a> <a href="https://github.com/watsy0007"><img src="https://github.com/watsy0007.png" width="60px" alt="watsy0007" /></a> </p><!-- sponsors -->
+<!-- sponsors --><!-- sponsors -->
 
 
 ## ✨ Features & Support Status
