@@ -60,7 +60,7 @@ local tool_schemas = {
                 },
                 additionalProperties = false,
             },
-            strict = true,
+            strict = false,
         },
     },
 }
