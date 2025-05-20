@@ -161,6 +161,14 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
                     result.text
                 )
                 add_tool_output(action_name, self, agent.chat, to_llm, false, has_function_calling, opts)
+            else
+                -- When a tool returns no text content, still send a message to
+                -- ensure the tool_call_id protocol is satisfied
+                local to_llm = string.format(
+                    "**`%s` Tool**: Completed with no output",
+                    action_name
+                )
+                add_tool_output(action_name, self, agent.chat, to_llm, false, has_function_calling, opts)
             end
             -- TODO: Add image support when codecompanion supports it
         end,
