@@ -95,3 +95,131 @@ mcphub.add_resource("neovim", {
         return res:text(text ~= "" and text or "No diagnostics found"):send()
     end,
 })
+
+mcphub.add_tool("neovim", {
+    name = "get_workspace_symbols",
+    description = "Get all symbols from the current workspace grouped by file",
+    inputSchema = {
+        type = "object",
+        properties = {
+            query = {
+                type = "string",
+                description = "Optional search query to filter symbols",
+                examples = { "", "MyClass", "render" },
+            },
+        },
+    },
+    handler = function(req, res)
+        -- Get current workspace directory
+        local cwd = vim.fn.getcwd()
+
+        -- Get all buffers in workspace
+        local buffers = {}
+        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            local name = vim.api.nvim_buf_get_name(buf)
+            if name and name ~= "" then
+                local abs_path = vim.fn.fnamemodify(name, ":p")
+                if vim.startswith(abs_path, cwd) then
+                    table.insert(buffers, {
+                        bufnr = buf,
+                        name = name,
+                    })
+                end
+            end
+        end
+
+        -- Get active LSP clients
+        local clients = vim.lsp.get_active_clients()
+        if #clients == 0 then
+            return res:error("No active LSP clients found")
+        end
+
+        -- Find a client that supports document symbols
+        local client
+        for _, c in ipairs(clients) do
+            if c.server_capabilities.documentSymbolProvider then
+                client = c
+                break
+            end
+        end
+
+        if not client then
+            return res:error("No LSP client with document symbol support found")
+        end
+
+        -- Collect symbols from all workspace files
+        local files = {}
+        local file_symbols = {}
+
+        for _, buf in ipairs(buffers) do
+            local params = { textDocument = vim.lsp.util.make_text_document_params(buf.bufnr) }
+            local results = client.request_sync("textDocument/documentSymbol", params, 1000, buf.bufnr)
+
+            if results and not results.err then
+                local symbols = vim.lsp.util.symbols_to_items(results.result or {}, buf.bufnr) or {}
+
+                if #symbols > 0 then
+                    local rel_path = vim.fn.fnamemodify(buf.name, ":.")
+                    file_symbols[rel_path] = symbols
+                    table.insert(files, rel_path)
+                end
+            end
+        end
+
+        if #files == 0 then
+            return res:error("No symbols found in workspace files")
+        end
+
+        -- Format the output
+        local query = req.params.query
+        if query then
+            -- Filter symbols if query is provided
+            for file, symbols in pairs(file_symbols) do
+                local filtered = {}
+                for _, sym in ipairs(symbols) do
+                    if vim.fn.stridx(string.lower(sym.text), string.lower(query)) ~= -1 then
+                        table.insert(filtered, sym)
+                    end
+                end
+                if #filtered > 0 then
+                    file_symbols[file] = filtered
+                else
+                    file_symbols[file] = nil
+                    for i, f in ipairs(files) do
+                        if f == file then
+                            table.remove(files, i)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        local formatted = {}
+        table.insert(
+            formatted,
+            string.format("Workspace Symbols%s (in %s):", query and string.format(" matching '%s'", query) or "", cwd)
+        )
+        table.insert(formatted, string.rep("=", 40))
+        table.insert(formatted, "")
+
+        -- Output symbols by file
+        for _, file in ipairs(files) do
+            table.insert(formatted, string.format("File: %s", file))
+            table.insert(formatted, string.rep("-", 40))
+
+            local symbols = file_symbols[file]
+            table.sort(symbols, function(a, b)
+                return a.lnum < b.lnum
+            end)
+
+            for _, sym in ipairs(symbols) do
+                table.insert(formatted, string.format("  %s (%s) - line %d", sym.text, sym.kind, sym.lnum))
+            end
+            table.insert(formatted, "")
+        end
+
+        -- Use MCP's file tools to update the file
+        return res:text(table.concat(formatted, "\n")):send()
+    end,
+})
