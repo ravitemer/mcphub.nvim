@@ -1,9 +1,26 @@
+<div align="center" markdown="1">
+   <sup>Special thanks to:</sup>
+   <br>
+   <br>
+   <a href="https://www.warp.dev/mcp-hub-nvim">
+      <img alt="Warp sponsorship" src="https://github.com/user-attachments/assets/fae9c70d-51de-43fa-af65-c82228ba67f9">
+   </a>
+
+### [The Intelligent Terminal](https://www.warp.dev/mcp-hub-nvim)
+
+[Run mcphub.nvim in Warp today](https://www.warp.dev/mcp-hub-nvim)<br>
+
+</div>
+<hr>
+
+<div align="center" markdown="1">
 <h1> <img width="28px" style="display:inline;" src="https://github.com/user-attachments/assets/5cdf9d69-3de7-458b-a670-5153a97c544a"/> MCP HUB</h1>
 
 [![Lua](https://img.shields.io/badge/Lua-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
 [![NixOS](https://img.shields.io/badge/NixOS-5277C3?style=flat-square&logo=nixos&logoColor=white)](https://nixos.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Discord](https://img.shields.io/badge/Discord-Join-7289DA?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/NTqfxXsNuN)
+</div>
 
 MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) servers into your editing workflow. It provides an intuitive interface for managing, testing, and using MCP servers with your favorite chat plugins.
 

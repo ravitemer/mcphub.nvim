@@ -46,6 +46,12 @@ export default withMermaid(
         enabled: true,
         cards: [
           {
+            href: "https://www.warp.dev/mcp-hub-nvim",
+            image: "/mcphub.nvim/sponsors/warp.png",
+            text: "Warp, the Intelligent Terminal. Run mcphub.nvim in Warp today",
+            alt: "Warp Terminal"
+          },
+          {
             href: "https://dub.sh/composio-mcp",
             image: "/mcphub.nvim/sponsors/composio-logo.png",
             text: "Instantly Connect to  100+ Managed MCP Servers with Built-In Auth",

@@ -17,8 +17,9 @@ let currentCard = ref(0)
 function refresh() {
   if (sponsors && sponsors.cards) {
     const cards = sponsors.cards
-    currentCard.value = (currentCard.value + 1) % cards.length
-    const card = cards[currentCard.value]
+    const index = (currentCard.value) % cards.length
+    const card = cards[index]
+    currentCard.value = index + 1
     // Clear existing content
     container.value.innerHTML = ''
 
