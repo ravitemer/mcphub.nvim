@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.1] - 2025-05-24
+
+### Added
+- For long running tools or prompts or resources, we can now set `mcp_request_timeout` in ms to wait for the execution to finish. Defaults to 60s.
+
+### Changed
+- Updated mcp-hub dependency version
+
 ## [5.3.0] - 2025-05-22
 
 ### Added
