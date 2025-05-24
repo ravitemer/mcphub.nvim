@@ -57,7 +57,7 @@ Once configured, you can interact with MCP Hub within the CodeCompanion chat buf
 
 By default, whenever codecompanion calls `use_mcp_tool` or `access_mcp_resource` tool, it shows a confirm dialog with tool name, server name and arguments.
 
-![Image](https://github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6)
+![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
 1. You can set `auto_approve` to `true` to automatically approve MCP tool calls without user confirmation.
 
