@@ -111,7 +111,7 @@ Uses local `mcp-hub` binary. Enable this when using `build = "bundled_build.lua"
 
 ### mcp_request_timeout
 
-Default: 60000 (1 minute)
+Default: `60000` (1 minute)
 
 Maximum time allowed for a MCP tool or resource or prompt to execute in milliseconds. If exceeded, an McpError with code `RequestTimeout` will be raised. Set longer if you have longer running tools. 
 

@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*           For NVIM v0.10.0          Last change: 2025 May 17
+*mcphub.nvim.txt*           For NVIM v0.10.0          Last change: 2025 May 24
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -154,9 +154,9 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                                                                slash_commands)
 
                        CodeCompanion.nvim   ✅                 Tools, resources,
-                                                               resourceTemplates,
-                                                               prompts (as
-                                                               slash_commands)
+                                                               templates, prompts
+                                                               (as slash_commands),
+                                                               🖼 image responses
 
                        CopilotChat.nvim     ✅                 In-built support
                                                                Draft
@@ -373,6 +373,7 @@ detail.
                 port = 37373, -- The port `mcp-hub` server listens to
                 shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
                 use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
+                mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
     
                 ---Chat-plugin related options-----------------
                 auto_approve = false, -- Auto approve mcp tool calls
@@ -476,6 +477,15 @@ Default: `false`
 
 Uses local `mcp-hub` binary. Enable this when using `build =
 "bundled_build.lua"` in your plugin configuration.
+
+
+MCP_REQUEST_TIMEOUT ~
+
+Default: `60000` (1 minute)
+
+Maximum time allowed for a MCP tool or resource or prompt to execute in
+milliseconds. If exceeded, an McpError with code `RequestTimeout` will be
+raised. Set longer if you have longer running tools.
 
 
 CMD, CMDARGS ~
@@ -2270,7 +2280,7 @@ MCP servers. Review them regularly as you develop your servers.
 AVANTE INTEGRATION                 *mcphub.nvim-extensions-avante-integration*
 
 Add MCP capabilities to Avante.nvim <https://github.com/yetone/avante.nvim> by
-including the MCP in your setup:
+following these steps:
 
 
 ADD TOOLS TO AVANTE ~
@@ -2370,8 +2380,7 @@ USAGE ~
 CODECOMPANION INTEGRATION   *mcphub.nvim-extensions-codecompanion-integration*
 
 Add MCP capabilities to CodeCompanion.nvim
-<https://github.com/olimorris/codecompanion.nvim> by including the MCP in your
-setup:
+<https://github.com/olimorris/codecompanion.nvim> by adding it as an extension.
 
 
 FEATURES ~
@@ -2379,6 +2388,7 @@ FEATURES ~
 - Access MCP tools via the `@mcp` tool in the chat buffer.
 - Utilize MCP resources as context variables using the `#` prefix (e.g., `#resource_name`).
 - Execute MCP prompts directly using `/mcp:prompt_name` slash commands.
+- Supports 🖼 images as shown in the demo.
 - Receive real-time updates in CodeCompanion when MCP servers change.
 
 
