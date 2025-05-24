@@ -7,6 +7,7 @@ M.use_mcp_tool() will return schema for calling tools on MCP servers.
 M.access_mcp_resource() will return schema for accessing resources on MCP servers.
 --]]
 local M = {}
+local async = require("plenary.async")
 local shared = require("mcphub.extensions.shared")
 
 local tool_schemas = {
@@ -60,73 +61,61 @@ local tool_schemas = {
 function M.mcp_tool()
     for action_name, schema in pairs(tool_schemas) do
         schema.func = function(args, on_log, on_complete)
-            local hub = require("mcphub").get_hub_instance()
-            if not hub then
-                return nil, "MCP Hub not initialized"
-            end
-            local params = shared.parse_params(args, action_name)
-            if #params.errors > 0 then
-                return nil, table.concat(params.errors, "\n")
-            end
-            local auto_approve = vim.g.mcphub_auto_approve == true
-            if not auto_approve then
-                local confirmed = shared.show_mcp_tool_prompt({
-                    action = params.action,
-                    server_name = params.server_name,
-                    tool_name = params.tool_name,
-                    uri = params.uri,
-                    arguments = params.arguments,
-                })
-                if not confirmed then
-                    return nil, "User cancelled the operation"
+            ---@diagnostic disable-next-line: missing-parameter
+            async.run(function()
+                local hub = require("mcphub").get_hub_instance()
+                if not hub then
+                    return on_complete(nil, "MCP Hub not initialized")
                 end
-            end
-            local sidebar = require("avante").get()
-            if params.action == "access_mcp_resource" then
-                hub:access_resource(params.server_name, params.uri, {
-                    parse_response = true,
-                    caller = {
-                        type = "avante",
-                        avante = sidebar,
-                    },
-                    callback = function(result, err)
-                        --result has .text and .images [{mimeType, data}]
-                        local text = result and result.text or ""
-                        if not text or text == "" then
-                            local empty_response =
-                                string.format("`%s` successfull. `%s` returned no text.", params.action, params.uri)
-                            text = empty_response
-                        end
-                        on_complete(text, err)
-                    end,
-                })
-            elseif params.action == "use_mcp_tool" then
-                hub:call_tool(params.server_name, params.tool_name, params.arguments, {
-                    parse_response = true,
-                    caller = {
-                        type = "avante",
-                        avante = sidebar,
-                    },
-                    callback = function(result, err)
-                        if result.error then
-                            on_complete(nil, result.error)
-                        else
-                            local text = result and result.text or ""
-                            if not text or text == "" then
-                                local empty_response = string.format(
-                                    "`%s` successfull. `%s` returned no text.",
-                                    params.action,
-                                    params.tool_name
-                                )
-                                text = empty_response
+                local params = shared.parse_params(args, action_name)
+                if #params.errors > 0 then
+                    return on_complete(nil, table.concat(params.errors, "\n"))
+                end
+                local auto_approve = vim.g.mcphub_auto_approve == true
+                if not auto_approve then
+                    local confirmed = shared.show_mcp_tool_prompt({
+                        action = params.action,
+                        server_name = params.server_name,
+                        tool_name = params.tool_name,
+                        uri = params.uri,
+                        arguments = params.arguments,
+                    })
+                    if not confirmed then
+                        return on_complete(nil, "User cancelled the operation")
+                    end
+                end
+                local sidebar = require("avante").get()
+                if params.action == "access_mcp_resource" then
+                    hub:access_resource(params.server_name, params.uri, {
+                        parse_response = true,
+                        caller = {
+                            type = "avante",
+                            avante = sidebar,
+                        },
+                        callback = function(result, err)
+                            --result has .text and .images [{mimeType, data}]
+                            on_complete(result.text, err)
+                        end,
+                    })
+                elseif params.action == "use_mcp_tool" then
+                    hub:call_tool(params.server_name, params.tool_name, params.arguments, {
+                        parse_response = true,
+                        caller = {
+                            type = "avante",
+                            avante = sidebar,
+                        },
+                        callback = function(result, err)
+                            if result.error then
+                                on_complete(nil, result.error)
+                            else
+                                on_complete(result.text, err)
                             end
-                            on_complete(text, err)
-                        end
-                    end,
-                })
-            else
-                return nil, "Invalid action type"
-            end
+                        end,
+                    })
+                else
+                    return on_complete(nil, "Invalid action type")
+                end
+            end)
         end
         schema.returns = {
             {

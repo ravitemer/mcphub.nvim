@@ -1,4 +1,5 @@
 local M = {}
+local async = require("plenary.async")
 local shared = require("mcphub.extensions.shared")
 
 ---@param action_name MCPHubToolType
@@ -7,77 +8,80 @@ local shared = require("mcphub.extensions.shared")
 ---@return function
 function M.create_handler(action_name, has_function_calling, opts)
     return function(agent, args, _, output_handler)
-        local params = shared.parse_params(args, action_name)
-        if #params.errors > 0 then
-            return {
-                status = "error",
-                data = table.concat(params.errors, "\n"),
-            }
-        end
-
-        local auto_approve = (vim.g.mcphub_auto_approve == true) or (vim.g.codecompanion_auto_tool_mode == true)
-        if not auto_approve then
-            local confirmed = shared.show_mcp_tool_prompt(params)
-            if not confirmed then
-                return {
+        ---@diagnostic disable-next-line: missing-parameter
+        async.run(function()
+            local params = shared.parse_params(args, action_name)
+            if #params.errors > 0 then
+                return output_handler({
                     status = "error",
-                    data = string.format("I have rejected the `%s` action on mcp tool.", params.action),
-                }
+                    data = table.concat(params.errors, "\n"),
+                })
             end
-        end
-        local hub = require("mcphub").get_hub_instance()
-        if not hub then
-            return {
-                status = "error",
-                data = "MCP Hub is not ready yet",
-            }
-        end
-        if params.action == "use_mcp_tool" then
-            --use async call_tool method
-            hub:call_tool(params.server_name, params.tool_name, params.arguments, {
-                caller = {
-                    type = "codecompanion",
-                    codecompanion = agent,
-                },
-                parse_response = true,
-                callback = function(res, err)
-                    if err or not res then
-                        output_handler({ status = "error", data = tostring(err) or "No response from call tool" })
-                    elseif res then
-                        -- throw safely thrown MCP error with isError as well for proper UI display for chat plugins
-                        if res.error then
-                            output_handler({ status = "error", data = res.error })
-                        else
+
+            local auto_approve = (vim.g.mcphub_auto_approve == true) or (vim.g.codecompanion_auto_tool_mode == true)
+            if not auto_approve then
+                local confirmed = shared.show_mcp_tool_prompt(params)
+                if not confirmed then
+                    return output_handler({
+                        status = "error",
+                        data = string.format("I have rejected the `%s` action on mcp tool.", params.action),
+                    })
+                end
+            end
+            local hub = require("mcphub").get_hub_instance()
+            if not hub then
+                return output_handler({
+                    status = "error",
+                    data = "MCP Hub is not ready yet",
+                })
+            end
+            if params.action == "use_mcp_tool" then
+                --use async call_tool method
+                hub:call_tool(params.server_name, params.tool_name, params.arguments, {
+                    caller = {
+                        type = "codecompanion",
+                        codecompanion = agent,
+                    },
+                    parse_response = true,
+                    callback = function(res, err)
+                        if err or not res then
+                            output_handler({ status = "error", data = tostring(err) or "No response from call tool" })
+                        elseif res then
+                            -- throw safely thrown MCP error with isError as well for proper UI display for chat plugins
+                            if res.error then
+                                output_handler({ status = "error", data = res.error })
+                            else
+                                output_handler({ status = "success", data = res })
+                            end
+                        end
+                    end,
+                })
+            elseif params.action == "access_mcp_resource" then
+                -- use async access_resource method
+                hub:access_resource(params.server_name, params.uri, {
+                    caller = {
+                        type = "codecompanion",
+                        codecompanion = agent,
+                    },
+                    parse_response = true,
+                    callback = function(res, err)
+                        if err or not res then
+                            output_handler({
+                                status = "error",
+                                data = err and tostring(err) or "No response from access resource",
+                            })
+                        elseif res then
                             output_handler({ status = "success", data = res })
                         end
-                    end
-                end,
-            })
-        elseif params.action == "access_mcp_resource" then
-            -- use async access_resource method
-            hub:access_resource(params.server_name, params.uri, {
-                caller = {
-                    type = "codecompanion",
-                    codecompanion = agent,
-                },
-                parse_response = true,
-                callback = function(res, err)
-                    if err or not res then
-                        output_handler({
-                            status = "error",
-                            data = err and tostring(err) or "No response from access resource",
-                        })
-                    elseif res then
-                        output_handler({ status = "success", data = res })
-                    end
-                end,
-            })
-        else
-            return {
-                status = "error",
-                data = "Invalid action type" .. params.action,
-            }
-        end
+                    end,
+                })
+            else
+                return output_handler({
+                    status = "error",
+                    data = "Invalid action type" .. params.action,
+                })
+            end
+        end)
     end
 end
 
