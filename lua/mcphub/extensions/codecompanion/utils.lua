@@ -173,12 +173,15 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
             if result.images and #result.images > 0 then
                 ---When the mcp call returns just images, we need to add the tool output
                 for _, image in ipairs(result.images) do
-                    local id = string.format("mcp-%s", os.time())
+                    local cached_file_path = image_cache.save_image(image.data, image.mimeType)
+
+                    -- local id = string.format("mcp-%s", os.time())
+                    local id = cached_file_path
                     table.insert(images, {
                         id = id,
                         base64 = image.data,
                         mimetype = image.mimeType,
-                        cached_file_path = image_cache.save_image(image.data, image.mimeType),
+                        cached_file_path = cached_file_path,
                     })
                 end
                 --- If there is no text response, add no of images returned
@@ -192,7 +195,7 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
                         string.format("%d image%s returned", #result.images, #result.images > 1 and "s" or "")
                     )
                 end
-                to_user = to_llm .. (#images > 0 and string.format("\n\n> Preview Images\n") or "")
+                to_user = to_llm .. (#images > 0 and string.format("\n\n#### Preview Images\n") or "")
                 for _, image in ipairs(images) do
                     local file = image.cached_file_path
                     if file then
