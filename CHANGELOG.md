@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0] - 2025-05-24
+
+### Added
+- Beautiful tool confirmation dialog with floating window
+- Syntax highlighting for parameters in confirmation dialog
+- Support for multiline strings in tool confirmations
+
+### Fixed
+- Tool confirmation dialog not displaying properly (#131)
+- Screen flashing issue during confirmation prompts
+
 ## [5.3.1] - 2025-05-24
 
 ### Added
@@ -683,5 +694,6 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 
 
