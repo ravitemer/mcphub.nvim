@@ -15,7 +15,9 @@ if (inProd) {
   }
 }
 
-const baseHeaders = [];
+const baseHeaders = [
+  ['link', { rel: 'icon', href: 'https://github.com/user-attachments/assets/5cdf9d69-3de7-458b-a670-5153a97c544a' }]  // put favicon.ico in public directory, if base is set, use /base/favicon.ico
+];
 const umamiScript = [
   "script",
   {
@@ -24,7 +26,7 @@ const umamiScript = [
     "data-website-id": "a080d520-2689-406a-bee3-c45c44b2d70e",
   },
 ];
-const headers = inProd ? [baseHeaders, umamiScript] : baseHeaders;
+const headers = inProd ? [...baseHeaders, umamiScript] : baseHeaders;
 
 const siteUrl = "https://ravitemer.github.io/mcphub.nvim/";
 // https://vitepress.dev/reference/site-config
@@ -40,6 +42,23 @@ export default withMermaid(
     base: "/mcphub.nvim/",
     sitemap: { hostname: siteUrl },
     themeConfig: {
+      sponsors: {
+        enabled: true,
+        cards: [
+          {
+            href: "https://www.warp.dev/mcp-hub-nvim",
+            image: "/mcphub.nvim/sponsors/warp.png",
+            text: "Warp, the Intelligent Terminal. Run mcphub.nvim in Warp today",
+            alt: "Warp Terminal"
+          },
+          {
+            href: "https://dub.sh/composio-mcp",
+            image: "/mcphub.nvim/sponsors/composio-logo.png",
+            text: "Instantly Connect to  100+ Managed MCP Servers with Built-In Auth",
+            alt: "Composio"
+          },
+        ]
+      },
       logo: "https://github.com/user-attachments/assets/5cdf9d69-3de7-458b-a670-5153a97c544a",
       nav: [
         {

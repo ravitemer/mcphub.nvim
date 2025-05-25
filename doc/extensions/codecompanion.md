@@ -1,16 +1,17 @@
 # CodeCompanion Integration
 
 <p>
-<video controls muted src="https://github.com/user-attachments/assets/cefce4bb-d07f-4423-8873-cf7d56656cd3"></video>
+<video muted controls src="https://github.com/user-attachments/assets/70181790-e949-4df6-a690-c5d7a212e7d1"></video>
 </p>
 
-Add MCP capabilities to [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) by including the MCP in your setup:
+Add MCP capabilities to [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) by adding it as an extension. 
 
 ## Features
 
 - Access MCP tools via the `@mcp` tool in the chat buffer.
 - Utilize MCP resources as context variables using the `#` prefix (e.g., `#resource_name`).
 - Execute MCP prompts directly using `/mcp:prompt_name` slash commands.
+- Supports 🖼 images as shown in the demo.
 - Receive real-time updates in CodeCompanion when MCP servers change.
 
 ## MCP Hub Extension
@@ -56,7 +57,7 @@ Once configured, you can interact with MCP Hub within the CodeCompanion chat buf
 
 By default, whenever codecompanion calls `use_mcp_tool` or `access_mcp_resource` tool, it shows a confirm dialog with tool name, server name and arguments.
 
-![Image](https://github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6)
+![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
 1. You can set `auto_approve` to `true` to automatically approve MCP tool calls without user confirmation.
 

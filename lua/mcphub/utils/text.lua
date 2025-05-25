@@ -28,6 +28,7 @@ M.icons = {
     circleFilled = "●",
     bug = "",
     event = "",
+    param = "",
     favorite = "",
     loaded = "●",
     not_loaded = "○",

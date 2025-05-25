@@ -8,6 +8,7 @@ local defaults = {
     server_url = nil, -- In cases where mcp-hub is hosted somewhere, set this to the server URL e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
     config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Default config location
     shutdown_delay = SHUTDOWN_DELAY, -- Delay before shutting down the mcp-hub
+    mcp_request_timeout = 60000, --Timeout for MCP requests in milliseconds, useful for long running tasks
     ---@type table<string, NativeServerDef>
     native_servers = {},
     auto_approve = false,

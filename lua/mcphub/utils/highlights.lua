@@ -14,8 +14,11 @@ M.groups = {
     error_fill = "MCPHubErrorFill",
     warning = "MCPHubWarning",
     warn = "MCPHubWarning",
+    warn_fill = "MCPHubWarnFill",
+    warn_italic = "MCPHubWarnItalic",
     info = "MCPHubInfo",
     success = "MCPHubSuccess",
+    success_italic = "MCPHubSuccessItalic",
     success_fill = "MCPHubSuccessFill",
     muted = "MCPHubMuted",
     window_normal = "MCPHubNormal",
@@ -23,6 +26,7 @@ M.groups = {
     active_item = "MCPHubActiveItem",
     active_item_muted = "MCPHubActiveItemMuted",
     link = "MCPHubLink",
+    bg_blend = "MCPHubBgBlend",
     -- JSON syntax highlights
     json_property = "MCPHubJsonProperty",
     json_string = "MCPHubJsonString",
@@ -82,6 +86,10 @@ function M.setup()
             bg = "NONE",
             fg = border_color,
             special = border_color,
+        },
+        [M.groups.bg_blend] = {
+            bg = float_bg,
+            fg = float_bg,
         },
 
         -- Title and headers
@@ -145,6 +153,16 @@ function M.setup()
             bg = "NONE",
             fg = warn_color,
         },
+        [M.groups.warn_italic] = {
+            bg = "NONE",
+            fg = warn_color,
+            italic = true,
+        },
+        [M.groups.warn_fill] = {
+            bg = warn_color,
+            fg = normal_bg,
+            bold = true,
+        },
         [M.groups.info] = {
             bg = "NONE",
             fg = info_color,
@@ -152,6 +170,12 @@ function M.setup()
         [M.groups.success] = {
             bg = "NONE",
             fg = hint_color,
+        },
+        [M.groups.success_italic] = {
+            bg = "NONE",
+            fg = hint_color,
+            bold = true,
+            italic = true,
         },
         [M.groups.success_fill] = {
             bg = hint_color,

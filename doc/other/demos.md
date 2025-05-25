@@ -1,9 +1,15 @@
 # Showcase 
 
-## HUB UI
+
+## CodeCompanion +  Image-gen Server (with image support 🖼 )
+<p>
+<video muted controls src="https://github.com/user-attachments/assets/70181790-e949-4df6-a690-c5d7a212e7d1"></video>
+</p>
+
+## CodeCompanion + Stagehand Server (with image support 🖼 )
 
 <p>
-<video muted controls src="https://github.com/user-attachments/assets/22d14360-5994-455b-8789-4fffd2b598e2"></video>
+<video controls muted src="https://github.com/user-attachments/assets/a939be1e-7a77-495b-9727-54f110ec68b5"></video>
 </p>
 
 ## Avante + Figma
@@ -12,11 +18,13 @@
 <video muted controls src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d"></video>
 </p>
 
-## Codecompanion + Todoist
+
+## HUB UI
 
 <p>
-<video muted controls src="https://github.com/user-attachments/assets/cefce4bb-d07f-4423-8873-cf7d56656cd3"></video>
+<video muted controls src="https://github.com/user-attachments/assets/22d14360-5994-455b-8789-4fffd2b598e2"></video>
 </p>
+
 
 ## Marketplace
 

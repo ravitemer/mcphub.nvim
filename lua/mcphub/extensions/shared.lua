@@ -1,4 +1,6 @@
 local M = {}
+local NuiLine = require("mcphub.utils.nuiline")
+local Text = require("mcphub.utils.text")
 local ui_utils = require("mcphub.utils.ui")
 
 ---@alias MCPCallParams {errors: string[], action: MCPHubToolType, server_name: string, tool_name: string, uri: string, arguments: table}
@@ -249,11 +251,77 @@ end
 ---@param params MCPCallParams
 ---@return boolean, boolean
 function M.show_mcp_tool_prompt(params)
-    local msg = M.get_mcp_tool_prompt(params)
-    local confirm = vim.fn.confirm(msg, "&Yes\n&No\n&Cancel", 1)
-    if confirm == 3 then
-        return false, true -- false for not confirmed, true for cancelled
+    local action_name = params.action
+    local server_name = params.server_name
+    local tool_name = params.tool_name
+    local uri = params.uri
+    local arguments = params.arguments or {}
+
+    local lines = {}
+    local is_tool = action_name == "use_mcp_tool"
+
+    -- Header as a question
+    local header_line = NuiLine()
+    header_line:append(Text.icons.event, Text.highlights.warn)
+    header_line:append(" Do you want to ", Text.highlights.text)
+    if is_tool then
+        header_line:append("call ", Text.highlights.text)
+        header_line:append(tool_name, Text.highlights.warn_italic)
+    else
+        header_line:append("access ", Text.highlights.text)
+        header_line:append(uri, Text.highlights.link)
     end
-    return confirm == 1, false -- true for confirmed, false for not confirmed
+    header_line:append(" on ", Text.highlights.text)
+    header_line:append(server_name, Text.highlights.success_italic)
+    header_line:append("?", Text.highlights.text)
+    table.insert(lines, header_line)
+
+    -- Parameters section
+    if is_tool and next(arguments) then
+        table.insert(lines, NuiLine():append(""))
+
+        for key, value in pairs(arguments) do
+            -- Parameter name
+            local param_name_line = NuiLine()
+            param_name_line:append(Text.icons.param, Text.highlights.info)
+            param_name_line:append(" " .. key .. ":", Text.highlights.json_property)
+            table.insert(lines, param_name_line)
+
+            -- Parameter value
+            local function add_value_lines(val)
+                if type(val) == "string" then
+                    local value_lines = val:find("\n") and vim.split(val, "\n", { plain = true })
+                        or { '"' .. val .. '"' }
+                    for _, line in ipairs(value_lines) do
+                        local value_line = NuiLine()
+                        value_line:append("    " .. line, Text.highlights.json_string)
+                        table.insert(lines, value_line)
+                    end
+                elseif type(val) == "boolean" then
+                    local value_line = NuiLine()
+                    value_line:append("    " .. tostring(val), Text.highlights.json_boolean)
+                    table.insert(lines, value_line)
+                elseif type(val) == "number" then
+                    local value_line = NuiLine()
+                    value_line:append("    " .. tostring(val), Text.highlights.json_number)
+                    table.insert(lines, value_line)
+                else
+                    for _, line in ipairs(vim.split(vim.inspect(val), "\n", { plain = true })) do
+                        local value_line = NuiLine()
+                        value_line:append("    " .. line, Text.highlights.muted)
+                        table.insert(lines, value_line)
+                    end
+                end
+            end
+
+            add_value_lines(value)
+            table.insert(lines, NuiLine():append(""))
+        end
+    end
+
+    return require("mcphub.utils.ui").confirm(lines, {
+        min_width = 70,
+        max_width = 100,
+    })
 end
 return M

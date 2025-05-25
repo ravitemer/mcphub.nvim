@@ -20,6 +20,7 @@ All options are optional with sensible defaults. See below for each option in de
             port = 37373, -- The port `mcp-hub` server listens to
             shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
             use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
+            mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
 
             ---Chat-plugin related options-----------------
             auto_approve = false, -- Auto approve mcp tool calls
@@ -107,6 +108,13 @@ Default: `false`
 
 Uses local `mcp-hub` binary. Enable this when using `build = "bundled_build.lua"` in your plugin configuration.
 
+
+### mcp_request_timeout
+
+Default: `60000` (1 minute)
+
+Maximum time allowed for a MCP tool or resource or prompt to execute in milliseconds. If exceeded, an McpError with code `RequestTimeout` will be raised. Set longer if you have longer running tools. 
+
 ### cmd, cmdArgs
 
 Default: `nil`
@@ -130,7 +138,7 @@ Default: `false`
 
 By default when the LLM calls a tool or resource on a MCP server, we show a confirmation window like below.
 
-![Image](https://github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6)
+![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
 Set it to to `true` to automatically approve MCP tool calls without user confirmation. This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can toggle this option in the MCP Hub UI with `ga` keymap. You can see the current auto approval status in the Hub UI.
 

@@ -4,13 +4,15 @@ local M = {}
 -- Cache directory
 M.cache_dir = vim.fn.stdpath("cache") .. "/mcphub/images"
 
+local counter = 0
 --- Get unique filename based on content hash
 ---@param data string Base64 encoded image data
 ---@param mime_type string MIME type of the image
 ---@return string filename
 local function get_unique_filename(data, mime_type)
     -- local hash = vim.fn.sha256(data)
-    local time = os.time()
+    local time = os.time() + counter
+    counter = counter + 1
     local ext = mime_type:match("image/(%w+)") or "bin"
     return string.format("%s.%s", time, ext)
 end

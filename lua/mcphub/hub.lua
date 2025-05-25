@@ -12,9 +12,11 @@ local utils = require("mcphub.utils")
 local validation = require("mcphub.utils.validation")
 
 -- Default timeouts
-local QUICK_TIMEOUT = 1000 -- 1s for quick operations like health checks
-local TOOL_TIMEOUT = 30000 -- 30s for tool calls
-local RESOURCE_TIMEOUT = 30000 -- 30s for resource access
+local CONNECT_TIMEOUT = 1000 -- 1s for curl to connect to localhost
+local TOOL_TIMEOUT = 60000 -- 60s for tool calls
+local RESOURCE_TIMEOUT = 60000 -- 60s for resource access
+local PROMPT_TIMEOUT = 60000 -- 60s for tool calls
+local MCP_REQUEST_TIMEOUT = 60000 -- 60s for MCP requests
 
 --- @class MCPHub.Hub
 --- @field port number The port number for the MCP Hub server
@@ -28,6 +30,7 @@ local RESOURCE_TIMEOUT = 30000 -- 30s for resource access
 --- @field server_job Job|nil The server process job if we started it
 --- @field is_owner boolean Whether this instance started the server
 --- @field is_shutting_down boolean Whether we're in the process of shutting down
+--- @field mcp_request_timeout number --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
 --- @field on_ready fun(hub)
 --- @field on_error fun(error:string)
 local MCPHub = {}
@@ -49,6 +52,7 @@ function MCPHub:new(opts)
         server_job = nil,
         is_owner = false,
         is_shutting_down = false,
+        mcp_request_timeout = opts.mcp_request_timeout or MCP_REQUEST_TIMEOUT,
         on_ready = opts.on_ready or function() end,
         on_error = opts.on_error or function() end,
     }, MCPHub)
@@ -164,7 +168,7 @@ function MCPHub:check_server(callback)
     end
     -- Quick health check
     local opts = {
-        timeout = QUICK_TIMEOUT,
+        timeout = 3000,
         skip_ready_check = true,
     }
 
@@ -336,7 +340,7 @@ end
 --- @param server_name string
 --- @param prompt_name string
 --- @param args table
---- @param opts? { parse_response?: boolean, callback?: function, timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 30s)
+--- @param opts? {parse_response?: boolean, callback?: fun(res: MCPResponseOutput? ,err: string?), request_options?: MCPRequestOptions, timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 60s)
 --- @return {messages : {role:"user"| "assistant"|"system", output: MCPResponseOutput}[]}|nil, string|nil If no callback is provided, returns response and error
 function MCPHub:get_prompt(server_name, prompt_name, args, opts)
     opts = opts or {}
@@ -358,6 +362,8 @@ function MCPHub:get_prompt(server_name, prompt_name, args, opts)
         end
     end
 
+    local request_options =
+        vim.tbl_deep_extend("force", { timeout = self.mcp_request_timeout }, opts.request_options or {})
     -- Signal prompt start
     utils.fire("MCPHubPromptStart", {
         server = server_name,
@@ -393,11 +399,12 @@ function MCPHub:get_prompt(server_name, prompt_name, args, opts)
         "POST",
         "servers/prompts",
         vim.tbl_extend("force", {
-            timeout = opts.timeout or TOOL_TIMEOUT,
+            timeout = (request_options.timeout + 5000) or PROMPT_TIMEOUT,
             body = {
                 server_name = server_name,
                 prompt = prompt_name,
                 arguments = arguments,
+                request_options = request_options,
             },
         }, opts)
     )
@@ -417,7 +424,7 @@ end
 --- @param server_name string
 --- @param tool_name string
 --- @param args table
---- @param opts? {parse_response?: boolean, callback?: fun(res: MCPResponseOutput? ,err: string?), timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 30s)
+--- @param opts? {parse_response?: boolean, callback?: fun(res: MCPResponseOutput? ,err: string?), request_options?: MCPRequestOptions, timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 60s)
 --- @return MCPResponseOutput?, string? If no callback is provided, returns response and error
 function MCPHub:call_tool(server_name, tool_name, args, opts)
     opts = opts or {}
@@ -438,7 +445,8 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
             end
         end
     end
-
+    local request_options =
+        vim.tbl_deep_extend("force", { timeout = self.mcp_request_timeout }, opts.request_options or {})
     -- Signal tool start
     utils.fire("MCPHubToolStart", {
         server = server_name,
@@ -473,11 +481,13 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
         "POST",
         "servers/tools",
         vim.tbl_extend("force", {
-            timeout = opts.timeout or TOOL_TIMEOUT,
+            ---Make sure that actual curl request timeout is more than the MCP request timeout
+            timeout = (request_options.timeout + 5000) or TOOL_TIMEOUT,
             body = {
                 server_name = server_name,
                 tool = tool_name,
                 arguments = arguments,
+                request_options = request_options,
             },
         }, opts)
     )
@@ -496,7 +506,7 @@ end
 --- Access a server resource
 --- @param server_name string
 --- @param uri string
---- @param opts? { parse_response?: boolean, callback?: fun(res: MCPResponseOutput?,err:string?), timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 30s)
+--- @param opts? {parse_response?: boolean, callback?: fun(res: MCPResponseOutput? ,err: string?), request_options?: MCPRequestOptions, timeout?: number } Optional callback(response: table|nil, error?: string) and timeout in ms (default 60s)
 --- @return MCPResponseOutput?, string? If no callback is provided, returns response and error
 function MCPHub:access_resource(server_name, uri, opts)
     opts = opts or {}
@@ -518,6 +528,8 @@ function MCPHub:access_resource(server_name, uri, opts)
         end
     end
 
+    local request_options =
+        vim.tbl_deep_extend("force", { timeout = self.mcp_request_timeout }, opts.request_options or {})
     -- Signal resource start
     utils.fire("MCPHubResourceStart", {
         server = server_name,
@@ -545,10 +557,12 @@ function MCPHub:access_resource(server_name, uri, opts)
         "POST",
         "servers/resources",
         vim.tbl_extend("force", {
-            timeout = opts.timeout or RESOURCE_TIMEOUT,
+            ---Make sure that actual curl request timeout is more than the MCP request timeout
+            timeout = (request_options.timeout + 5000) or RESOURCE_TIMEOUT,
             body = {
                 server_name = server_name,
                 uri = uri,
+                request_options = request_options,
             },
         }, opts)
     )
@@ -587,8 +601,16 @@ function MCPHub:api_request(method, path, opts)
     end
 
     local raw = {}
+    vim.list_extend(raw, {
+        "--connect-timeout",
+        tostring(vim.fn.floor(CONNECT_TIMEOUT / 1000)),
+    })
     if opts.timeout then
-        vim.list_extend(raw, { "--connect-timeout", tostring(opts.timeout / 1000) })
+        local timeout_seconds = tostring(vim.fn.floor((opts.timeout or TOOL_TIMEOUT) / 1000))
+        vim.list_extend(raw, {
+            "--max-time",
+            timeout_seconds,
+        })
     end
 
     -- Prepare request options
@@ -610,6 +632,9 @@ function MCPHub:api_request(method, path, opts)
                     callback(nil, tostring(error))
                 end
             else
+                if callback then
+                    callback(nil, tostring(error))
+                end
                 State:add_error(error)
             end
         end),
@@ -1268,7 +1293,6 @@ function MCPHub:get_marketplace_catalog(opts)
     }, "marketplace")
     -- Make request with market-specific error handling
     return self:api_request("GET", "marketplace", {
-        timeout = opts.timeout or TOOL_TIMEOUT,
         query = query,
         callback = function(response, err)
             if err then

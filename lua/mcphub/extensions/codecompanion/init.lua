@@ -80,6 +80,10 @@ function M.create_tools(opts)
                         vim.notify("MCP Hub is not initialized", vim.log.levels.WARN)
                         return ""
                     end
+                    if not hub:is_ready() then
+                        vim.notify("MCP Hub is not ready yet", vim.log.levels.WARN)
+                        return ""
+                    end
                     local prompt = ""
                     if not has_function_calling then
                         local xml_tool = require("mcphub.extensions.codecompanion.xml_tool")

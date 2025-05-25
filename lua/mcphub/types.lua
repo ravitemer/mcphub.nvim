@@ -75,3 +75,8 @@
 
 ---@class EnhancedMCPTool : MCPTool
 ---@field server_name string
+
+---@class MCPRequestOptions
+---@field timeout? number
+---@field resetTimeoutOnProgress? boolean
+---@field maxTotalTimeout? number

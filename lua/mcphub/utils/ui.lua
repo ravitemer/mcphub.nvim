@@ -1,5 +1,7 @@
 local M = {}
+local NuiLine = require("mcphub.utils.nuiline")
 local Text = require("mcphub.utils.text")
+local async = require("plenary.async")
 
 ---@param title string Title of the floating window
 ---@param content string Content to be displayed in the floating window
@@ -191,6 +193,244 @@ function M.get_selection(bufnr)
         end_line = end_line,
         end_col = end_col,
     }
+end
+
+---Create a confirmation window with Yes/No/Cancel options
+---@param message string | string[] | NuiLine[] Message to display
+---@param opts? {relative_to_chat?: boolean, min_width?: number, max_width?: number}
+---@return boolean, boolean -- (confirmed, cancelled)
+function M.confirm(message, opts)
+    opts = opts or {}
+
+    local result = async.wrap(function(callback)
+        if not message or #message == 0 then
+            return callback(false, true)
+        end
+
+        -- Process message into lines
+        local lines = {}
+        if type(message) == "string" then
+            lines = Text.multiline(message)
+        else
+            if vim.islist(message) then
+                for _, line in ipairs(message) do
+                    if type(line) == "string" then
+                        vim.list_extend(lines, Text.multiline(line))
+                    elseif vim.islist(line) then
+                        local n_line = NuiLine()
+                        for _, part in ipairs(line) do
+                            if type(part) == "string" then
+                                n_line:append(part)
+                            else
+                                n_line:append(unpack(part))
+                            end
+                        end
+                        table.insert(lines, n_line)
+                    else
+                        local n_line = NuiLine()
+                        n_line:append(line)
+                        table.insert(lines, n_line)
+                    end
+                end
+            end
+        end
+
+        -- Calculate optimal window dimensions
+        local min_width = opts.min_width or 50
+        local max_width = opts.max_width or 80
+        local content_width = 0
+
+        -- Find the longest line for width calculation
+        for _, line in ipairs(lines) do
+            local line_width = type(line) == "string" and #line or line:width()
+            content_width = math.max(content_width, line_width)
+        end
+
+        -- Add padding and ensure reasonable bounds
+        local width = math.max(min_width, math.min(max_width, content_width + 8))
+        local height = math.min(#lines + 3, math.floor(vim.o.lines * 0.6)) -- +3 for padding and title
+
+        -- Determine positioning - top center of editor
+        local win_opts = M.get_window_position(width, height)
+
+        -- Create buffer and set content
+        local bufnr = vim.api.nvim_create_buf(false, true)
+        local ns_id = vim.api.nvim_create_namespace("MCPHubConfirmPrompt")
+
+        -- Add some padding at the top
+        table.insert(lines, 1, NuiLine():append(""))
+
+        -- Render content with proper padding
+        for i, line in ipairs(lines) do
+            if type(line) == "string" then
+                line = Text.pad_line(line)
+            elseif line._texts then
+                -- This is a NuiLine object, pad it properly
+                line = Text.pad_line(line)
+            else
+                -- This might be an array format, convert it to NuiLine first
+                local nui_line = NuiLine()
+                if vim.islist(line) then
+                    for _, part in ipairs(line) do
+                        if type(part) == "string" then
+                            nui_line:append(part)
+                        elseif vim.islist(part) then
+                            nui_line:append(part[1], part[2])
+                        end
+                    end
+                else
+                    nui_line:append(tostring(line))
+                end
+                line = Text.pad_line(nui_line)
+            end
+            line:render(bufnr, ns_id, i)
+        end
+
+        -- Enhanced window options with better styling
+        win_opts.style = "minimal"
+        win_opts.border = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
+        win_opts.title_pos = "center"
+        win_opts.title = {
+            { " MCP HUB Confirmation ", Text.highlights.header_btn },
+        }
+        win_opts.footer = {
+            { " ", nil },
+            { "[", Text.highlights.title },
+            { "Y", Text.highlights.title },
+            { "]es • [", Text.highlights.title },
+            { "N", Text.highlights.title },
+            { "]o • [", Text.highlights.title },
+            { "C", Text.highlights.title },
+            { "]ancel ", Text.highlights.title },
+        }
+        win_opts.footer_pos = "center"
+
+        -- Create the window
+        local win = vim.api.nvim_open_win(bufnr, true, win_opts)
+
+        -- Enhanced window styling
+        vim.api.nvim_win_set_option(win, "wrap", true)
+        vim.api.nvim_win_set_option(win, "cursorline", false)
+        vim.api.nvim_win_set_option(
+            win,
+            "winhl",
+            table.concat({
+                "Normal:" .. Text.highlights.window_normal,
+                "FloatBorder:" .. Text.highlights.window_border,
+                "FloatTitle:" .. Text.highlights.title,
+                "FloatFooter:" .. Text.highlights.muted,
+            }, ",")
+        )
+
+        -- Set buffer options
+        vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
+        vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
+        vim.api.nvim_buf_set_option(bufnr, "swapfile", false)
+
+        local is_closed = false
+
+        -- Enhanced close function with cleanup
+        local function close_window(confirmed, cancelled)
+            if is_closed then
+                return
+            end
+            is_closed = true
+
+            vim.schedule(function()
+                if vim.api.nvim_win_is_valid(win) then
+                    -- Add a subtle fade effect by briefly changing the highlight
+                    pcall(
+                        vim.api.nvim_win_set_option,
+                        win,
+                        "winhl",
+                        "Normal:" .. Text.highlights.muted .. ",FloatBorder:" .. Text.highlights.muted
+                    )
+                    vim.defer_fn(function()
+                        if vim.api.nvim_win_is_valid(win) then
+                            vim.api.nvim_win_close(win, true)
+                        end
+                    end, 50) -- Small delay for visual feedback
+                end
+                callback(confirmed, cancelled)
+            end)
+        end
+
+        -- Set up keymaps with visual feedback
+        local keymaps = {
+            ["y"] = function()
+                close_window(true, false)
+            end,
+            ["Y"] = function()
+                close_window(true, false)
+            end,
+            ["n"] = function()
+                close_window(false, false)
+            end,
+            ["N"] = function()
+                close_window(false, false)
+            end,
+            ["c"] = function()
+                close_window(false, true)
+            end,
+            ["C"] = function()
+                close_window(false, true)
+            end,
+            ["<Esc>"] = function()
+                close_window(false, true)
+            end,
+            ["q"] = function()
+                close_window(false, true)
+            end,
+            ["<CR>"] = function()
+                close_window(true, false)
+            end, -- Enter defaults to Yes
+        }
+
+        for key, handler in pairs(keymaps) do
+            vim.keymap.set("n", key, handler, {
+                buffer = bufnr,
+                nowait = true,
+                silent = true,
+                desc = "MCPHub confirm: " .. key,
+            })
+        end
+
+        -- Auto-close protection
+        local group = vim.api.nvim_create_augroup("MCPHubConfirm" .. bufnr, { clear = true })
+        vim.api.nvim_create_autocmd({ "WinClosed", "BufWipeout" }, {
+            buffer = bufnr,
+            group = group,
+            callback = function()
+                close_window(false, true)
+            end,
+            once = true,
+        })
+
+        -- Focus the window and ensure it's visible
+        vim.api.nvim_set_current_win(win)
+        -- Ensure we're in normal mode for key navigation
+        vim.cmd("stopinsert")
+        vim.cmd("redraw")
+    end, 1)
+
+    return result()
+end
+
+-- Helper function to determine window positioning
+---@param width number
+---@param height number
+---@return table window_opts
+function M.get_window_position(width, height)
+    local win_opts = {
+        width = width,
+        height = height,
+        focusable = true,
+        relative = "editor",
+        row = 1, -- Just 1 line from the top
+        col = math.floor((vim.o.columns - width) / 2), -- Center horizontally
+    }
+
+    return win_opts
 end
 
 return M

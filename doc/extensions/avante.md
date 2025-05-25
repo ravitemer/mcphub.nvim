@@ -4,7 +4,7 @@
 <video muted src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d" controls></video>
 </p>
 
-Add MCP capabilities to [Avante.nvim](https://github.com/yetone/avante.nvim) by including the MCP in your setup:
+Add MCP capabilities to [Avante.nvim](https://github.com/yetone/avante.nvim) by following these steps:
 
 ## Add Tools To Avante
 
@@ -73,7 +73,7 @@ require("avante").setup({
 
 By default, whenever avante calls `use_mcp_tool` or `access_mcp_resource` tool, it shows a confirm dialog with tool name, server name and arguments.
 
-![Image](https://github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6)
+![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
 You can set `auto_approve` to `true` to automatically approve MCP tool calls without user confirmation.
 ```lua
@@ -92,4 +92,5 @@ This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also togg
 1. Start a chat in Avante
 2. All the tools, resources, templates from the running MCP servers will be added to system prompt along with `use_mcp_tool` and `access_mcp_resource` tools.
 3. Avante will call `use_mcp_tool` and `access_mcp_resource` tools when necessary
+
 
