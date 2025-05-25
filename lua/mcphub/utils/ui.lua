@@ -408,6 +408,8 @@ function M.confirm(message, opts)
 
         -- Focus the window and ensure it's visible
         vim.api.nvim_set_current_win(win)
+        -- Ensure we're in normal mode for key navigation
+        vim.cmd("stopinsert")
         vim.cmd("redraw")
     end, 1)
 
