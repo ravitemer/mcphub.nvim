@@ -66,6 +66,7 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 ##### Optional fields: 
 - `args`: Array of command arguments
 - `env`: Optional environment variables
+- `dev`: Development mode configuration for auto-restart on file changes
 
 ##### `env` Special Values
 
@@ -79,6 +80,40 @@ The `env` field supports several special values. Given `API_KEY=secret` in the e
 | `"TOKEN": "$: cmd:op read op://example/token"`  | `"TOKEN": "secret"` | Values starting with `$: ` will be executed as shell command | 
 | `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is | 
 
+##### `dev` Development Mode
+
+The `dev` field enables automatic server restarts when files change during development:
+
+```json
+{
+    "mcpServers": {
+        "my-dev-server": {
+            "command": "node",
+            "args": ["src/index.js"],
+            "dev": {
+                "enabled": true,
+                "cwd": "/absolute/path/to/server/directory"
+                "watch": ["src/**/*.js", "src/**/*.ts","**/*.py", "package.json"],
+            }
+        }
+    }
+}
+```
+
+###### Dev Configuration Options:
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `cwd` | **Yes** | - | Absolute path to server's working directory |
+| `watch` | No | `["**/*.js", "**/*.ts", "**/*.py","**/*.json"]` | Array of glob patterns to watch |
+| `enabled` | No | `true` | Enable/disable dev mode |
+
+When enabled, the server will automatically restart whenever files matching the watch patterns change in the specified directory. The system uses a 500ms debounce to prevent rapid restarts and ignores common directories like `node_modules`, `build`, `.git`, etc.
+
+**Example use cases:**
+- TypeScript/JavaScript MCP servers during development
+- Python servers with source code changes
+- Configuration file updates that require restarts
 
 ### Remote Servers
 
@@ -131,4 +166,6 @@ MCPHub adds several extra keys for each server automatically from the UI:
     }
 }
 ```
+
+
 
