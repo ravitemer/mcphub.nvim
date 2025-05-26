@@ -1,0 +1,27 @@
+name: Nix Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v17
+
+      - name: Check Nixpkgs Inputs
+        uses: DeterminateSystems/flake-checker-action@v9
+
+      - name: Add Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v9
+
+      - name: Run build ❄️
+        run: |
+          nix build
