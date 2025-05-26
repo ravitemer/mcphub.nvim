@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.0] - 2025-05-26
+
+### Added
+- Dev mode support for automatic MCP server restart on file changes during development
+- Documentation for `dev` configuration field with watch patterns and working directory
+- Enhanced development workflow with hot reload capabilities
+
+### Changed
+- Updated mcp-hub dependency to v3.3.0 for dev mode support
+
 ## [5.4.0] - 2025-05-24
 
 ### Added
@@ -694,6 +704,7 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 
 
 
