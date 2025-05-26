@@ -66,6 +66,7 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 ##### Optional fields: 
 - `args`: Array of command arguments
 - `env`: Optional environment variables
+- `dev`: Development mode configuration for auto-restart on file changes
 
 ##### `env` Special Values
 
@@ -79,6 +80,51 @@ The `env` field supports several special values. Given `API_KEY=secret` in the e
 | `"TOKEN": "$: cmd:op read op://example/token"`  | `"TOKEN": "secret"` | Values starting with `$: ` will be executed as shell command | 
 | `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is | 
 
+##### `dev` Development Mode
+
+The `dev` field enables automatic server restarts when files change during development:
+
+<p>
+<video muted controls src="https://github.com/user-attachments/assets/af9654c2-e065-4f31-9bba-5c966284e221"></video>
+</p>
+
+
+```json
+{
+    "mcpServers": {
+      "dev-server": {
+        "command": "npx",
+        "args": [
+          "tsx",
+          "path/to/src/index.ts"
+        ],
+        "dev": {
+          "watch": [
+            "src/**/*.ts",
+            "package.json"
+          ],
+          "enabled": true,
+          "cwd": "/path/to/dev-server/"
+        }
+      }
+    }
+}
+```
+
+###### Dev Configuration Options:
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `cwd` | **Yes** | - | Absolute path to server's working directory |
+| `watch` | No | `["**/*.js", "**/*.ts", "**/*.py","**/*.json"]` | Array of glob patterns to watch |
+| `enabled` | No | `true` | Enable/disable dev mode |
+
+When enabled, the server will automatically restart whenever files matching the watch patterns change in the specified directory. The system uses a 500ms debounce to prevent rapid restarts and ignores common directories like `node_modules`, `build`, `.git`, etc.
+
+**Example use cases:**
+- TypeScript/JavaScript MCP servers during development. Use `npx tsc index.ts` to bypass build step during development.
+- Python servers with source code changes
+- Configuration file updates that require restarts
 
 ### Remote Servers
 
@@ -131,4 +177,6 @@ MCPHub adds several extra keys for each server automatically from the UI:
     }
 }
 ```
+
+
 

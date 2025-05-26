@@ -96,10 +96,12 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
 | | Multi-instance | ✅ | All neovim instances stay in sync |
 | | Shutdown-delay | ✅ | Can run as systemd service with configure delay before stopping the hub |
 | | Lua Native MCP Servers | ✅ | Write once , use everywhere. Can write tools, resources, prompts directly in lua |
+| | Dev Mode | ✅ | Hot reload MCP servers on file changes for development |
 
 ## Next Steps
 
 - [Installation Guide](/installation) - Set up MCPHub in your Neovim
 - [Configuration Guide](/configuration) - Learn about configuring MCP Hub
+
 
 

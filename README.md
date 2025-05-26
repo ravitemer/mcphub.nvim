@@ -70,6 +70,7 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 | | Multi-instance | ✅ | All neovim instances stay in sync |
 | | Shutdown-delay | ✅ | Can run as systemd service with configure delay before stopping the hub |
 | | Lua Native MCP Servers | ✅ | Write once , use everywhere. Can write tools, resources, prompts directly in lua |
+| | Dev Mode | ✅ | Hot reload MCP servers on file changes for development |
 
 ## 🎥 Demos
 
