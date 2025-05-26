@@ -6,24 +6,9 @@ on:
       - main
   pull_request: ~
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   tests:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
-          - os: ubuntu-latest
-            url: https://github.com/neovim/neovim/releases/download/v0.11.0/nvim-linux-x86_64.tar.gz
-          - os: ubuntu-latest
-            url: https://github.com/neovim/neovim/releases/download/v0.10.0/nvim-linux64.tar.gz
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
