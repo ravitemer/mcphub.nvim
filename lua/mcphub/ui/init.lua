@@ -24,6 +24,7 @@ local defaults = {
     window = {
         width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
         height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+        align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
         border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
         relative = "editor",
         zindex = 50,
@@ -195,9 +196,42 @@ function UI:calculate_window_dimensions()
     local height = parse_size(win_opts.height, vim.o.lines)
     height = math.max(min_height, height)
 
-    -- Calculate center position
-    local row = math.floor((vim.o.lines - height) / 2)
-    local col = math.floor((vim.o.columns - width) / 2)
+    -- Calculate position based on alignment
+    local row, col
+    local align = win_opts.align or "center"
+
+    if align == "center" then
+        row = math.floor((vim.o.lines - height) / 2)
+        col = math.floor((vim.o.columns - width) / 2)
+    elseif align == "top-left" then
+        row = 1
+        col = 1
+    elseif align == "top-right" then
+        row = 1
+        col = vim.o.columns - width
+    elseif align == "bottom-left" then
+        row = vim.o.lines - height
+        col = 1
+    elseif align == "bottom-right" then
+        row = vim.o.lines - height
+        col = vim.o.columns - width
+    elseif align == "top" then
+        row = 1
+        col = math.floor((vim.o.columns - width) / 2)
+    elseif align == "bottom" then
+        row = vim.o.lines - height
+        col = math.floor((vim.o.columns - width) / 2)
+    elseif align == "left" then
+        row = math.floor((vim.o.lines - height) / 2)
+        col = 1
+    elseif align == "right" then
+        row = math.floor((vim.o.lines - height) / 2)
+        col = vim.o.columns - width
+    else
+        -- Default to center for unknown alignment
+        row = math.floor((vim.o.lines - height) / 2)
+        col = math.floor((vim.o.columns - width) / 2)
+    end
 
     return {
         width = width,

@@ -37,6 +37,7 @@ All options are optional with sensible defaults. See below for each option in de
                 window = {
                     width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
                     height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+                    align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
                     relative = "editor",
                     zindex = 50,
                     border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
@@ -196,6 +197,7 @@ Default:
         window = {
             width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
             height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+            align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
             border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
             relative = "editor",
             zindex = 50,
@@ -210,6 +212,11 @@ Default:
 Controls the appearance and behavior of the MCPHub UI window:
 - `width`: Window width (0-1 for ratio, "50%" for percentage, or raw number)
 - `height`: Window height (same format as width)
+- `align`: Window alignment position. Options:
+  - `"center"`: Center the window (default)
+  - `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`: Corner positions
+  - `"top"`, `"bottom"`: Top/bottom edge, centered horizontally
+  - `"left"`, `"right"`: Left/right edge, centered vertically
 - `relative`: Window placement relative to ("editor", "win", or "cursor")
 - `zindex`: Window stacking order
 - `border`: Border style ("none", "single", "double", "rounded", "solid", "shadow")
@@ -245,4 +252,7 @@ Logging configuration options:
 - `to_file`: Whether to write logs to file
 - `file_path`: Custom log file path
 - `prefix`: Prefix for log messages
+
+
+
 

@@ -30,6 +30,7 @@ local defaults = {
         window = {
             width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
             height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+            align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
             border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
             relative = "editor",
             zindex = 50,
