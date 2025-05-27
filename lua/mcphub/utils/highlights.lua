@@ -27,6 +27,11 @@ M.groups = {
     active_item_muted = "MCPHubActiveItemMuted",
     link = "MCPHubLink",
     bg_blend = "MCPHubBgBlend",
+    -- Button highlights for confirmation dialogs
+    button_active = "MCPHubButtonActive",
+    button_inactive = "MCPHubButtonInactive",
+    -- Seamless border (matches float background)
+    seamless_border = "MCPHubSeamlessBorder",
     -- JSON syntax highlights
     json_property = "MCPHubJsonProperty",
     json_string = "MCPHubJsonString",
@@ -235,6 +240,22 @@ function M.setup()
             bg = "NONE",
             fg = title_color,
             bold = true,
+        },
+        -- Button highlights for confirmation dialogs
+        [M.groups.button_active] = {
+            bg = hint_color,
+            fg = normal_bg,
+            bold = true,
+        },
+        [M.groups.button_inactive] = {
+            bg = pmenu_sel_bg,
+            fg = normal_fg,
+        },
+        -- Seamless border (matches float background)
+        [M.groups.seamless_border] = {
+            bg = float_bg,
+            fg = float_bg,
+            special = float_bg,
         },
     }
 

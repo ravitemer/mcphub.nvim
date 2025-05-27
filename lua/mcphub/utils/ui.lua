@@ -207,6 +207,37 @@ function M.confirm(message, opts)
             return callback(false, true)
         end
 
+        -- Track active option (default to "yes")
+        local active_option = "yes"
+
+        -- Function to create footer with current active state
+        local function create_footer()
+            return {
+                { " ", Text.highlights.seamless_border },
+                {
+                    " Yes ",
+                    active_option == "yes" and Text.highlights.button_active or Text.highlights.button_inactive,
+                },
+                { " • ", Text.highlights.seamless_border },
+                { " No ", active_option == "no" and Text.highlights.button_active or Text.highlights.button_inactive },
+                { " • ", Text.highlights.seamless_border },
+                {
+                    " Cancel ",
+                    active_option == "cancel" and Text.highlights.button_active or Text.highlights.button_inactive,
+                },
+                { " ", Text.highlights.seamless_border },
+            }
+        end
+
+        -- Function to update footer
+        local function update_footer(win)
+            if vim.api.nvim_win_is_valid(win) then
+                local config = vim.api.nvim_win_get_config(win)
+                config.footer = create_footer()
+                vim.api.nvim_win_set_config(win, config)
+            end
+        end
+
         -- Process message into lines
         local lines = {}
         if type(message) == "string" then
@@ -291,18 +322,9 @@ function M.confirm(message, opts)
         win_opts.border = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
         win_opts.title_pos = "center"
         win_opts.title = {
-            { " MCP HUB Confirmation ", Text.highlights.header_btn },
+            { " MCPHUB Confirmation ", Text.highlights.header_btn },
         }
-        win_opts.footer = {
-            { " ", nil },
-            { "[", Text.highlights.title },
-            { "Y", Text.highlights.title },
-            { "]es • [", Text.highlights.title },
-            { "N", Text.highlights.title },
-            { "]o • [", Text.highlights.title },
-            { "C", Text.highlights.title },
-            { "]ancel ", Text.highlights.title },
-        }
+        win_opts.footer = create_footer()
         win_opts.footer_pos = "center"
 
         -- Create the window
@@ -316,9 +338,9 @@ function M.confirm(message, opts)
             "winhl",
             table.concat({
                 "Normal:" .. Text.highlights.window_normal,
-                "FloatBorder:" .. Text.highlights.window_border,
+                "FloatBorder:" .. Text.highlights.seamless_border,
                 "FloatTitle:" .. Text.highlights.title,
-                "FloatFooter:" .. Text.highlights.muted,
+                "FloatFooter:" .. Text.highlights.seamless_border,
             }, ",")
         )
 
@@ -338,25 +360,28 @@ function M.confirm(message, opts)
 
             vim.schedule(function()
                 if vim.api.nvim_win_is_valid(win) then
-                    -- Add a subtle fade effect by briefly changing the highlight
-                    pcall(
-                        vim.api.nvim_win_set_option,
-                        win,
-                        "winhl",
-                        "Normal:" .. Text.highlights.muted .. ",FloatBorder:" .. Text.highlights.muted
-                    )
-                    vim.defer_fn(function()
-                        if vim.api.nvim_win_is_valid(win) then
-                            vim.api.nvim_win_close(win, true)
-                        end
-                    end, 50) -- Small delay for visual feedback
+                    if vim.api.nvim_win_is_valid(win) then
+                        vim.api.nvim_win_close(win, true)
+                    end
                 end
                 callback(confirmed, cancelled)
             end)
         end
 
-        -- Set up keymaps with visual feedback
+        -- Function to execute active option
+        local function execute_active_option()
+            if active_option == "yes" then
+                close_window(true, false)
+            elseif active_option == "no" then
+                close_window(false, false)
+            else -- cancel
+                close_window(false, true)
+            end
+        end
+
+        -- Set up keymaps with visual feedback and navigation
         local keymaps = {
+            -- Direct actions
             ["y"] = function()
                 close_window(true, false)
             end,
@@ -381,9 +406,18 @@ function M.confirm(message, opts)
             ["q"] = function()
                 close_window(false, true)
             end,
-            ["<CR>"] = function()
-                close_window(true, false)
-            end, -- Enter defaults to Yes
+            ["<CR>"] = execute_active_option, -- Execute the currently active option
+            -- Tab navigation
+            ["<Tab>"] = function()
+                if active_option == "yes" then
+                    active_option = "no"
+                elseif active_option == "no" then
+                    active_option = "cancel"
+                else
+                    active_option = "yes"
+                end
+                update_footer(win)
+            end,
         }
 
         for key, handler in pairs(keymaps) do
