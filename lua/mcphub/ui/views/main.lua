@@ -137,17 +137,19 @@ function MainView:handle_edit()
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = cursor[1]
 
-    local type, context = self:get_line_info(line)
-    if not type or not context then
+    local line_type, context = self:get_line_info(line)
+    if not line_type or not context then
         return
     end
     local server_name = context.name
-    if type == "server" then
+    if line_type == "server" then
         local is_native = native.is_native_server(server_name)
+        local config
         if is_native then
-            return vim.notify("Native servers cannot be edited")
+            config = State.native_servers_config[server_name] or {}
+        else
+            config = State.servers_config[server_name] or {}
         end
-        local config = State.servers_config[server_name] or {}
         local text = utils.pretty_json(vim.json.encode({
             [server_name] = config,
         }) or "")
@@ -186,15 +188,27 @@ function MainView:handle_edit()
                 local new_name, new_config = next(result)
                 ---@cast new_name string
                 ---@cast new_config table
-                local valid = validation.validate_server_config(new_name, new_config)
-                if not valid.ok then
-                    vim.notify(valid.error.message, vim.log.levels.ERROR)
-                    return false
+
+                -- For native servers, we only need to validate basic structure
+                -- since they don't require command/url fields
+                if is_native then
+                    if type(new_config) ~= "table" then
+                        vim.notify("Config must be a table", vim.log.levels.ERROR)
+                        return false
+                    end
+                    -- Native servers only need basic config validation
+                    return true
+                else
+                    local valid = validation.validate_server_config(new_name, new_config)
+                    if not valid.ok then
+                        vim.notify(valid.error.message, vim.log.levels.ERROR)
+                        return false
+                    end
                 end
                 return true
             end,
         })
-    elseif (type == "customInstructions") and context then
+    elseif (line_type == "customInstructions") and context then
         self:handle_custom_instructions(context)
     end
 end
@@ -212,7 +226,7 @@ function MainView:handle_delete()
         local server_name = context.name
         local is_native = native.is_native_server(server_name)
         if is_native then
-            return vim.notify("Native servers cannot be deleted")
+            return vim.notify("Native servers cannot be deleted, only their configuration can be edited")
         end
 
         -- Using vim.ui.select instead of vim.fn.confirm
