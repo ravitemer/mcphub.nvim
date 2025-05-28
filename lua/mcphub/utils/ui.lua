@@ -333,16 +333,6 @@ function M.confirm(message, opts)
         -- Enhanced window styling
         vim.api.nvim_win_set_option(win, "wrap", true)
         vim.api.nvim_win_set_option(win, "cursorline", false)
-        vim.api.nvim_win_set_option(
-            win,
-            "winhl",
-            table.concat({
-                "Normal:" .. Text.highlights.window_normal,
-                "FloatBorder:" .. Text.highlights.seamless_border,
-                "FloatTitle:" .. Text.highlights.title,
-                "FloatFooter:" .. Text.highlights.seamless_border,
-            }, ",")
-        )
 
         -- Set buffer options
         vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
