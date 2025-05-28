@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.6.0] - 2025-05-28
+
+### Added
+- Fine-grained auto-approval support for servers and tools
+- `autoApprove` field in server config (boolean or string array)
+- `a` keymap to toggle auto-approval on servers and individual tools
+- Visual indicators for auto-approval status in UI
+- Support for editing native server config fields from UI
+
+### Changed
+- Resources are now always auto-approved by default
+- Enhanced confirmation prompt UI
+
+### Fixed
+- Nix flake now includes plenary dependency
+
 ## [5.5.0] - 2025-05-26
 
 ### Added
@@ -704,6 +720,7 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 
 
 
