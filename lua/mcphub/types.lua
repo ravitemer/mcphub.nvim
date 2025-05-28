@@ -28,6 +28,7 @@
 ---@field disabled_resources? string[]
 ---@field disabled_resourceTemplates? string[]
 ---@field custom_instructions? CustomMCPServerConfig.CustomInstructions
+---@field autoApprove? boolean|string[] -- true for all tools, array of tool names for specific tools
 
 ---@class MCPServerConfig: CustomMCPServerConfig
 ---@field command? string

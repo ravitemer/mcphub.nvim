@@ -453,6 +453,12 @@ function MainView:setup_active_mode()
                 end,
                 desc = "Toggle",
             },
+            ["a"] = {
+                action = function()
+                    self:handle_auto_approve_toggle()
+                end,
+                desc = "Auto-approve",
+            },
             ["h"] = {
                 action = function()
                     self:handle_collapse()
@@ -483,6 +489,137 @@ function MainView:setup_active_mode()
     self:apply_keymaps()
 end
 
+-- Helper function to get all tool names for a server
+local function get_server_tool_names(server_name)
+    local tools = {}
+
+    -- Check if it's a native server
+    local is_native = native.is_native_server(server_name)
+    if is_native then
+        local native_server = is_native
+        for _, tool in ipairs(native_server.capabilities.tools or {}) do
+            table.insert(tools, tool.name)
+        end
+    else
+        -- Regular MCP server
+        for _, server in ipairs(State.server_state.servers) do
+            if server.name == server_name and server.capabilities then
+                for _, tool in ipairs(server.capabilities.tools or {}) do
+                    table.insert(tools, tool.name)
+                end
+                break
+            end
+        end
+    end
+
+    return tools
+end
+
+-- Helper function to determine actual auto-approval status
+local function get_auto_approval_status(server_config, all_tools)
+    local auto_approve = server_config.autoApprove
+
+    if auto_approve == true then
+        return "all", #all_tools -- All tools auto-approved
+    elseif type(auto_approve) == "table" and vim.islist(auto_approve) then
+        if #auto_approve == 0 then
+            return "none", 0
+        elseif #auto_approve == #all_tools then
+            return "all", #all_tools -- All tools are in the list
+        else
+            return "partial", #auto_approve -- Some tools auto-approved
+        end
+    else
+        return "none", 0 -- No auto-approval
+    end
+end
+
+function MainView:handle_auto_approve_toggle()
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+
+    -- Get line info
+    local type, context = self:get_line_info(line)
+    if not type or not context or not State.hub_instance then
+        return
+    end
+
+    if type == "server" then
+        -- Check if server is enabled
+        if context.status == "disabled" or context.status == "disconnected" then
+            return
+        end
+
+        -- Toggle auto-approval for entire server
+        local server_name = context.name
+        local is_native = native.is_native_server(server_name)
+        local server_config = (
+            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
+        ) or {}
+
+        local all_tools = get_server_tool_names(server_name)
+        local status, _ = get_auto_approval_status(server_config, all_tools)
+        local new_auto_approve
+
+        if status == "all" then
+            -- Currently auto-approving all tools, turn off
+            new_auto_approve = {}
+        else
+            -- Currently partial or no auto-approval, enable for all
+            new_auto_approve = vim.deepcopy(all_tools)
+        end
+
+        State.hub_instance:update_server_config(server_name, {
+            autoApprove = new_auto_approve,
+        })
+    elseif type == "tool" and context then
+        -- Check if tool is enabled
+        if context.disabled then
+            return
+        end
+
+        -- Toggle auto-approval for specific tool
+        local server_name = context.server_name
+        local tool_name = context.def.name
+        local is_native = native.is_native_server(server_name)
+        local server_config = (
+            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
+        ) or {}
+
+        local current_auto_approve = server_config.autoApprove or {}
+        local new_auto_approve
+
+        -- Handle boolean case (convert to array first)
+        if current_auto_approve == true then
+            local all_tools = get_server_tool_names(server_name)
+            current_auto_approve = vim.deepcopy(all_tools)
+        end
+
+        -- Ensure it's an array
+        if not vim.islist(current_auto_approve) then
+            current_auto_approve = {}
+        end
+
+        -- Toggle the tool in the list using filter instead of table.remove
+        local tool_approved = vim.tbl_contains(current_auto_approve, tool_name)
+
+        if tool_approved then
+            -- Remove tool from auto-approve list
+            new_auto_approve = vim.tbl_filter(function(tool)
+                return tool ~= tool_name
+            end, current_auto_approve)
+        else
+            -- Add tool to auto-approve list
+            new_auto_approve = vim.deepcopy(current_auto_approve)
+            table.insert(new_auto_approve, tool_name)
+        end
+
+        State.hub_instance:update_server_config(server_name, {
+            autoApprove = new_auto_approve,
+        })
+    end
+end
 function MainView:handle_server_toggle()
     -- Get current line
     local cursor = vim.api.nvim_win_get_cursor(0)

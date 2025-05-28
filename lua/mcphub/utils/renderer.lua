@@ -81,10 +81,10 @@ end
 ---@param items table[] List of items
 ---@param title string Section title
 ---@param server_name string Server name
----@param type string Item type
+---@param line_type string Item type
 ---@param current_line number Current line number
 ---@return NuiLine[],number,table
-function M.render_cap_section(items, title, server_name, type, current_line)
+function M.render_cap_section(items, title, server_name, line_type, current_line)
     local lines = {}
     local mappings = {}
 
@@ -96,14 +96,14 @@ function M.render_cap_section(items, title, server_name, type, current_line)
     }
     table.insert(
         lines,
-        Text.pad_line(NuiLine():append(" " .. icons[type] .. " " .. title .. ": ", Text.highlights.muted), nil, 4)
+        Text.pad_line(NuiLine():append(" " .. icons[line_type] .. " " .. title .. ": ", Text.highlights.muted), nil, 4)
     )
 
     local is_native = native.is_native_server(server_name)
     local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
         or {}
     local disabled_tools = server_config.disabled_tools or {}
-    if type == "tool" then
+    if line_type == "tool" then
         -- For tools, sort by name and move disabled ones to end
         local sorted_items = vim.deepcopy(items)
         table.sort(sorted_items, function(a, b)
@@ -120,13 +120,13 @@ function M.render_cap_section(items, title, server_name, type, current_line)
     for _, item in ipairs(items) do
         local name = item.name or item.uri or item.uriTemplate or "NO NAME"
         local is_disabled = false
-        if type == "tool" then
+        if line_type == "tool" then
             is_disabled = vim.tbl_contains(disabled_tools, item.name)
-        elseif type == "resource" then
+        elseif line_type == "resource" then
             is_disabled = vim.tbl_contains(server_config.disabled_resources or {}, item.uri)
-        elseif type == "resourceTemplate" then
+        elseif line_type == "resourceTemplate" then
             is_disabled = vim.tbl_contains(server_config.disabled_resourceTemplates or {}, item.uriTemplate)
-        elseif type == "prompt" then
+        elseif line_type == "prompt" then
             is_disabled = vim.tbl_contains(server_config.disabled_prompts or {}, item.name)
         end
 
@@ -140,12 +140,36 @@ function M.render_cap_section(items, title, server_name, type, current_line)
         if item.mimeType then
             line:append(" (" .. item.mimeType .. ")", Text.highlights.muted)
         end
+
+        -- Show auto-approve status for tools
+        if line_type == "tool" and not is_disabled then
+            local auto_approve = server_config.autoApprove
+            local tool_auto_approved = false
+
+            if auto_approve == true then
+                tool_auto_approved = true
+            elseif type(auto_approve) == "table" and vim.islist(auto_approve) then
+                tool_auto_approved = vim.tbl_contains(auto_approve, name)
+            end
+
+            if tool_auto_approved then
+                line:append(" " .. Text.icons.auto, Text.highlights.success)
+            end
+        end
+
         table.insert(lines, Text.pad_line(line, nil, 6))
 
-        local hint = is_disabled and "[<t> Toggle]" or string.format("[<l> open %s, <t> Toggle]", type)
+        local hint
+        if is_disabled then
+            hint = "[<t> Toggle]"
+        elseif line_type == "tool" then
+            hint = string.format("[<l> open %s, <t> Toggle, <a> Auto-approve]", line_type)
+        else
+            hint = string.format("[<l> open %s, <t> Toggle]", line_type)
+        end
         table.insert(mappings, {
             line = current_line + #lines,
-            type = type,
+            type = line_type,
             context = {
                 def = item,
                 server_name = server_name,
@@ -171,14 +195,21 @@ function M.render_server_capabilities(server, lines, current_line, config_source
     current_line = current_line + 1
 
     -- Prepare hover hint based on server status
-    local hint = is_native and "[<t> Toggle, <e> Edit]" or "[<t> Toggle, <e> Edit, <d> Delete]"
+    local base_hint_disabled = is_native and "[<t> Toggle, <e> Edit]" or "[<t> Toggle, <e> Edit, <d> Delete]"
+    local base_hint_enabled = is_native and "[<t> Toggle, <a> Auto-approve, <e> Edit]"
+        or "[<t> Toggle, <a> Auto-approve, <e> Edit, <d> Delete]"
+
     local needs_authorization = server.status == "unauthorized"
-    local enabled_hint = is_native and "[<l> Expand, <t> Toggle, <e> Edit]"
-        or needs_authorization and "[<l> Authorize, <t> Toggle, <e> Edit, <d> Delete]"
-        or "[<l> Expand, <t> Toggle, <e> Edit, <d> Delete]"
-    local expanded_hint = is_native and "[<h> Collapse, <t> Toggle, <e> Edit]"
-        or "[<h> Collapse, <t> Toggle, <e> Edit, <d> Delete]"
-    if server.status ~= "disabled" and server.status ~= "disconnected" then
+    local enabled_hint = is_native and "[<l> Expand, <t> Toggle, <a> Auto-approve, <e> Edit]"
+        or needs_authorization and "[<l> Authorize, <t> Toggle, <a> Auto-approve, <e> Edit, <d> Delete]"
+        or "[<l> Expand, <t> Toggle, <a> Auto-approve, <e> Edit, <d> Delete]"
+    local expanded_hint = is_native and "[<h> Collapse, <t> Toggle, <a> Auto-approve, <e> Edit]"
+        or "[<h> Collapse, <t> Toggle, <a> Auto-approve, <e> Edit, <d> Delete]"
+
+    local hint
+    if server.status == "disabled" or server.status == "disconnected" then
+        hint = base_hint_disabled -- No auto-approve for disabled/disconnected servers
+    else
         hint = view.expanded_server == server.name and expanded_hint or enabled_hint
     end
 
@@ -323,6 +354,39 @@ function M.render_server_line(server, active)
                 " " .. Text.icons.instructions .. " ",
                 is_disabled and Text.highlights.muted or Text.highlights.success
             )
+        end
+        -- Show auto-approve status for server using smart detection
+        local all_tools = {}
+        for _, tool in ipairs(server.capabilities.tools or {}) do
+            table.insert(all_tools, tool.name)
+        end
+
+        local auto_approve = server_config.autoApprove
+        local status = "none"
+        local count = 0
+
+        if auto_approve == true then
+            status = "all"
+            count = #all_tools
+        elseif type(auto_approve) == "table" and vim.islist(auto_approve) then
+            if #auto_approve == 0 then
+                status = "none"
+                count = 0
+            elseif #auto_approve == #all_tools and #all_tools > 0 then
+                status = "all"
+                count = #all_tools
+            else
+                status = "partial"
+                count = #auto_approve
+            end
+        end
+
+        if status == "all" then
+            -- All tools auto-approved
+            line:append(" " .. Text.icons.auto .. " ", Text.highlights.success)
+        elseif status == "partial" then
+            -- Partial auto-approval (show count)
+            line:append(" " .. Text.icons.auto .. " " .. tostring(count) .. " ", Text.highlights.warning)
         end
 
         -- Helper to render capability count with active/total

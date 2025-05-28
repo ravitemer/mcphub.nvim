@@ -3,7 +3,52 @@ local NuiLine = require("mcphub.utils.nuiline")
 local Text = require("mcphub.utils.text")
 local ui_utils = require("mcphub.utils.ui")
 
----@alias MCPCallParams {errors: string[], action: MCPHubToolType, server_name: string, tool_name: string, uri: string, arguments: table}
+---@alias MCPCallParams {errors: string[], action: MCPHubToolType, server_name: string, tool_name: string, uri: string, arguments: table, should_auto_approve: boolean}
+
+---Check if auto-approval is enabled for a specific tool/resource
+---@param server_name string
+---@param tool_name? string Tool name for tool calls (nil for resources)
+---@return boolean
+local function should_auto_approve(server_name, tool_name)
+    -- Global auto-approve check
+    if vim.g.mcphub_auto_approve == true then
+        return true
+    end
+
+    -- Get server config
+    local State = require("mcphub.state")
+    local native = require("mcphub.native")
+
+    local is_native = native.is_native_server(server_name)
+    local server_config = is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
+
+    if not server_config then
+        return false
+    end
+
+    local auto_approve = server_config.autoApprove
+    if not auto_approve then
+        return false
+    end
+
+    -- If autoApprove is true, approve everything for this server
+    if auto_approve == true then
+        return true
+    end
+
+    -- If autoApprove is an array, check if tool is in the list
+    if type(auto_approve) == "table" and vim.islist(auto_approve) then
+        -- For resources, always auto-approve (no explicit config needed)
+        if not tool_name then
+            return true
+        end
+
+        -- For tools, check if the specific tool is in the list
+        return vim.tbl_contains(auto_approve, tool_name)
+    end
+
+    return false
+end
 
 ---@param params {server_name: string, tool_name: string, uri: string, tool_input: table | string}
 ---@param action_name MCPHubToolType
@@ -40,6 +85,11 @@ function M.parse_params(params, action_name)
     if action_name == "access_mcp_resource" and not uri then
         table.insert(errors, "uri is required")
     end
+
+    -- Check auto-approval based on server config and tool/resource
+    local should_auto_approve_result =
+        should_auto_approve(server_name, action_name == "use_mcp_tool" and tool_name or nil)
+
     return {
         errors = errors,
         action = action_name or "nil",
@@ -47,6 +97,7 @@ function M.parse_params(params, action_name)
         tool_name = tool_name or "nil",
         uri = uri or "nil",
         arguments = arguments or {},
+        should_auto_approve = should_auto_approve_result,
     }
 end
 
@@ -251,6 +302,11 @@ end
 ---@param params MCPCallParams
 ---@return boolean, boolean
 function M.show_mcp_tool_prompt(params)
+    -- Check if we should auto-approve based on server/tool config
+    if params.should_auto_approve then
+        return true, false -- approved, not cancelled
+    end
+
     local action_name = params.action
     local server_name = params.server_name
     local tool_name = params.tool_name

@@ -18,7 +18,9 @@ function M.create_handler(action_name, has_function_calling, opts)
                 })
             end
 
-            local auto_approve = (vim.g.mcphub_auto_approve == true) or (vim.g.codecompanion_auto_tool_mode == true)
+            local auto_approve = (vim.g.mcphub_auto_approve == true)
+                or (vim.g.codecompanion_auto_tool_mode == true)
+                or params.should_auto_approve
             if not auto_approve then
                 local confirmed = shared.show_mcp_tool_prompt(params)
                 if not confirmed then

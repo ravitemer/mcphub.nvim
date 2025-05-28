@@ -71,15 +71,10 @@ function M.mcp_tool()
                 if #params.errors > 0 then
                     return on_complete(nil, table.concat(params.errors, "\n"))
                 end
-                local auto_approve = vim.g.mcphub_auto_approve == true
+                -- Check both global and server-specific auto-approval
+                local auto_approve = vim.g.mcphub_auto_approve == true or params.should_auto_approve
                 if not auto_approve then
-                    local confirmed = shared.show_mcp_tool_prompt({
-                        action = params.action,
-                        server_name = params.server_name,
-                        tool_name = params.tool_name,
-                        uri = params.uri,
-                        arguments = params.arguments,
-                    })
+                    local confirmed = shared.show_mcp_tool_prompt(params)
                     if not confirmed then
                         return on_complete(nil, "User cancelled the operation")
                     end
