@@ -92,6 +92,10 @@ This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also togg
 
 ### Fine-Grained Auto-Approval
 
+![Image](https://github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd)
+
+![Image](https://github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5)
+
 For more control, configure auto-approval per server or per tool in your `servers.json`:
 
 ```json

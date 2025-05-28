@@ -181,6 +181,10 @@ MCPHub adds several extra keys for each server automatically from the UI:
 
 ### Auto-Approval Configuration
 
+![Image](https://github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd)
+
+![Image](https://github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5)
+
 The `autoApprove` field allows fine-grained control over which tools are automatically approved without user confirmation:
 
 | Value | Behavior | Example |
