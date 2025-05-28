@@ -141,9 +141,11 @@ By default when the LLM calls a tool or resource on a MCP server, we show a conf
 
 ![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
-Set it to to `true` to automatically approve MCP tool calls without user confirmation. This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can toggle this option in the MCP Hub UI with `ga` keymap. You can see the current auto approval status in the Hub UI.
+Set it to `true` to automatically approve all MCP tool calls without user confirmation. This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can toggle this option in the MCP Hub UI with `ga` keymap. You can see the current auto approval status in the Hub UI.
 
 ![Image](https://github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6)
+
+**Fine-Grained Auto-Approval**: For more granular control, configure auto-approval per server or per tool using the `autoApprove` field in your `servers.json`. You can also toggle auto-approval from the Hub UI using the `a` keymap on individual servers or tools. See [servers.json configuration](/mcp/servers_json#auto-approval-configuration) for detailed examples and configuration options.
 
 ### auto_toggle_mcp_servers
 
@@ -252,6 +254,7 @@ Logging configuration options:
 - `to_file`: Whether to write logs to file
 - `file_path`: Custom log file path
 - `prefix`: Prefix for log messages
+
 
 
 

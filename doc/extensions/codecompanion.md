@@ -59,7 +59,9 @@ By default, whenever codecompanion calls `use_mcp_tool` or `access_mcp_resource`
 
 ![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
-1. You can set `auto_approve` to `true` to automatically approve MCP tool calls without user confirmation.
+### Global Auto-Approval
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool calls without user confirmation:
 
 ```lua
 require("mcphub").setup({
@@ -72,5 +74,38 @@ This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also togg
 
 ![Image](https://github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6)
 
-2. MCP Hub also respects CodeCompanion auto tool mode: `vim.g.codecompanion_auto_tool_mode = true` (toggled via `gta` in the chat buffer)
+### Fine-Grained Auto-Approval
+
+For more control, configure auto-approval per server or per tool in your `servers.json`:
+
+```json
+{
+    "mcpServers": {
+        "trusted-server": {
+            "command": "npx",
+            "args": ["trusted-mcp-server"],
+            "autoApprove": true  // Auto-approve all tools on this server
+        },
+        "partially-trusted": {
+            "command": "npx", 
+            "args": ["some-mcp-server"],
+            "autoApprove": ["read_file", "list_files"]  // Only auto-approve specific tools
+        }
+    }
+}
+```
+
+You can also toggle auto-approval from the Hub UI:
+- Press `a` on a server line to toggle auto-approval for all tools on that server
+- Press `a` on an individual tool to toggle auto-approval for just that tool
+- Resources are always auto-approved (no configuration needed)
+
+### Auto-Approval Priority
+
+The system checks auto-approval in this order:
+1. **Global**: `vim.g.mcphub_auto_approve = true` (approves everything)
+2. **CodeCompanion**: `vim.g.codecompanion_auto_tool_mode = true` (toggled via `gta` in chat buffer)
+3. **Server-specific**: `autoApprove` field in server config
+4. **Default**: Show confirmation dialog
+
 

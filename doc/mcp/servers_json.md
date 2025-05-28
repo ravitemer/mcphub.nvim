@@ -169,6 +169,7 @@ MCPHub adds several extra keys for each server automatically from the UI:
             "disabled_tools": ["expensive-tool"],
             "disabled_resources": ["resource://large-data"],
             "disabled_resourceTemplates": ["resource://{type}/{id}"],
+            "autoApprove": ["safe-tool", "read-only-tool"],
             "custom_instructions": {
                 "disabled": false,
                 "text": "Custom instructions for this server"
@@ -177,6 +178,22 @@ MCPHub adds several extra keys for each server automatically from the UI:
     }
 }
 ```
+
+### Auto-Approval Configuration
+
+The `autoApprove` field allows fine-grained control over which tools are automatically approved without user confirmation:
+
+| Value | Behavior | Example |
+|-------|----------|---------|
+| `true` | Auto-approve all tools on this server | `"autoApprove": true` |
+| `["tool1", "tool2"]` | Auto-approve only specific tools | `"autoApprove": ["read_file", "list_files"]` |
+| `[]` or omitted | No auto-approval (show confirmation dialog) | `"autoApprove": []` |
+
+**Notes:**
+- Resources are always auto-approved by default (no explicit configuration needed)
+- Auto-approval only applies to enabled servers and enabled tools
+- You can toggle auto-approval from the UI using the `a` keymap on servers or individual tools
+
 
 
 
