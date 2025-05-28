@@ -31,7 +31,7 @@ local defaults = {
     },
     ---@type table?
     wo = { -- window-scoped options (vim.wo)
-        winhl = "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border,
+        -- winhl = "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border,
     },
 }
 
