@@ -12,11 +12,10 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
-      perSystem = { system, ... }: let
-        pkgs = inputs.nixpkgs.legacyPackages.${system};
-      in {
+      perSystem = { pkgs, ... }: {
         packages.default = pkgs.vimUtils.buildVimPlugin {
-          name = "mcphub.nvim";
+          pname = "mcphub.nvim";
+          version = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
           src = self;
           dependencies = [ pkgs.vimPlugins.plenary-nvim ];
           nvimSkipModule = [
