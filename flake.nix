@@ -14,7 +14,8 @@
 
       perSystem = { pkgs, ... }: {
         packages.default = pkgs.vimUtils.buildVimPlugin {
-          name = "mcphub.nvim";
+          pname = "mcphub.nvim";
+          version = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
           src = self;
           dependencies = [ pkgs.vimPlugins.plenary-nvim ];
           nvimSkipModule = [
