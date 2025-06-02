@@ -112,26 +112,25 @@ end
 ---@param templates MCPResourceTemplate[]
 ---@return string
 local function format_resources(resources, templates)
-    if not resources or #resources == 0 then
-        return ""
+    local result = ""
+    if resources and #resources > 0 then
+        result = result .. "\n\n### Available Resources"
+        for _, resource in ipairs(resources) do
+            result = result
+                .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
+            local desc = M.get_description(resource)
+            result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
+            -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
+        end
     end
-    local result = "\n\n### Available Resources"
-    for _, resource in ipairs(resources) do
-        result = result
-            .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
-        local desc = M.get_description(resource)
-        result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
-        -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
-    end
-    if not templates or #templates == 0 then
-        return result
-    end
-    result = result .. "\n\n### Available Resource Templates"
-    for _, template in ipairs(templates) do
-        result = result .. string.format("\n\n- %s", template.uriTemplate)
-        local desc = M.get_description(template)
-        result = result .. "\n  " .. (template.name or "") .. (desc == "" and "" or "\n  " .. desc)
-        -- result = result .. "\n\n" .. vim.inspect(remove_functions(template))
+    if templates and #templates > 0 then
+        result = result .. "\n\n### Available Resource Templates"
+        for _, template in ipairs(templates) do
+            result = result .. string.format("\n\n- %s", template.uriTemplate)
+            local desc = M.get_description(template)
+            result = result .. "\n  " .. (template.name or "") .. (desc == "" and "" or "\n  " .. desc)
+            -- result = result .. "\n\n" .. vim.inspect(remove_functions(template))
+        end
     end
     return result
 end
