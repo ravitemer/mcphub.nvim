@@ -281,7 +281,7 @@ end
 function View:render_setup_error(lines)
     table.insert(lines, Text.pad_line(NuiLine():append("Setup Failed:", Text.highlights.error)))
 
-    for _, err in ipairs(State:get_errors("setup")) do
+    for _, err in ipairs(State:get_errors()) do
         vim.list_extend(lines, renderer.render_error(err))
         table.insert(lines, Text.empty_line())
     end

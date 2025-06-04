@@ -153,6 +153,8 @@ function M.setup(opts)
     if file_result.ok and file_result.json then
         State.servers_config = file_result.json.mcpServers or {}
         State.native_servers_config = file_result.json.nativeMCPServers or {}
+    else
+        return _on_setup_failed(file_result.error)
     end
     local Native = require("mcphub.native")
     Native.setup()
