@@ -360,6 +360,14 @@ function M.validate_config_file(path)
     -- Validate disabled_tools and custom_instructions for each server
     for server_name, server_config in pairs(json.mcpServers) do
         -- Validate disabled_tools if present
+        local config_valid = M.validate_server_config(server_name, server_config)
+        if not config_valid.ok then
+            return {
+                ok = false,
+                error = config_valid.error,
+                content = content,
+            }
+        end
         if server_config.disabled_tools ~= nil then
             if type(server_config.disabled_tools) ~= "table" then
                 return {
