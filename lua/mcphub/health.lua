@@ -73,7 +73,7 @@ function M.check()
     local merged_config = State.config
     local cmd = merged_config.cmd
     local cmdArgs = merged_config.cmdArgs
-    local mcp_hub_path = cmd .. " " .. table.concat(cmdArgs, " ")
+    local mcp_hub_path = cmd .. " " .. table.concat(cmdArgs or {}, " ")
     local required_version = version.REQUIRED_NODE_VERSION.string
     info("  mcp-hub required version: " .. required_version)
     local installed_version = vim.fn.system(mcp_hub_path .. " --version")
