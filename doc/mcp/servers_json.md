@@ -67,6 +67,8 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 - `args`: Array of command arguments
 - `env`: Optional environment variables
 - `dev`: Development mode configuration for auto-restart on file changes
+- `name`: Display name that will be shown in the UI
+- `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
 
 ##### `env` Special Values
 
@@ -148,6 +150,8 @@ MCPHub supports both `streamable-http` and `sse` remote servers.
 
 ##### Optional fields:
 - `headers`: Optional authentication headers
+- `name`: Display name that will be shown in the UI
+- `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
 
 ##### `headers` Special Values
 
@@ -197,7 +201,3 @@ The `autoApprove` field allows fine-grained control over which tools are automat
 - Resources are always auto-approved by default (no explicit configuration needed)
 - Auto-approval only applies to enabled servers and enabled tools
 - You can toggle auto-approval from the UI using the `a` keymap on servers or individual tools
-
-
-
-
