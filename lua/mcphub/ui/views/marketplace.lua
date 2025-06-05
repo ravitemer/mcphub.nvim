@@ -800,6 +800,16 @@ Having issues? Visit the above url for latest README and install instructions]]
             table.insert(lines, Text.pad_line(NuiLine()))
             vim.list_extend(lines, Text.render_markdown(readme))
             table.insert(lines, Text.pad_line(NuiLine()))
+        else
+            table.insert(
+                lines,
+                self:center(
+                    NuiLine():append(
+                        string.format("README content not available, please visit `%s`", server.githubUrl),
+                        Text.highlights.warning
+                    )
+                )
+            )
         end
     end
 
