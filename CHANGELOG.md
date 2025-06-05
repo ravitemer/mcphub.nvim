@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.0] - 2025-06-05
+
+### Added
+- Use `name` field from MCP server config in the UI (#152)
+
+### Fixed
+- Bug when server has only resource templates (#147)
+- Validate MCP server config fields (#149)
+- Show error message on setup failed
+- Error concatenation in checkhealth (#153)
+- Fallback to curl to fetch marketplace data
+
+### Changed
+- Use pname in nix-flake (#146)
+- Updated sponsors in README
+
 ## [5.6.1] - 2025-05-30
 
 ## Fixed
@@ -728,6 +744,7 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 
 
 
