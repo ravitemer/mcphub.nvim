@@ -93,6 +93,16 @@ function M.mcp_tool()
                         end,
                     })
                 elseif params.action == "use_mcp_tool" then
+                    if on_log then
+                        on_log(
+                            string.format(
+                                "Calling tool `%s` on server `%s` with arguments: %s",
+                                params.tool_name,
+                                params.server_name,
+                                vim.inspect(params.arguments)
+                            )
+                        )
+                    end
                     hub:call_tool(params.server_name, params.tool_name, params.arguments, {
                         parse_response = true,
                         caller = {
