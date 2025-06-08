@@ -102,6 +102,11 @@ function M.mcp_tool()
                 end
                 local sidebar = require("avante").get()
                 if params.action == "access_mcp_resource" then
+                    if on_log then
+                        on_log(
+                            string.format("Accessing `%s` resource from server `%s`", params.uri, params.server_name)
+                        )
+                    end
                     hub:access_resource(params.server_name, params.uri, {
                         parse_response = true,
                         caller = {
