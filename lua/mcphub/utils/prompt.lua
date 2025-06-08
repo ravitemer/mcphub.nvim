@@ -117,7 +117,11 @@ local function format_resources(resources, templates)
         result = result .. "\n\n### Available Resources"
         for _, resource in ipairs(resources) do
             result = result
-                .. string.format("\n\n- %s%s", resource.uri, resource.mimeType and " (" .. resource.mimeType .. ")" or "")
+                .. string.format(
+                    "\n\n- %s%s",
+                    resource.uri,
+                    resource.mimeType and " (" .. resource.mimeType .. ")" or ""
+                )
             local desc = M.get_description(resource)
             result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
             -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
