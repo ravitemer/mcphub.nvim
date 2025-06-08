@@ -59,6 +59,27 @@ local tool_schemas = {
 
 ---@return table,table
 function M.mcp_tool()
+    local function truncate_utf8(str, max_length)
+        if type(str) ~= "string" or #str <= max_length then
+            return str
+        end
+        local i = 1
+        local bytes = #str
+        while i <= bytes and i < max_length do
+            local c = string.byte(str, i)
+            if c < 0x80 then
+                i = i + 1
+            elseif c < 0xE0 then
+                i = i + 2
+            elseif c < 0xF0 then
+                i = i + 3
+            else
+                i = i + 4
+            end
+        end
+        return str:sub(1, i - 1) .. "... (truncated)"
+    end
+
     for action_name, schema in pairs(tool_schemas) do
         schema.func = function(args, on_log, on_complete)
             ---@diagnostic disable-next-line: missing-parameter
@@ -99,7 +120,13 @@ function M.mcp_tool()
                                 "Calling tool `%s` on server `%s` with arguments: %s",
                                 params.tool_name,
                                 params.server_name,
-                                vim.inspect(params.arguments)
+                                vim.inspect(params.arguments, {
+                                    indent = "  ",
+                                    depth = 2,
+                                    process = function(item)
+                                        return truncate_utf8(item, 80)
+                                    end,
+                                })
                             )
                         )
                     end
