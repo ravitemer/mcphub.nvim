@@ -2,7 +2,6 @@
 *MCP Servers Tool*
 This tool can be used to call tools and resources from the MCP Servers.
 --]]
-local xml2lua = require("codecompanion.utils.xml.xml2lua")
 local M = {}
 
 local tool_schemas = {
@@ -34,10 +33,11 @@ local tool_schemas = {
 ---@param hub MCPHub.Hub
 ---@return string
 function M.system_prompt(hub)
-    local prompts = hub:generate_prompts({
+    local xmlok, xml2lua = pcall(require, "codecompanion.utils.xml.xml2lua")
+    local prompts = hub:generate_prompts(xmlok and {
         use_mcp_tool_example = xml2lua.toXml({ tools = { tool_schemas.use_mcp_tool } }),
         access_mcp_resource_example = xml2lua.toXml({ tools = { tool_schemas.access_mcp_resource } }),
-    })
+    } or {})
     return string.format(
         [[### `use_mcp_tool` Tool and `access_mcp_resource` Tool
 
