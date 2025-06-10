@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.1] - 2025-06-10
+
+### Changed
+- Server configuration now supports `${ENV_VAR}` and `${cmd: command args}` syntax in all fields
+- Updated mcp-hub dependency to v3.4.0 for universal `${}` placeholder syntax support
+- Updated documentation to reflect new universal placeholder syntax features
+- Better log avante tool calls 
+
 ## [5.7.0] - 2025-06-05
 
 ### Added
