@@ -65,6 +65,8 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 | **Marketplace** ||||
 | | Server Discovery | ✅ | Browse from verified MCP servers |
 | | Installation | ✅ | Manual and auto install with AI |
+| **Configuration** ||||
+| | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
 | **Advanced** ||||
 | | Smart File-watching | ✅ | Smart updates with config file watching |
 | | Multi-instance | ✅ | All neovim instances stay in sync |

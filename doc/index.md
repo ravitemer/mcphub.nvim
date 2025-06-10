@@ -91,6 +91,8 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
 | **Marketplace** ||||
 | | Server Discovery | ✅ | Browse from verified MCP servers |
 | | Installation | ✅ | Manual and auto install with AI |
+| **Configuration** ||||
+| | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
 | **Advanced** ||||
 | | Smart File-watching | ✅ | Smart updates with config file watching |
 | | Multi-instance | ✅ | All neovim instances stay in sync |
@@ -102,6 +104,7 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
 
 - [Installation Guide](/installation) - Set up MCPHub in your Neovim
 - [Configuration Guide](/configuration) - Learn about configuring MCP Hub
+
 
 
 

@@ -3,7 +3,7 @@
 MCPHub.nvim like other MCP clients uses a JSON configuration file to manage MCP servers. This `config` file is located at `~/.config/mcphub/servers.json` by default and supports real-time updates across all Neovim instances. You can set `config` option to a custom location. 
 
 > [!NOTE]
-> You can use a single config file for any MCP client like VSCode, Cursor, Cline, Zed etc as long as the config file follows the below structure. With MCPHub.nvim, `config` file can be safely added to source control as it allows some special placeholder values in the `env` and `headers` fields on MCP Servers.
+> You can use a single config file for any MCP client like VSCode, Cursor, Cline, Zed etc as long as the config file follows the below structure. With MCPHub.nvim, `config` file can be safely added to source control as it supports **universal `${}` placeholder syntax** for environment variables and command execution across all configuration fields.
 
 ## Manage Servers
 
@@ -53,34 +53,50 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 {
     "mcpServers": {
         "local-server": {
-            "command": "uvx",
-            "args": ["mcp-server-fetch"]
+            "command": "${MCP_BINARY_PATH}/server",
+            "args": [
+                "--token", "${API_TOKEN}",
+                "--secret", "${cmd: op read op://vault/secret}"
+            ],
+            "env": {
+                "API_TOKEN": "${cmd: aws ssm get-parameter --name /app/token --query Parameter.Value --output text}",
+                "DB_URL": "postgresql://user:${DB_PASSWORD}@localhost/myapp",
+                "DB_PASSWORD": "password123",
+                "FALLBACK_VAR": null
+            }
         }
     }
 }
 ```
 
 ##### Required fields:
-- `command`: The executable to start the server
+- `command`: The executable to start the server (supports `${VARIABLE}` and `${cmd: command}`)
 
 ##### Optional fields: 
-- `args`: Array of command arguments
-- `env`: Optional environment variables
+- `args`: Array of command arguments (supports `${VARIABLE}` and `${cmd: command}` placeholders)
+- `env`: Environment variables with placeholder resolution and system fallback
 - `dev`: Development mode configuration for auto-restart on file changes
 - `name`: Display name that will be shown in the UI
 - `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
 
-##### `env` Special Values
+##### Universal `${}` Placeholder Syntax
 
-The `env` field supports several special values. Given `API_KEY=secret` in the environment:
+**All fields** support the universal placeholder syntax:
+- **`${ENV_VAR}`** - Resolves environment variables
+- **`${cmd: command args}`** - Executes commands and uses output
+- **`null` or `""`** - Falls back to `process.env`
+
+Given `API_KEY=secret` in the environment:
 
 | Example | Becomes | Description |
 |-------|---------|-------------|
 | `"API_KEY": ""` | `"API_KEY": "secret"` | Empty string falls back to `process.env.API_KEY` |
-| `"API_KEY": null` | `"SERVER_URL": "secret"` | `null` falls back to `process.env.API_KEY` |
-| `"AUTH": "Bearer ${API_KEY}"` | `"AUTH": "Bearer secret"` | `${}` Placeholder values are also replaced | 
-| `"TOKEN": "$: cmd:op read op://example/token"`  | `"TOKEN": "secret"` | Values starting with `$: ` will be executed as shell command | 
-| `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is | 
+| `"API_KEY": null` | `"API_KEY": "secret"` | `null` falls back to `process.env.API_KEY` |
+| `"AUTH": "Bearer ${API_KEY}"` | `"AUTH": "Bearer secret"` | `${}` Placeholder values are replaced | 
+| `"TOKEN": "${cmd: op read op://vault/token}"` | `"TOKEN": "secret"` | Commands are executed and output used |
+| `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is |
+
+> ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 ##### `dev` Development Mode
 
@@ -136,9 +152,10 @@ MCPHub supports both `streamable-http` and `sse` remote servers.
 {
     "mcpServers": {
         "remote-server": {
-            "url": "https://api.example.com/mcp",
+            "url": "https://${PRIVATE_DOMAIN}/mcp",
             "headers": {
-                "Authorization": "Bearer ${API_KEY}"
+                "Authorization": "Bearer ${cmd: op read op://vault/api/token}",
+                "X-Custom-Header": "${CUSTOM_VALUE}"
             }
         }
     }
@@ -146,20 +163,14 @@ MCPHub supports both `streamable-http` and `sse` remote servers.
 ```
 
 ##### Required fields:
-- `url`: Remote server endpoint
+- `url`: Remote server endpoint (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 
 ##### Optional fields:
-- `headers`: Optional authentication headers
+- `headers`: Authentication headers (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `name`: Display name that will be shown in the UI
 - `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
 
-##### `headers` Special Values
-
-The `headers` field supports `${...}` Placeholder values. Given `API_KEY=secret` in the environment:
-
-| Example | Becomes | Description |
-|-------|-------------|---------|
-| `"Authorization": "Bearer ${API_KEY}"` |`"AUTH": "Bearer secret"` | `${}` Placeholder values are replaced | 
+> **Note**: Remote servers use the same universal `${}` placeholder syntax as local servers. See the Universal Placeholder Syntax section above for full details.
 
 ## MCPHub Specific Fields
 
