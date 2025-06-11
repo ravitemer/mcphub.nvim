@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.2] - 2025-06-11
+
+### Fixed
+- Fixed `${cmd: ...}` placeholders not working in remote server configs without an `env` field
+- Commands can now be executed in any config field (url, headers, args, command), not just env
+- Better handling of circular dependencies in environment variable resolution
+
 ## [5.7.1] - 2025-06-10
 
 ### Changed
