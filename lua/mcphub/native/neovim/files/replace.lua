@@ -1,4 +1,5 @@
 local Path = require("plenary.path")
+local State = require("mcphub.state")
 
 -- Helper function to count diff blocks
 local function count_diff_blocks(diff_content)
@@ -113,6 +114,37 @@ local function apply_diff_blocks(original_content, diff_content)
 
     return result
 end
+-- Helper function to safely get keymap info
+local function get_keymap_info(mode, lhs, buffer)
+    local maps = vim.api.nvim_buf_get_keymap(buffer, mode)
+    for _, map in ipairs(maps) do
+        if map.lhs == lhs then
+            return map
+        end
+    end
+    return nil
+end
+
+-- Helper function to restore keymap
+local function restore_keymap(mode, lhs, buffer, original_map)
+    if original_map then
+        -- If there was an original mapping, restore it
+        local opts = {
+            buffer = buffer,
+            desc = original_map.desc,
+            nowait = original_map.nowait == 1,
+            silent = original_map.silent == 1,
+            expr = original_map.expr == 1,
+        }
+
+        if original_map.callback then
+            vim.keymap.set(mode, lhs, original_map.callback, opts)
+        elseif original_map.rhs then
+            vim.keymap.set(mode, lhs, original_map.rhs, opts)
+        end
+    end
+end
+
 -- Core replace file logic
 local function handle_replace_file(req, res)
     if not req.params.path or not req.params.diff or req.params.diff == vim.NIL then
@@ -216,14 +248,29 @@ local function handle_replace_file(req, res)
     local response_sent = false
     local changes_diff = nil
 
+    local keymaps = State.config.builtin_tools.replace_in_file.keymaps
+        or {
+            accept = "ga",
+            reject = "gr",
+        }
+
+    -- Store original keymaps before setting temporary ones
+    local original_accept_map = get_keymap_info("n", keymaps.accept, bufnr)
+    local original_reject_map = get_keymap_info("n", keymaps.reject, bufnr)
+
     local function cleanup_diff()
         vim.cmd("diffoff!")
         if vim.api.nvim_buf_is_valid(diff_bufnr) then
             vim.api.nvim_buf_delete(diff_bufnr, { force = true })
         end
         if vim.api.nvim_buf_is_valid(bufnr) then
-            vim.keymap.del("n", "ga", { buffer = bufnr })
-            vim.keymap.del("n", "gr", { buffer = bufnr })
+            -- Safely delete our temporary keymaps and restore originals
+            pcall(vim.keymap.del, "n", keymaps.accept, { buffer = bufnr })
+            pcall(vim.keymap.del, "n", keymaps.reject, { buffer = bufnr })
+
+            -- Restore original keymaps if they existed
+            restore_keymap("n", keymaps.accept, bufnr, original_accept_map)
+            restore_keymap("n", keymaps.reject, bufnr, original_reject_map)
         end
         if not augroup_cleared then
             pcall(vim.api.nvim_del_augroup_by_id, augroup)
@@ -278,13 +325,13 @@ local function handle_replace_file(req, res)
         vim.cmd("write")
     end
 
-    -- Set up key mappings
-    vim.keymap.set("n", "ga", function()
+    -- Set up key mappings using configured keys
+    vim.keymap.set("n", keymaps.accept, function()
         vim.cmd("write")
         handle_post_write()
     end, { buffer = bufnr, desc = "Accept changes" })
 
-    vim.keymap.set("n", "gr", function()
+    vim.keymap.set("n", keymaps.reject, function()
         handle_reject()
     end, { buffer = bufnr, desc = "Reject changes" })
 

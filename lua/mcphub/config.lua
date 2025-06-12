@@ -11,6 +11,14 @@ local defaults = {
     mcp_request_timeout = 60000, --Timeout for MCP requests in milliseconds, useful for long running tasks
     ---@type table<string, NativeServerDef>
     native_servers = {},
+    builtin_tools = {
+        replace_in_file = {
+            keymaps = {
+                accept = "ga",
+                reject = "gr",
+            },
+        },
+    },
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
