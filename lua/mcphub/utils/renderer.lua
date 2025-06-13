@@ -33,8 +33,8 @@ function M.get_hub_info(state)
         [constants.HubState.READY] = Text.highlights.success,
         [constants.HubState.RESTARTING] = Text.highlights.success,
         [constants.HubState.RESTARTED] = Text.highlights.success,
-        [constants.HubState.STOPPING] = Text.highlights.warning,
-        [constants.HubState.STOPPED] = Text.highlights.warning,
+        [constants.HubState.STOPPING] = Text.highlights.warn,
+        [constants.HubState.STOPPED] = Text.highlights.warn,
         [constants.HubState.ERROR] = Text.highlights.error,
     })[state] or Text.highlights.error
     return {
@@ -69,9 +69,9 @@ function M.get_server_status_info(status, expanded)
             connected = Text.highlights.success,
             connecting = Text.highlights.success,
             restarting = Text.highlights.success,
-            disconnecting = Text.highlights.warning,
-            disconnected = Text.highlights.warning,
-            unauthorized = Text.highlights.warning,
+            disconnecting = Text.highlights.warn,
+            disconnected = Text.highlights.warn,
+            unauthorized = Text.highlights.warn,
             disabled = Text.highlights.muted,
         })[status] or Text.highlights.error,
     }
@@ -386,7 +386,7 @@ function M.render_server_line(server, active)
             line:append(" " .. Text.icons.auto .. " ", Text.highlights.success)
         elseif status == "partial" then
             -- Partial auto-approval (show count)
-            line:append(" " .. Text.icons.auto .. " " .. tostring(count) .. " ", Text.highlights.warning)
+            line:append(" " .. Text.icons.auto .. " " .. tostring(count) .. " ", Text.highlights.warn)
         end
 
         -- Helper to render capability count with active/total

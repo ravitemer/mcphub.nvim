@@ -178,7 +178,10 @@ function M.create_tab_bar(tabs, width)
         if i > 1 then
             tab_group:append(" ")
         end
-        tab_group:append(" " .. tab.text .. " ", tab.selected and M.highlights.header_accent or M.highlights.header)
+        tab_group:append(
+            " " .. tab.text .. " ",
+            tab.selected and M.highlights.button_active or M.highlights.button_inactive
+        )
     end
 
     -- Create the entire line with centered tab group

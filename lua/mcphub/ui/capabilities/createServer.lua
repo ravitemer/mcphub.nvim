@@ -71,8 +71,8 @@ function CreateServerHandler:render(line_offset)
     table.insert(lines, Text.empty_line())
 
     local install_line = NuiLine()
-        :append(" " .. Text.icons.pencil .. " ", highlights.active_item)
-        :append("Create ", highlights.active_item)
+        :append(" " .. Text.icons.pencil .. " ", highlights.header_btn)
+        :append("Create ", highlights.header_btn)
         :append(" with: ", highlights.muted)
 
     -- Check each installer

@@ -31,7 +31,6 @@ local defaults = {
     },
     ---@type table?
     wo = { -- window-scoped options (vim.wo)
-        -- winhl = "Normal:" .. hl.groups.window_normal .. ",FloatBorder:" .. hl.groups.window_border,
     },
 }
 
@@ -71,9 +70,6 @@ function UI:new(opts)
     setmetatable(instance, self)
 
     self.opts = vim.tbl_deep_extend("force", defaults, opts or {})
-    -- Setup highlights with auto-update
-    hl.setup()
-    hl.setup_auto_update()
 
     -- Initialize views
     instance:init_views()
@@ -247,12 +243,16 @@ function UI:resize_window()
     if not self.window or not vim.api.nvim_win_is_valid(self.window) then
         return
     end
+    vim.api.nvim_win_set_config(self.window, self:get_window_config())
+    -- Force a re-render of the current view
+    self:render()
+end
 
+function UI:get_window_config()
     local dims = self:calculate_window_dimensions()
     local win_opts = self.opts.window
 
-    -- Update window dimensions and position
-    vim.api.nvim_win_set_config(self.window, {
+    return {
         relative = win_opts.relative,
         width = dims.width,
         height = dims.height,
@@ -261,10 +261,7 @@ function UI:resize_window()
         style = "minimal",
         border = win_opts.border,
         zindex = win_opts.zindex,
-    })
-
-    -- Force a re-render of the current view
-    self:render()
+    }
 end
 
 --- Create a floating window
@@ -275,20 +272,8 @@ function UI:create_window()
         self:create_buffer()
     end
 
-    local dims = self:calculate_window_dimensions()
-    local win_opts = self.opts.window
-
     -- Create floating window
-    self.window = vim.api.nvim_open_win(self.buffer, true, {
-        relative = win_opts.relative,
-        width = dims.width,
-        height = dims.height,
-        row = dims.row,
-        col = dims.col,
-        style = "minimal",
-        border = win_opts.border,
-        zindex = win_opts.zindex,
-    })
+    self.window = vim.api.nvim_open_win(self.buffer, true, self:get_window_config())
 
     for k, v in pairs(self.opts.wo or {}) do
         vim.api.nvim_set_option_value(k, v, { scope = "local", win = self.window })

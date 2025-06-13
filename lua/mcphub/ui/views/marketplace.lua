@@ -716,8 +716,8 @@ function MarketplaceView:render_details_mode(line_offset)
             button_line:append("Installed", Text.highlights.success)
         else
             -- Show install button with available installers
-            button_line:append(" " .. Text.icons.octoface .. " ", Text.highlights.active_item)
-            button_line:append(" AI Install ", Text.highlights.active_item)
+            button_line:append(" " .. Text.icons.octoface .. " ", Text.highlights.header_btn)
+            button_line:append(" AI Install ", Text.highlights.header_btn)
             button_line:append(" with: ", Text.highlights.muted)
 
             -- Check each installer
@@ -760,8 +760,8 @@ Having issues? Visit the above url for latest README and install instructions]]
             table.insert(lines, Text.pad_line(NuiLine()))
             -- Install button or status
             local manual_line = NuiLine()
-            manual_line:append(" " .. Text.icons.install .. " ", Text.highlights.active_item)
-            manual_line:append(" Manual Install ", Text.highlights.active_item)
+            manual_line:append(" " .. Text.icons.install .. " ", Text.highlights.header_btn)
+            manual_line:append(" Manual Install ", Text.highlights.header_btn)
             table.insert(lines, Text.pad_line(manual_line))
             self:track_line(#lines + line_offset, "manual_install", {
                 type = "manual_install",
@@ -806,7 +806,7 @@ Having issues? Visit the above url for latest README and install instructions]]
                 self:center(
                     NuiLine():append(
                         string.format("README content not available, please visit `%s`", server.githubUrl),
-                        Text.highlights.warning
+                        Text.highlights.warn
                     )
                 )
             )

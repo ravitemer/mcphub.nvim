@@ -75,9 +75,7 @@ function ConfigView:render()
         table.insert(
             lines,
             Text.pad_line(
-                NuiLine()
-                    :append("Config File: ", Text.highlights.muted)
-                    :append("Not configured", Text.highlights.warning)
+                NuiLine():append("Config File: ", Text.highlights.muted):append("Not configured", Text.highlights.warn)
             )
         )
     end

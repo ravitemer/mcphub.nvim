@@ -35,17 +35,8 @@ local defaults = {
     },
     ---@type MCPHub.UIConfig
     ui = {
-        window = {
-            width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
-            height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
-            align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
-            border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
-            relative = "editor",
-            zindex = 50,
-        },
-        wo = { -- window-scoped options (vim.wo)
-            winhl = "Normal:MCPHubNormal,FloatBorder:MCPHubBorder",
-        },
+        window = {},
+        wo = {},
     },
     extensions = {
         ---@type MCPHubAvanteConfig
