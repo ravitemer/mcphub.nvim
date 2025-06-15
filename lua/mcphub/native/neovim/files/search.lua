@@ -48,6 +48,9 @@ local search_tools = {
         },
         handler = function(req, res)
             local params = req.params
+            if not params.pattern or params.pattern == "" then
+                return res:error("Pattern is required for file search")
+            end
             -- local path = vim.fn.expand(params.path or ".")
             local path = Path:new(params.path or "."):absolute()
             local pattern = params.pattern

@@ -2,12 +2,12 @@ local Path = require("plenary.path")
 
 -- Core write file logic
 local function handle_write_file(req, res)
-    if not req.params.path or not req.params.contents or req.params.contents == vim.NIL then
-        return res:error("Missing required parameters: path and contents")
+    if not req.params.path or not req.params.content or req.params.content == vim.NIL then
+        return res:error("Missing required parameters: path and content")
     end
     local p = Path:new(req.params.path)
     local path = p:absolute()
-    local contents = req.params.contents or ""
+    local contents = req.params.content or ""
 
     -- Ensure parent directories exist
     p:touch({ parents = true })
@@ -186,12 +186,12 @@ return {
                 type = "string",
                 description = "Path to the file to write",
             },
-            contents = {
+            content = {
                 type = "string",
                 description = "Content to write to the file",
             },
         },
-        required = { "path", "contents" },
+        required = { "path", "content" },
     },
     handler = handle_write_file,
 }
