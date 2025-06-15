@@ -19,15 +19,20 @@ The Model Context Protocol (MCP) enables communication between the system and lo
 end
 
 ---@param server_name string
+---@param header? string
 ---@return string
-local function format_custom_instructions(server_name)
+function M.format_custom_instructions(server_name, header)
     local is_native = native.is_native_server(server_name)
     local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
         or {}
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
-        return string.format("\n\n### Instructions for `%s` server\n\n" .. custom_instructions.text, server_name)
+        return string.format(
+            ((header and header ~= "") and header or "\n\n### Instructions for `%s` server\n\n")
+                .. custom_instructions.text,
+            server_name
+        )
     end
     return ""
 end
@@ -221,7 +226,7 @@ function M.server_to_text(server)
         )
     then
         -- Add custom instructions if any
-        text = text .. format_custom_instructions(server.name)
+        text = text .. M.format_custom_instructions(server.name)
 
         -- Add capabilities
         text = text .. format_tools(server.capabilities.tools)
