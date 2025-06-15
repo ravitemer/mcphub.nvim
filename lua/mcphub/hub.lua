@@ -435,6 +435,7 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
             utils.fire("MCPHubToolEnd", {
                 server = server_name,
                 tool = tool_name,
+                response = prompt_utils.parse_tool_response(response),
                 success = err == nil,
             })
             if opts.parse_response == true then
@@ -470,6 +471,7 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
             utils.fire("MCPHubToolEnd", {
                 server = server_name,
                 tool = tool_name,
+                response = prompt_utils.parse_tool_response(result),
                 success = err == nil,
             })
             return (opts.parse_response == true and prompt_utils.parse_tool_response(result) or result), err
@@ -497,6 +499,7 @@ function MCPHub:call_tool(server_name, tool_name, args, opts)
         utils.fire("MCPHubToolEnd", {
             server = server_name,
             tool = tool_name,
+            response = prompt_utils.parse_tool_response(response),
             success = err == nil,
         })
         return (opts.parse_response == true and prompt_utils.parse_tool_response(response) or response), err
