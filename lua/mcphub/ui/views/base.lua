@@ -298,6 +298,80 @@ function View:render_setup_progress(lines)
     return vim.list_extend(lines, renderer.render_server_entries(State.server_output.entries))
 end
 
+--- Render default setup state
+--- @param lines NuiLine[] Existing lines
+--- @return NuiLine[] Updated lines
+function View:render_default_setup(lines)
+    -- Title
+    table.insert(lines, Text.align_text("Welcome to MCP Hub!", self:get_width(), "center", Text.highlights.title))
+    table.insert(lines, Text.empty_line())
+
+    -- Main description
+    table.insert(
+        lines,
+        Text.align_text(
+            "MCPHub is a MCP client for neovim that integrates Model Context Protocol servers into your Neovim workflow. ",
+            self:get_width(),
+            "center",
+            Text.highlights.muted
+        )
+    )
+    table.insert(
+        lines,
+        Text.align_text(
+            "Start by configuring with one of the options below. ",
+            self:get_width(),
+            "center",
+            Text.highlights.muted
+        )
+    )
+    table.insert(lines, Text.empty_line())
+
+    -- Configuration options header
+    table.insert(lines, Text.pad_line(NuiLine():append("Configuration Options: ", Text.highlights.header)))
+    table.insert(
+        lines,
+        Text.pad_line(
+            NuiLine():append(
+                "Visit https://ravitemer.github.io/mcphub.nvim/configuration.html for all available options",
+                Text.highlights.muted
+            )
+        )
+    )
+    table.insert(lines, Text.empty_line())
+
+    local option1_line =
+        NuiLine():append("1. ", Text.highlights.info):append("Using vim.g.mcphub: ", Text.highlights.success)
+    local option1_info = NuiLine():append("   ", Text.highlights.muted):append(
+        "Set vim.g.mcphub with mcphub options as a table in your init.lua or init.vim",
+        Text.highlights.muted
+    )
+    table.insert(lines, Text.pad_line(option1_line))
+    table.insert(lines, Text.pad_line(option1_info))
+
+    local vim_g_example = NuiLine():append("   ", Text.highlights.muted):append(
+        'vim.g.mcphub = { port = 37373, config = "/abs/path/to/servers.json" , ... }',
+        Text.highlights.code
+    )
+    table.insert(lines, Text.pad_line(vim_g_example))
+    table.insert(lines, Text.empty_line())
+
+    -- Option 2: Traditional setup
+    local option2_line = NuiLine():append("2. ", Text.highlights.info):append("Using setup():", Text.highlights.success)
+    local option2_info =
+        NuiLine():append("   ", Text.highlights.muted):append("Call the mcphub.setup function ", Text.highlights.muted)
+    table.insert(lines, Text.pad_line(option2_line))
+    table.insert(lines, Text.pad_line(option2_info))
+
+    local setup_example = NuiLine()
+        :append("   ", Text.highlights.muted)
+        :append('require("mcphub").setup({ port = 37373, ... })', Text.highlights.code)
+    table.insert(lines, Text.pad_line(setup_example))
+    table.insert(lines, Text.empty_line())
+
+    return lines
+end
+
 --- Render footer with keymaps
 --- @return NuiLine[] Lines for footer
 function View:render_footer()
@@ -364,6 +438,10 @@ function View:render()
     elseif State.setup_state == "in_progress" then
         if self:should_show_setup_error() then
             return self:render_setup_progress(lines)
+        end
+    elseif State.setup_state == "not_started" then
+        if self:should_show_setup_error() then
+            return self:render_default_setup(lines)
         end
     end
 

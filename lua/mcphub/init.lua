@@ -132,15 +132,6 @@ function M.setup(opts)
     log.setup(config.log)
     State.ui_instance = require("mcphub.ui"):new(config.ui)
     State.config = config
-    vim.api.nvim_create_user_command("MCPHub", function(args)
-        if State.ui_instance then
-            State.ui_instance:toggle(args)
-        else
-            State:add_error(Error("RUNTIME", Error.Types.RUNTIME.INVALID_STATE, "UI not initialized"))
-        end
-    end, {
-        desc = "Toggle MCP Hub window",
-    })
 
     -- Validate options
     local validation_result = validation.validate_setup_opts(config)
