@@ -94,7 +94,11 @@ function M.validate_server_config(name, config)
     if type(config) ~= "table" then
         return {
             ok = false,
-            error = Error("VALIDATION", Error.Types.SETUP.INVALID_CONFIG, string.format("Server '%s' config must be a table", name)),
+            error = Error(
+                "VALIDATION",
+                Error.Types.SETUP.INVALID_CONFIG,
+                string.format("Server '%s' config must be a table", name)
+            ),
         }
     end
 
