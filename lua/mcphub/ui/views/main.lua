@@ -940,7 +940,7 @@ end
 
 function MainView:render()
     -- Handle special states from base view
-    if State.setup_state == "failed" or State.setup_state == "in_progress" then
+    if State.setup_state == "failed" or State.setup_state == "in_progress" or State.setup_state == "not_started" then
         return View.render(self)
     end
     -- Get base header
