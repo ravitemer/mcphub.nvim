@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*           For NVIM v0.10.0          Last change: 2025 May 24
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 June 16
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -169,6 +169,13 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                        Installation         ✅                 Manual and auto
                                                                install with AI
 
+  Configuration                                                
+
+                       Universal ${} Syntax ✅                 Environment
+                                                               variables and
+                                                               command execution
+                                                               across all fields
+
   Advanced                                                     
 
                        Smart File-watching  ✅                 Smart updates with
@@ -188,6 +195,11 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                                                                write tools,
                                                                resources, prompts
                                                                directly in lua
+
+                       Dev Mode             ✅                 Hot reload MCP
+                                                               servers on file
+                                                               changes for
+                                                               development
   ---------------------------------------------------------------------------------
 
 NEXT STEPS                           *mcphub.nvim-what-is-mcp-hub?-next-steps*
@@ -390,6 +402,7 @@ detail.
                     window = {
                         width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
                         height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+                        align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
                         relative = "editor",
                         zindex = 50,
                         border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
@@ -522,10 +535,17 @@ Default: `false`
 By default when the LLM calls a tool or resource on a MCP server, we show a
 confirmation window like below.
 
-Set it to to `true` to automatically approve MCP tool calls without user
+Set it to `true` to automatically approve all MCP tool calls without user
 confirmation. This also sets `vim.g.mcphub_auto_approve` variable to `true`.
 You can toggle this option in the MCP Hub UI with `ga` keymap. You can see the
 current auto approval status in the Hub UI.
+
+**Fine-Grained Auto-Approval**: For more granular control, configure
+auto-approval per server or per tool using the `autoApprove` field in your
+`servers.json`. You can also toggle auto-approval from the Hub UI using the `a`
+keymap on individual servers or tools. See servers.json configuration
+</mcp/servers_json#auto-approval-configuration> for detailed examples and
+configuration options.
 
 
 AUTO_TOGGLE_MCP_SERVERS ~
@@ -585,6 +605,7 @@ Default:
             window = {
                 width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
                 height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
+                align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
                 border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
                 relative = "editor",
                 zindex = 50,
@@ -598,9 +619,13 @@ Default:
 
 Controls the appearance and behavior of the MCPHub UI window: - `width`: Window
 width (0-1 for ratio, "50%" for percentage, or raw number) - `height`: Window
-height (same format as width) - `relative`: Window placement relative to
-("editor", "win", or "cursor") - `zindex`: Window stacking order - `border`:
-Border style ("none", "single", "double", "rounded", "solid", "shadow")
+height (same format as width) - `align`: Window alignment position. Options: -
+`"center"`: Center the window (default) - `"top-left"`, `"top-right"`,
+`"bottom-left"`, `"bottom-right"`: Corner positions - `"top"`, `"bottom"`:
+Top/bottom edge, centered horizontally - `"left"`, `"right"`: Left/right edge,
+centered vertically - `relative`: Window placement relative to ("editor",
+"win", or "cursor") - `zindex`: Window stacking order - `border`: Border style
+("none", "single", "double", "rounded", "solid", "shadow")
 
 
 ON_READY ~
@@ -652,8 +677,8 @@ default and supports real-time updates across all Neovim instances. You can set
   [!NOTE] You can use a single config file for any MCP client like VSCode,
   Cursor, Cline, Zed etc as long as the config file follows the below structure.
   With MCPHub.nvim, `config` file can be safely added to source control as it
-  allows some special placeholder values in the `env` and `headers` fields on MCP
-  Servers.
+  supports **universal ${} placeholder syntax** for environment variables and
+  command execution across all configuration fields.
 
 MANAGE SERVERS ~
 
@@ -710,59 +735,16 @@ LOCAL (STDIO) SERVERS
     {
         "mcpServers": {
             "local-server": {
-                "command": "uvx",
-                "args": ["mcp-server-fetch"]
-            }
-        }
-    }
-<
-
-
-REQUIRED FIELDS:
-
-- `command`: The executable to start the server
-
-
-OPTIONAL FIELDS:
-
-- `args`: Array of command arguments
-- `env`: Optional environment variables
-
-
-ENV SPECIAL VALUES
-
-The `env` field supports several special values. Given `API_KEY=secret` in the
-environment:
-
-  --------------------------------------------------------------------------------------------------------
-  Example                                        Becomes                   Description
-  ---------------------------------------------- ------------------------- -------------------------------
-  "API_KEY": ""                                  "API_KEY": "secret"       Empty string falls back to
-                                                                           process.env.API_KEY
-
-  "API_KEY": null                                "SERVER_URL": "secret"    null falls back to
-                                                                           process.env.API_KEY
-
-  "AUTH": "Bearer ${API_KEY}"                    "AUTH": "Bearer secret"   ${} Placeholder values are also
-                                                                           replaced
-
-  "TOKEN": "$: cmd:op read op://example/token"   "TOKEN": "secret"         Values starting with $: will be
-                                                                           executed as shell command
-
-  "HOME": "/home/ubuntu"                         "HOME": "/home/ubuntu"    Used as-is
-  --------------------------------------------------------------------------------------------------------
-
-REMOTE SERVERS
-
-MCPHub supports both `streamable-http` and `sse` remote servers.
-
->json
-    {
-        "mcpServers": {
-            "remote-server": {
-                "url": "https://api.example.com/mcp",
-                "headers": {
-                    "Authorization": "Bearer ${API_KEY}"
+                "command": "${MCP_BINARY_PATH}/server",
+                "args": [
+                    "--token", "${API_TOKEN}",
+                    "--secret", "${cmd: op read op://vault/secret}"
+                ],
+                "env": {
+                    "API_TOKEN": "${cmd: aws ssm get-parameter --name /app/token --query Parameter.Value --output text}",
+                    "DB_URL": "postgresql://user:${DB_PASSWORD}@localhost/myapp",
+                    "DB_PASSWORD": "password123",
+                    "FALLBACK_VAR": null
                 }
             }
         }
@@ -772,26 +754,134 @@ MCPHub supports both `streamable-http` and `sse` remote servers.
 
 REQUIRED FIELDS:
 
-- `url`: Remote server endpoint
+- `command`: The executable to start the server (supports `${VARIABLE}` and `${cmd: command}`)
 
 
 OPTIONAL FIELDS:
 
-- `headers`: Optional authentication headers
+- `args`: Array of command arguments (supports `${VARIABLE}` and `${cmd: command}` placeholders)
+- `env`: Environment variables with placeholder resolution and system fallback
+- `dev`: Development mode configuration for auto-restart on file changes
+- `name`: Display name that will be shown in the UI
+- `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
 
 
-HEADERS SPECIAL VALUES
+UNIVERSAL ${} PLACEHOLDER SYNTAX
 
-The `headers` field supports `${...}` Placeholder values. Given
-`API_KEY=secret` in the environment:
+**All fields** support the universal placeholder syntax: - **${ENV_VAR}** -
+Resolves environment variables - **${cmd: command args}** - Executes commands
+and uses output - **null or ""** - Falls back to `process.env`
 
-  ---------------------------------------------------------------------------------------------
-  Example                                Becomes                         Description
-  -------------------------------------- ------------------------------- ----------------------
-  "Authorization": "Bearer ${API_KEY}"   "AUTH": "Bearer secret"         ${} Placeholder values
-                                                                         are replaced
+Given `API_KEY=secret` in the environment:
 
-  ---------------------------------------------------------------------------------------------
+  -------------------------------------------------------------------------------------------------------
+  Example                                       Becomes                   Description
+  --------------------------------------------- ------------------------- -------------------------------
+  "API_KEY": ""                                 "API_KEY": "secret"       Empty string falls back to
+                                                                          process.env.API_KEY
+
+  "API_KEY": null                               "API_KEY": "secret"       null falls back to
+                                                                          process.env.API_KEY
+
+  "AUTH": "Bearer ${API_KEY}"                   "AUTH": "Bearer secret"   ${} Placeholder values are
+                                                                          replaced
+
+  "TOKEN": "${cmd: op read op://vault/token}"   "TOKEN": "secret"         Commands are executed and
+                                                                          output used
+
+  "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
+  -------------------------------------------------------------------------------------------------------
+
+  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
+
+DEV DEVELOPMENT MODE
+
+The `dev` field enables automatic server restarts when files change during
+development:
+
+>json
+    {
+        "mcpServers": {
+          "dev-server": {
+            "command": "npx",
+            "args": [
+              "tsx",
+              "path/to/src/index.ts"
+            ],
+            "dev": {
+              "watch": [
+                "src/**/*.ts",
+                "package.json"
+              ],
+              "enabled": true,
+              "cwd": "/path/to/dev-server/"
+            }
+          }
+        }
+    }
+<
+
+
+DEV CONFIGURATION OPTIONS:
+
+  -------------------------------------------------------------------------------------------------------
+  Field        Required           Default                                         Description
+  ------------ ------------------ ----------------------------------------------- -----------------------
+  cwd          Yes                -                                               Absolute path to
+                                                                                  server’s working
+                                                                                  directory
+
+  watch        No                 ["**/*.js", "**/*.ts", "**/*.py","**/*.json"]   Array of glob patterns
+                                                                                  to watch
+
+  enabled      No                 true                                            Enable/disable dev mode
+  -------------------------------------------------------------------------------------------------------
+When enabled, the server will automatically restart whenever files matching the
+watch patterns change in the specified directory. The system uses a 500ms
+debounce to prevent rapid restarts and ignores common directories like
+`node_modules`, `build`, `.git`, etc.
+
+**Example use cases:** - TypeScript/JavaScript MCP servers during development.
+Use `npx tsc index.ts` to bypass build step during development. - Python
+servers with source code changes - Configuration file updates that require
+restarts
+
+
+REMOTE SERVERS
+
+MCPHub supports both `streamable-http` and `sse` remote servers.
+
+>json
+    {
+        "mcpServers": {
+            "remote-server": {
+                "url": "https://${PRIVATE_DOMAIN}/mcp",
+                "headers": {
+                    "Authorization": "Bearer ${cmd: op read op://vault/api/token}",
+                    "X-Custom-Header": "${CUSTOM_VALUE}"
+                }
+            }
+        }
+    }
+<
+
+
+REQUIRED FIELDS:
+
+- `url`: Remote server endpoint (supports `${VARIABLE}` and `${cmd: command}` placeholders)
+
+
+OPTIONAL FIELDS:
+
+- `headers`: Authentication headers (supports `${VARIABLE}` and `${cmd: command}` placeholders)
+- `name`: Display name that will be shown in the UI
+- `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
+
+
+  **Note**: Remote servers use the same universal `${}` placeholder syntax as
+  local servers. See the Universal Placeholder Syntax section above for full
+  details.
 
 MCPHUB SPECIFIC FIELDS ~
 
@@ -805,6 +895,7 @@ MCPHub adds several extra keys for each server automatically from the UI:
                 "disabled_tools": ["expensive-tool"],
                 "disabled_resources": ["resource://large-data"],
                 "disabled_resourceTemplates": ["resource://{type}/{id}"],
+                "autoApprove": ["safe-tool", "read-only-tool"],
                 "custom_instructions": {
                     "disabled": false,
                     "text": "Custom instructions for this server"
@@ -813,6 +904,29 @@ MCPHub adds several extra keys for each server automatically from the UI:
         }
     }
 <
+
+
+AUTO-APPROVAL CONFIGURATION
+
+The `autoApprove` field allows fine-grained control over which tools are
+automatically approved without user confirmation:
+
+  ---------------------------------------------------------------------------------------------
+  Value                Behavior                    Example
+  -------------------- --------------------------- --------------------------------------------
+  true                 Auto-approve all tools on   "autoApprove": true
+                       this server                 
+
+  ["tool1", "tool2"]   Auto-approve only specific  "autoApprove": ["read_file", "list_files"]
+                       tools                       
+
+  [] or omitted        No auto-approval (show      "autoApprove": []
+                       confirmation dialog)        
+  ---------------------------------------------------------------------------------------------
+**Notes:** - Resources are always auto-approved by default (no explicit
+configuration needed) - Auto-approval only applies to enabled servers and
+enabled tools - You can toggle auto-approval from the UI using the `a` keymap
+on servers or individual tools
 
 
 LUA MCP SERVERS                      *mcphub.nvim-mcp-servers-lua-mcp-servers*
@@ -2355,8 +2469,11 @@ AUTO-APPROVAL ~
 By default, whenever avante calls `use_mcp_tool` or `access_mcp_resource` tool,
 it shows a confirm dialog with tool name, server name and arguments.
 
-You can set `auto_approve` to `true` to automatically approve MCP tool calls
-without user confirmation.
+
+GLOBAL AUTO-APPROVAL
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool
+calls without user confirmation:
 
 >lua
     require("mcphub").setup({
@@ -2368,6 +2485,42 @@ without user confirmation.
 This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
 toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
 auto approval status in the Hub UI.
+
+
+FINE-GRAINED AUTO-APPROVAL
+
+For more control, configure auto-approval per server or per tool in your
+`servers.json`:
+
+>json
+    {
+        "mcpServers": {
+            "trusted-server": {
+                "command": "npx",
+                "args": ["trusted-mcp-server"],
+                "autoApprove": true  // Auto-approve all tools on this server
+            },
+            "partially-trusted": {
+                "command": "npx", 
+                "args": ["some-mcp-server"],
+                "autoApprove": ["read_file", "list_files"]  // Only auto-approve specific tools
+            }
+        }
+    }
+<
+
+You can also toggle auto-approval from the Hub UI: - Press `a` on a server line
+to toggle auto-approval for all tools on that server - Press `a` on an
+individual tool to toggle auto-approval for just that tool - Resources are
+always auto-approved (no configuration needed)
+
+
+AUTO-APPROVAL PRIORITY
+
+The system checks auto-approval in this order: 1. **Global**:
+`vim.g.mcphub_auto_approve = true` (approves everything) 2.
+**Server-specific**: `autoApprove` field in server config 3. **Default**: Show
+confirmation dialog
 
 
 USAGE ~
@@ -2435,7 +2588,11 @@ By default, whenever codecompanion calls `use_mcp_tool` or
 `access_mcp_resource` tool, it shows a confirm dialog with tool name, server
 name and arguments.
 
-1. You can set `auto_approve` to `true` to automatically approve MCP tool calls without user confirmation.
+
+GLOBAL AUTO-APPROVAL
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool
+calls without user confirmation:
 
 >lua
     require("mcphub").setup({
@@ -2448,7 +2605,42 @@ This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
 toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
 auto approval status in the Hub UI.
 
-1. MCP Hub also respects CodeCompanion auto tool mode: `vim.g.codecompanion_auto_tool_mode = true` (toggled via `gta` in the chat buffer)
+
+FINE-GRAINED AUTO-APPROVAL
+
+For more control, configure auto-approval per server or per tool in your
+`servers.json`:
+
+>json
+    {
+        "mcpServers": {
+            "trusted-server": {
+                "command": "npx",
+                "args": ["trusted-mcp-server"],
+                "autoApprove": true  // Auto-approve all tools on this server
+            },
+            "partially-trusted": {
+                "command": "npx", 
+                "args": ["some-mcp-server"],
+                "autoApprove": ["read_file", "list_files"]  // Only auto-approve specific tools
+            }
+        }
+    }
+<
+
+You can also toggle auto-approval from the Hub UI: - Press `a` on a server line
+to toggle auto-approval for all tools on that server - Press `a` on an
+individual tool to toggle auto-approval for just that tool - Resources are
+always auto-approved (no configuration needed)
+
+
+AUTO-APPROVAL PRIORITY
+
+The system checks auto-approval in this order: 1. **Global**:
+`vim.g.mcphub_auto_approve = true` (approves everything) 2. **CodeCompanion**:
+`vim.g.codecompanion_auto_tool_mode = true` (toggled via `gta` in chat buffer)
+3. **Server-specific**: `autoApprove` field in server config 4. **Default**:
+Show confirmation dialog
 
 
 COPILOTCHAT INTEGRATION      *mcphub.nvim-extensions-copilotchat-integration-*
@@ -2649,26 +2841,32 @@ doc/other/architecture.md doc/other/troubleshooting.md
 7. Links                                                   *mcphub.nvim-links*
 
 1. *Image*: doc/https:/github.com/user-attachments/assets/21fe7703-9bc3-4c01-93ce-3230521bd5bf
-2. *Image*: doc/https:/github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6
+2. *Image*: doc/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
 3. *Image*: doc/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 4. *Image*: doc/mcp/https:/github.com/user-attachments/assets/f5c8adfa-601e-4d03-8745-75180a9d3648
 5. *Image*: doc/mcp/https:/github.com/user-attachments/assets/2d0a0d8b-18ca-4ac8-a207-4758d09d359d
 6. *Image*: doc/mcp/https:/github.com/user-attachments/assets/359bc81e-d6fe-47bb-a25b-572bf280851e
 7. *Image*: doc/mcp/https:/github.com/user-attachments/assets/1cb950da-2f7f-46e9-a623-4cc4b00cc3d0
-8. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
-9. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
-10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6
-11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-12. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
-13. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
-14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/f85380dc-e70b-4821-88a8-f1ec2c4e3cf6
-15. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-16. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
-17. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
-18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
-19. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
-20. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
-21. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
+8. *Image*: doc/mcp/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+9. *Image*: doc/mcp/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
+11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
+12. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+13. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+15. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+16. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
+17. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
+18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
+23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
+24. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
+25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
+26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
+27. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
