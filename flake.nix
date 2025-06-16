@@ -26,6 +26,15 @@
             "mcphub.extensions.lualine"
           ];
         };
+
+        devShells.default = pkgs.mkShell {
+          name = "mcphub";
+
+          packages = [
+            pkgs.stylua
+            pkgs.pandoc
+          ];
+        };
       };
     };
 }
