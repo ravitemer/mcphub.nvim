@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.4] - 2025-06-16
+
+### Added
+- Added vim.g.mcphub configuration support for package manager friendly configuration (#167)
+- Auto-setup logic for vim.g.mcphub in plugin/mcphub.lua
+- Comprehensive welcome screen for not_started state with configuration examples
+- Support for both vim.g.mcphub and traditional setup() approaches
+- Package manager friendly configuration (NixOS, rocks.nvim)
+- Added devShell with pandoc and stylua for development (#165)
+
+### Changed
+- Moved MCPHub command creation to plugin file with on-demand UI creation
+- Decoupled command creation from setup() function for better initialization
+- Maintain full backward compatibility with existing setup approaches
+
+### Fixed
+- Show better error messages with config errors (#163)
+- Fire tool call result on MCPHubToolEnd events
+
 ## [5.7.3] - 2025-06-13
 
 ### Changed
