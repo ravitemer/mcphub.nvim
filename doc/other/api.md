@@ -132,12 +132,12 @@ hub:restart()
 ```lua
 -- Call a tool (synchronously)
 local response, err = hub:call_tool(server_name, tool_name, args, {
-    return_text = true  -- Parse response to LLM-suitable text
+    parse_response = true  -- Parse response to LLM-suitable text
 })
 
 -- Call a tool (asynchronously)
 hub:call_tool(server_name, tool_name, args, {
-    return_text = true,
+    parse_response = true,
     callback = function(response, err)
         -- Handle response
     end
@@ -145,12 +145,12 @@ hub:call_tool(server_name, tool_name, args, {
 
 -- Access resource (synchronously)
 local response, err = hub:access_resource(server_name, resource_uri, {
-    return_text = true
+    parse_response = true
 })
 
 -- Access resource (asynchronously)
 hub:access_resource(server_name, resource_uri, {
-    return_text = true,
+    parse_response = true,
     callback = function(response, err)
         -- Handle response
     end
