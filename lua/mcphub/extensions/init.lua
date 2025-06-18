@@ -13,6 +13,8 @@ local M = {}
 ---@class MCPHubCodeCompanionConfig : MCPHubExtensionConfig
 ---@field make_vars boolean Whether to make variables or not
 ---@field make_slash_commands boolean Whether to make slash commands or not
+---@field make_tools boolean Whether to make individual tools and server groups or not
+---@field show_server_tools_in_chat boolean Whether to show all tools in cmp or not
 ---@field show_result_in_chat boolean Whether to show the result in chat or not
 
 ---@param extension MCPHubExtensionType
