@@ -19,6 +19,7 @@ local defaults = {
             },
         },
     },
+    ---@type boolean | fun(parsed_params: MCPHub.ParsedParams): boolean | nil | string  Function to determine if a call should be auto-approved
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
@@ -38,8 +39,8 @@ local defaults = {
         window = {},
         wo = {},
     },
+    ---@type MCPHub.Extensions.Config
     extensions = {
-        ---@type MCPHubAvanteConfig
         avante = {
             enabled = true,
             make_slash_commands = true,
