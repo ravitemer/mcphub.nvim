@@ -120,10 +120,59 @@ You can also toggle auto-approval from the Hub UI:
 - Press `a` on an individual tool to toggle auto-approval for just that tool
 - Resources are always auto-approved (no configuration needed)
 
+### Function-Based Auto-Approval
+
+For maximum control, provide a function that decides approval based on the specific tool call:
+
+```lua
+require("mcphub").setup({
+    auto_approve = function(params)
+        -- Auto-approve GitHub issue reading
+        if params.server_name == "github" and params.tool_name == "get_issue" then
+            return true -- Auto approve
+        end
+        
+        -- Block access to private repos
+        if params.arguments.repo == "private" then
+            return "You can't access my private repo" -- Error message
+        end
+        
+        -- Auto-approve safe file operations in current project
+        if params.tool_name == "read_file" then
+            local path = params.arguments.path or ""
+            if path:match("^" .. vim.fn.getcwd()) then
+                return true -- Auto approve
+            end
+        end
+        
+        -- Check if tool is configured for auto-approval in servers.json
+        if params.is_auto_approved_in_server then
+            return true -- Respect servers.json configuration
+        end
+        
+        return false -- Show confirmation prompt
+    end,
+})
+```
+
+**Parameters available in the function:**
+- `params.server_name` - Name of the MCP server
+- `params.tool_name` - Name of the tool being called (nil for resources)
+- `params.arguments` - Table of arguments passed to the tool
+- `params.action` - Either "use_mcp_tool" or "access_mcp_resource"
+- `params.uri` - Resource URI (for resource access)
+- `params.is_auto_approved_in_server` - Boolean indicating if tool is configured for auto-approval in servers.json
+
+**Return values:**
+- `true` - Auto-approve the call
+- `false` - Show confirmation prompt
+- `string` - Deny with error message
+- `nil` - Show confirmation prompt (same as false)
+
 ### Auto-Approval Priority
 
 The system checks auto-approval in this order:
-1. **Global**: `vim.g.mcphub_auto_approve = true` (approves everything)
+1. **Function**: Custom `auto_approve` function (if provided)
 2. **Server-specific**: `autoApprove` field in server config
 3. **Default**: Show confirmation dialog
 
@@ -133,6 +182,7 @@ The system checks auto-approval in this order:
 1. Start a chat in Avante
 2. All the tools, resources, templates from the running MCP servers will be added to system prompt along with `use_mcp_tool` and `access_mcp_resource` tools.
 3. Avante will call `use_mcp_tool` and `access_mcp_resource` tools when necessary
+
 
 
 
