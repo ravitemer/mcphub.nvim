@@ -1,10 +1,13 @@
+---@module "codecompanion"
 --[[
 *MCP Servers Tool adapted for function calling*
 This tool can be used to call tools and resources from the MCP Servers.
 --]]
+
 local M = {}
 local utils = require("mcphub.extensions.codecompanion.utils")
 
+---@type table<MCPHub.ActionType, table>
 local tool_schemas = {
     access_mcp_resource = {
         type = "function",
@@ -65,15 +68,14 @@ local tool_schemas = {
     },
 }
 
----@param opts MCPHubCodeCompanionConfig
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.create_tools(opts)
     local codecompanion = require("codecompanion")
-    local has_function_calling = codecompanion.has("function-calling")
-    -- vim.notify("codecompanion has function-calling: " .. tostring(has_function_calling))
+    local has_function_calling = codecompanion.has("function-calling") --[[@as boolean]]
     local tools = {
         groups = {
             mcp = {
-                description = "MCP Servers Tool",
+                description = " Call tools and resources from MCP servers with:\n\n - `use_mcp_tool`\n - `access_mcp_resource`\n",
                 system_prompt = function(_)
                     local hub = require("mcphub").get_hub_instance()
                     if not hub then
@@ -100,6 +102,7 @@ function M.create_tools(opts)
         tools[action_name] = {
             description = schema["function"].description,
             visible = false,
+            ---@class CodeCompanion.Tool.CmdRunner: CodeCompanion.Agent.Tool
             callback = {
                 name = action_name,
                 cmds = { utils.create_handler(action_name, has_function_calling, opts) },
@@ -122,7 +125,7 @@ local function silent_assert(condition, message)
     end
 end
 
----@param opts MCPHubCodeCompanionConfig
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.setup(opts)
     opts = vim.tbl_deep_extend("force", {
         make_vars = true,
@@ -153,8 +156,8 @@ function M.setup(opts)
     )
     cc_config.strategies.chat.tools =
         vim.tbl_deep_extend("force", cc_config.strategies.chat.tools, M.create_tools(opts))
-    utils.setup_codecompanion_variables(opts)
-    utils.setup_codecompanion_slash_commands(opts)
+    require("mcphub.extensions.codecompanion.slash_commands").setup(opts)
+    require("mcphub.extensions.codecompanion.variables").setup(opts)
 end
 
 return M
