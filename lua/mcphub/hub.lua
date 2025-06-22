@@ -52,6 +52,7 @@ function MCPHub:new(opts)
         server_job = nil,
         is_owner = false,
         is_shutting_down = false,
+        is_starting = false,
         mcp_request_timeout = opts.mcp_request_timeout or MCP_REQUEST_TIMEOUT,
         on_ready = opts.on_ready or function() end,
         on_error = opts.on_error or function() end,
@@ -60,10 +61,15 @@ end
 
 --- Start the MCP Hub server
 function MCPHub:start()
+    if self.is_starting then
+        vim.notify("MCP Hub is starting", vim.log.levels.WARN)
+        return
+    end
     log.debug("Starting hub")
     -- Update state
     State:update_hub_state(constants.HubState.STARTING)
     self.is_restarting = false
+    self.is_starting = true
 
     -- Check if server is already running
     self:check_server(function(is_running, is_our_server)
@@ -126,6 +132,7 @@ end
 function MCPHub:handle_hub_ready()
     self.ready = true
     self.is_restarting = false
+    self.is_starting = false
     self.on_ready(self)
     self:update_servers()
     if State.marketplace_state.status == "empty" then
@@ -139,6 +146,8 @@ function MCPHub:_clean_up()
     end
     self.is_owner = false
     self.ready = false
+    self.is_starting = false
+    self.is_restarting = false
     State:update_hub_state(constants.HubState.STOPPED)
     self:fire_hub_update()
 end
@@ -1024,13 +1033,14 @@ function MCPHub:handle_hub_stopping()
 end
 
 function MCPHub:restart(callback)
-    if self.is_restarting then
-        return vim.notify("Hub is restarting...")
-    end
-    self.is_restarting = true
     if not self:ensure_ready() then
+        return self:start()
+    end
+    if self.is_restarting then
+        vim.notify("MCP Hub is already restarting.", vim.log.levels.WARN)
         return
     end
+    self.is_restarting = true
     self:api_request("POST", "hard-restart", {
         callback = function(_, err)
             if err then
