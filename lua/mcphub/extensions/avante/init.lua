@@ -1,3 +1,4 @@
+---@module "avante"
 --[[
 *MCP Servers Tool*
 This tool can be used to call tools and resources from the MCP Servers.
@@ -6,10 +7,17 @@ M.mcp_tool() will return a use_mcp_tool and access_mcp_resource function schemas
 M.use_mcp_tool() will return schema for calling tools on MCP servers.
 M.access_mcp_resource() will return schema for accessing resources on MCP servers.
 --]]
-local M = {}
-local async = require("plenary.async")
-local shared = require("mcphub.extensions.shared")
 
+---@class MCPHub.Extensions.Avante
+---@field setup function(config: MCPHub.Extensions.AvanteConfig) Setup slash commands and other configurations for Avante extension
+---@field mcp_tool fun(): AvanteLLMTool,AvanteLLMTool
+---@field use_mcp_tool AvanteLLMTool
+---@field access_mcp_resource AvanteLLMTool
+
+---@class MCPHub.Extensions.Avante
+local M = {}
+
+---@type table<MCPHub.ActionType, AvanteLLMTool>
 local tool_schemas = {
     use_mcp_tool = {
         name = "use_mcp_tool",
@@ -34,6 +42,7 @@ local tool_schemas = {
                 },
             },
         },
+        returns = {}, -- Will be added dynamically in mcp_tool()
     },
 
     access_mcp_resource = {
@@ -54,11 +63,16 @@ local tool_schemas = {
                 },
             },
         },
+        returns = {}, -- Will be added dynamically in mcp_tool()
     },
 }
 
----@return table,table
+---@return AvanteLLMTool use_mcp_tool
+---@return AvanteLLMTool access_mcp_resource
 function M.mcp_tool()
+    ---@param str string
+    ---@param max_length number
+    ---@return string
     local function truncate_utf8(str, max_length)
         if type(str) ~= "string" or #str <= max_length then
             return str
@@ -80,7 +94,10 @@ function M.mcp_tool()
         return str:sub(1, i - 1) .. "... (truncated)"
     end
 
+    local async = require("plenary.async")
+    local shared = require("mcphub.extensions.shared")
     for action_name, schema in pairs(tool_schemas) do
+        ---@type AvanteLLMToolFunc<MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs>
         schema.func = function(args, on_log, on_complete)
             ---@diagnostic disable-next-line: missing-parameter
             async.run(function()
@@ -92,13 +109,10 @@ function M.mcp_tool()
                 if #params.errors > 0 then
                     return on_complete(nil, table.concat(params.errors, "\n"))
                 end
-                -- Check both global and server-specific auto-approval
-                local auto_approve = vim.g.mcphub_auto_approve == true or params.should_auto_approve
-                if not auto_approve then
-                    local confirmed = shared.show_mcp_tool_prompt(params)
-                    if not confirmed then
-                        return on_complete(nil, "User cancelled the operation")
-                    end
+
+                local result = shared.handle_auto_approval_decision(params)
+                if result.error then
+                    return on_complete(nil, result.error)
                 end
                 local sidebar = require("avante").get()
                 if params.action == "access_mcp_resource" then
@@ -154,6 +168,8 @@ function M.mcp_tool()
                 end
             end)
         end
+
+        ---@type AvanteLLMToolReturn[]
         schema.returns = {
             {
                 name = "result",
@@ -171,6 +187,13 @@ function M.mcp_tool()
     end
     ---@diagnostic disable-next-line: redundant-return-value
     return unpack(vim.tbl_values(tool_schemas))
+end
+
+---@param config MCPHub.Extensions.AvanteConfig
+function M.setup(config)
+    if config.make_slash_commands then
+        require("mcphub.extensions.avante.slash_commands").setup()
+    end
 end
 
 return M

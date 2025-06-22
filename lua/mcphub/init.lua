@@ -110,7 +110,7 @@ function M.setup(opts)
         ImageCache.setup()
 
         -- Setup Extensions
-        require("mcphub.extensions").setup("avante", config.extensions.avante)
+        require("mcphub.extensions").setup(config.extensions)
         -- Start hub
         hub:start()
     end
