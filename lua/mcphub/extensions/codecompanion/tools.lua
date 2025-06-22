@@ -107,7 +107,7 @@ function M.create_static_tools(opts)
         groups = {
             mcp = {
                 id = "mcp_static:mcp",
-                description = "MCP Servers Tool",
+                description = " Call tools and resources from MCP servers with:\n\n - `use_mcp_tool`\n - `access_mcp_resource`\n",
                 system_prompt = function(_)
                     local hub = require("mcphub").get_hub_instance()
                     if not hub then
@@ -281,7 +281,7 @@ function M.register(opts)
 
                 groups[safe_server_name] = {
                     id = "mcp_dynamic:" .. safe_server_name,
-                    description = string.format(" All tools from %s MCP server ", server_name),
+                    description = string.format(" All tools from `%s` MCP server: \n\n%s", server_name, table.concat(vim.tbl_map(function(t) return " - `" .. t .. "` " end,tool_names), "\n")),
                     tools = tool_names,
                     system_prompt = function(self)
                         if custom_instructions and custom_instructions ~= "" then
