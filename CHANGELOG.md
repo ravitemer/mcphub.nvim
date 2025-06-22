@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.8.0] - 2025-06-23
+
+### Added
+
+- Function-based auto-approval system for MCP tool calls (#173)
+  - `auto_approve` can now be a function that receives tool call parameters
+  - Function receives `server_name`, `tool_name`, `arguments`, `action`, `uri`, and `is_auto_approved_in_server`
+  - Return `true` to approve, `false` to prompt, or `string` to deny with custom error message
+  - Enables sophisticated approval logic based on tool arguments and context
+  - Backward compatible with existing boolean and server-level configuration
+
+### Changed
+
+- **Breaking**: Removed automatic `vim.g.codecompanion_auto_tool_mode` checking in CodeCompanion integration
+  - Users can achieve the same behavior by checking this variable in their custom `auto_approve` function
+  - Simplifies auto-approval logic and removes plugin-specific dependencies
+- Refactored extension system for better modularity and type safety
+- Updated auto-approval priority: function-based → server config → user prompt
+- Enhanced hub startup logic with better state management and restart handling
+
+### Documentation
+
+- Added comprehensive function-based auto-approval examples and parameter documentation
+- Updated integration guides for Avante and CodeCompanion with new auto-approval patterns
+- Added real-world examples for GitHub access control and project-scoped operations
+
 ## [5.7.5] - 2025-06-18
 
 ### Fixed
@@ -845,3 +871,4 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
