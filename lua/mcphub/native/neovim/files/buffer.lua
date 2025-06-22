@@ -75,14 +75,14 @@ return {
 
         local text = string.format(
             [[
->> Buffer Information
+## Buffer Information
 Name: %s
 Bufnr: %d
 Lines: %d
 Cursor: line %d
 
 %s
->> Buffer Content
+## Buffer Content
 %s%s%s
 ]],
             buf_info.filename,

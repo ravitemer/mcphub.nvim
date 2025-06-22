@@ -101,7 +101,7 @@ Command Execution Guide:
             command = {
                 type = "string",
                 description = "Shell command to execute",
-                examples = [["ls -la"]],
+                examples = { [["ls -la"]] },
             },
             cwd = {
                 type = "string",
