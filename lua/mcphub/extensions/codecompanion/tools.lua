@@ -1,6 +1,8 @@
 local M = {}
 local core = require("mcphub.extensions.codecompanion.core")
 
+local mcphub = require("mcphub")
+
 -- Utility functions for naming
 local function make_safe_name(name)
     return name:gsub("[^%w_]", "_")
@@ -175,161 +177,167 @@ local function cleanup_dynamic_items(config)
     end
 end
 
--- Setup dynamic tools (individual tools + server groups)
-function M.setup_dynamic_tools(opts)
-    if not opts.make_tools then
+function M.register(opts)
+    local hub = mcphub.get_hub_instance()
+    if not hub then
         return
     end
 
-    local mcphub = require("mcphub")
+    local ok, config = pcall(require, "codecompanion.config")
+    if not ok then
+        return
+    end
 
-    mcphub.on({ "servers_updated", "tool_list_changed" }, function(_)
-        local hub = mcphub.get_hub_instance()
-        if not hub then
-            return
+    -- Cleanup existing dynamic items
+    cleanup_dynamic_items(config)
+
+    local tools = config.strategies.chat.tools
+    local groups = tools.groups or {}
+
+    -- Get servers and process in one go
+    local servers = hub:get_servers()
+    local server_tools = {} -- Map safe_server_name -> {tool_names, server_name}
+    local used_safe_names = {}
+    local skipped_tools = {}
+    local skipped_groups = {}
+
+    -- Process servers: create unique safe names and individual tools
+    for _, server in ipairs(servers) do
+        local safe_name = make_safe_name(server.name)
+        local counter = 1
+        local original_safe_name = safe_name
+
+        -- Ensure unique safe name
+        while used_safe_names[safe_name] do
+            safe_name = original_safe_name .. "_" .. counter
+            counter = counter + 1
         end
 
-        local ok, config = pcall(require, "codecompanion.config")
-        if not ok then
-            return
+        used_safe_names[safe_name] = true
+
+        -- Check if this safe_name conflicts with existing group
+        if groups[safe_name] then
+            table.insert(skipped_groups, safe_name)
+            -- Skip this entire server to avoid confusing individual tools
+            goto continue
         end
 
-        -- Cleanup existing dynamic items
-        cleanup_dynamic_items(config)
+        server_tools[safe_name] = { tool_names = {}, server_name = server.name }
 
-        local tools = config.strategies.chat.tools
-        local groups = tools.groups or {}
+        -- Create individual tools for this server
+        if server.capabilities and server.capabilities.tools then
+            for _, tool in ipairs(server.capabilities.tools) do
+                local tool_name = tool.name
+                local namespaced_tool_name = create_namespaced_tool_name(safe_name, tool_name)
 
-        -- Get servers and process in one go
-        local servers = hub:get_servers()
-        local server_tools = {} -- Map safe_server_name -> {tool_names, server_name}
-        local used_safe_names = {}
-        local skipped_tools = {}
-        local skipped_groups = {}
+                -- Check for tool name conflicts (after cleanup, no mcp_dynamic should exist)
+                if tools[namespaced_tool_name] then
+                    table.insert(skipped_tools, namespaced_tool_name)
+                else
+                    -- Track for server group
+                    table.insert(server_tools[safe_name].tool_names, namespaced_tool_name)
 
-        -- Process servers: create unique safe names and individual tools
-        for _, server in ipairs(servers) do
-            local safe_name = make_safe_name(server.name)
-            local counter = 1
-            local original_safe_name = safe_name
-
-            -- Ensure unique safe name
-            while used_safe_names[safe_name] do
-                safe_name = original_safe_name .. "_" .. counter
-                counter = counter + 1
-            end
-
-            used_safe_names[safe_name] = true
-
-            -- Check if this safe_name conflicts with existing group
-            if groups[safe_name] then
-                table.insert(skipped_groups, safe_name)
-                -- Skip this entire server to avoid confusing individual tools
-                goto continue
-            end
-
-            server_tools[safe_name] = { tool_names = {}, server_name = server.name }
-
-            -- Create individual tools for this server
-            if server.capabilities and server.capabilities.tools then
-                for _, tool in ipairs(server.capabilities.tools) do
-                    local tool_name = tool.name
-                    local namespaced_tool_name = create_namespaced_tool_name(safe_name, tool_name)
-
-                    -- Check for tool name conflicts (after cleanup, no mcp_dynamic should exist)
-                    if tools[namespaced_tool_name] then
-                        table.insert(skipped_tools, namespaced_tool_name)
-                    else
-                        -- Track for server group
-                        table.insert(server_tools[safe_name].tool_names, namespaced_tool_name)
-
-                        -- Add individual tool
-                        tools[namespaced_tool_name] = {
-                            id = "mcp_dynamic:" .. safe_name .. ":" .. tool_name,
-                            description = tool.description,
-                            callback = {
-                                name = namespaced_tool_name,
-                                cmds = { create_individual_tool_handler(server.name, tool_name, opts) },
-                                output = core.create_output_handlers(namespaced_tool_name, true, opts),
-                                visible = opts.show_server_tools_in_chat == true,
-                                schema = {
-                                    type = "function",
-                                    ["function"] = {
-                                        name = namespaced_tool_name,
-                                        description = tool.description,
-                                        parameters = tool.inputSchema,
-                                    },
+                    -- Add individual tool
+                    tools[namespaced_tool_name] = {
+                        id = "mcp_dynamic:" .. safe_name .. ":" .. tool_name,
+                        description = tool.description,
+                        callback = {
+                            name = namespaced_tool_name,
+                            cmds = { create_individual_tool_handler(server.name, tool_name, opts) },
+                            output = core.create_output_handlers(namespaced_tool_name, true, opts),
+                            visible = opts.show_server_tools_in_chat == true,
+                            schema = {
+                                type = "function",
+                                ["function"] = {
+                                    name = namespaced_tool_name,
+                                    description = tool.description,
+                                    parameters = tool.inputSchema,
                                 },
                             },
-                        }
-                    end
-                end
-            end
-
-            ::continue::
-        end
-
-        -- Create server groups
-        local prompt_utils = require("mcphub.utils.prompt")
-        for safe_server_name, server_data in pairs(server_tools) do
-            local tool_names = server_data.tool_names
-            local server_name = server_data.server_name
-
-            -- Only create group if it has tools and no conflict
-            if #tool_names > 0 then
-                if groups[safe_server_name] then
-                    table.insert(skipped_groups, safe_server_name)
-                else
-                    local custom_instructions = prompt_utils.format_custom_instructions(
-                        server_name,
-                        "\n\n### Instructions for " .. safe_server_name .. " tools\n\n"
-                    )
-
-                    groups[safe_server_name] = {
-                        id = "mcp_dynamic:" .. safe_server_name,
-                        description = string.format(" All tools from %s MCP server ", server_name),
-                        tools = tool_names,
-                        system_prompt = function(self)
-                            if custom_instructions and custom_instructions ~= "" then
-                                return custom_instructions
-                            end
-                        end,
-                        opts = {
-                            collapse_tools = true,
                         },
                     }
                 end
             end
         end
 
-        -- Silent warnings for conflicts
-        if #skipped_tools > 0 then
-            vim.notify(
-                string.format(
-                    "Skipped adding %d tool(s) to codecompanion due to name conflicts: %s",
-                    #skipped_tools,
-                    table.concat(skipped_tools, ", ")
-                ),
-                vim.log.levels.WARN,
-                { title = "MCPHub" }
-            )
-        end
+        ::continue::
+    end
 
-        if #skipped_groups > 0 then
-            vim.notify(
-                string.format(
-                    "Skipped adding %d server group(s) to codecompanion due to name conflicts: %s",
-                    #skipped_groups,
-                    table.concat(skipped_groups, ", ")
-                ),
-                vim.log.levels.WARN,
-                { title = "MCPHub" }
-            )
-        end
+    -- Create server groups
+    local prompt_utils = require("mcphub.utils.prompt")
+    for safe_server_name, server_data in pairs(server_tools) do
+        local tool_names = server_data.tool_names
+        local server_name = server_data.server_name
 
-        -- Update syntax highlighting
-        M.update_syntax_highlighting(server_tools)
+        -- Only create group if it has tools and no conflict
+        if #tool_names > 0 then
+            if groups[safe_server_name] then
+                table.insert(skipped_groups, safe_server_name)
+            else
+                local custom_instructions = prompt_utils.format_custom_instructions(
+                    server_name,
+                    "\n\n### Instructions for " .. safe_server_name .. " tools\n\n"
+                )
+
+                groups[safe_server_name] = {
+                    id = "mcp_dynamic:" .. safe_server_name,
+                    description = string.format(" All tools from %s MCP server ", server_name),
+                    tools = tool_names,
+                    system_prompt = function(self)
+                        if custom_instructions and custom_instructions ~= "" then
+                            return custom_instructions
+                        end
+                    end,
+                    opts = {
+                        collapse_tools = true,
+                    },
+                }
+            end
+        end
+    end
+
+    -- Silent warnings for conflicts
+    if #skipped_tools > 0 then
+        vim.notify(
+            string.format(
+                "Skipped adding %d tool(s) to codecompanion due to name conflicts: %s",
+                #skipped_tools,
+                table.concat(skipped_tools, ", ")
+            ),
+            vim.log.levels.WARN,
+            { title = "MCPHub" }
+        )
+    end
+
+    if #skipped_groups > 0 then
+        vim.notify(
+            string.format(
+                "Skipped adding %d server group(s) to codecompanion due to name conflicts: %s",
+                #skipped_groups,
+                table.concat(skipped_groups, ", ")
+            ),
+            vim.log.levels.WARN,
+            { title = "MCPHub" }
+        )
+    end
+
+    -- Update syntax highlighting
+    M.update_syntax_highlighting(server_tools)
+end
+-- Setup dynamic tools (individual tools + server groups)
+function M.setup_dynamic_tools(opts)
+    if not opts.make_tools then
+        return
+    end
+    vim.schedule(function()
+        M.register(opts)
     end)
+    mcphub.on(
+        { "servers_updated", "tool_list_changed" },
+        vim.schedule_wrap(function()
+            M.register(opts)
+        end)
+    )
 end
 
 -- Update syntax highlighting for new tools
