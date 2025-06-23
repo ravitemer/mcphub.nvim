@@ -30,6 +30,8 @@ docs: deps/panvimdoc
 		-t deps/panvimdoc/scripts/panvimdoc.lua \
 		scripts/vimdoc.md \
 		-o doc/mcphub.txt
+	@echo Generating Help Tags...
+	@nvim --headless --cmd "helptags doc" --cmd "quit"
 
 deps: deps/plenary.nvim deps/nvim-treesitter deps/mini.nvim deps/panvimdoc
 	@echo Pulling...
@@ -49,4 +51,5 @@ deps/mini.nvim:
 deps/panvimdoc:
 	@mkdir -p deps
 	git clone --filter=blob:none https://github.com/kdheepak/panvimdoc $@
+
 
