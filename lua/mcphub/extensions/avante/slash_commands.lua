@@ -1,4 +1,5 @@
 local mcphub = require("mcphub")
+local shared = require("mcphub.extensions.shared")
 
 local M = {}
 
@@ -53,7 +54,7 @@ function M.register()
             name = "mcp:" .. server_name .. ":" .. prompt_name,
             description = description,
             callback = function(sidebar, args, cb)
-                M.collect_arguments(arguments, function(values)
+                shared.collect_arguments(arguments, function(values)
                     local response, err = hub:get_prompt(server_name, prompt_name, values, {
                         caller = {
                             type = "avante",
