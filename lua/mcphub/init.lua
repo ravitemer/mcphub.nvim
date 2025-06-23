@@ -110,7 +110,7 @@ function M.setup(opts)
         ImageCache.setup()
 
         -- Setup Extensions
-        require("mcphub.extensions").setup("avante", config.extensions.avante)
+        require("mcphub.extensions").setup(config.extensions)
         -- Start hub
         hub:start()
     end
@@ -126,7 +126,7 @@ function M.setup(opts)
     local cmds = utils.get_default_cmds(config)
     config.cmd = cmds.cmd
     config.cmdArgs = cmds.cmdArgs
-    if config.auto_approve then
+    if type(config.auto_approve) == "boolean" and config.auto_approve == true then
         vim.g.mcphub_auto_approve = vim.g.mcphub_auto_approve == nil and true or vim.g.mcphub_auto_approve
     end
     log.setup(config.log)

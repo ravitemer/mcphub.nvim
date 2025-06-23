@@ -74,7 +74,7 @@ function M.register()
     M.update_variable_syntax(resources)
 end
 -- Setup MCP resources as CodeCompanion variables
----@param opts MCPHubCodeCompanionConfig
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.setup(opts)
     if not opts.make_vars then
         return
@@ -90,7 +90,8 @@ function M.setup(opts)
     )
 end
 
--- Update syntax highlighting for variables
+--- Update syntax highlighting for variables
+---@param resources MCPResource[]
 function M.update_variable_syntax(resources)
     vim.schedule(function()
         for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do

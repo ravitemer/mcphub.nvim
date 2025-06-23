@@ -118,8 +118,8 @@ function M.register()
     end
 end
 
--- Setup MCP prompts as CodeCompanion slash commands
----@param opts MCPHubCodeCompanionConfig
+--- Setup MCP prompts as CodeCompanion slash commands
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.setup(opts)
     if not opts.make_slash_commands then
         return

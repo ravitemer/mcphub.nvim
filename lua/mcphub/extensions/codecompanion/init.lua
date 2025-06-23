@@ -1,9 +1,12 @@
-local M = {}
-local slash_commands = require("mcphub.extensions.codecompanion.slash_commands")
-local tools = require("mcphub.extensions.codecompanion.tools")
-local variables = require("mcphub.extensions.codecompanion.variables")
+---@module "codecompanion"
+--[[
+*MCP Servers Tool adapted for function calling*
+This tool can be used to call tools and resources from the MCP Servers.
+--]]
 
----@param opts MCPHubCodeCompanionConfig
+local M = {}
+
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.setup(opts)
     opts = vim.tbl_deep_extend("force", {
         make_tools = true,
@@ -16,6 +19,8 @@ function M.setup(opts)
     if not ok then
         return
     end
+
+    local tools = require("mcphub.extensions.codecompanion.tools")
     ---Add @mcp group with `use_mcp_tool` and `access_mcp_resource` tools
     local static_tools = tools.create_static_tools(opts)
     cc_config.strategies.chat.tools = vim.tbl_deep_extend("force", cc_config.strategies.chat.tools, static_tools)
@@ -24,10 +29,10 @@ function M.setup(opts)
     tools.setup_dynamic_tools(opts)
 
     --- Make MCP resources into chat #variables
-    variables.setup(opts)
+    require("mcphub.extensions.codecompanion.variables").setup(opts)
 
     --- Make MCP prompts into slash commands
-    slash_commands.setup(opts)
+    require("mcphub.extensions.codecompanion.slash_commands").setup(opts)
 end
 
 return M

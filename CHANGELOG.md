@@ -5,9 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.8.0] - 2025-06-23
+
+### Added
+
+- Function-based auto-approval system for MCP tool calls (#173)
+  - `auto_approve` can now be a function that receives tool call parameters
+  - Function receives `server_name`, `tool_name`, `arguments`, `action`, `uri`, and `is_auto_approved_in_server`
+  - Return `true` to approve, `false` to prompt, or `string` to deny with custom error message
+  - Enables sophisticated approval logic based on tool arguments and context
+  - Backward compatible with existing boolean and server-level configuration
+
+### Changed
+
+- **Breaking**: Removed automatic `vim.g.codecompanion_auto_tool_mode` checking in CodeCompanion integration
+  - Users can achieve the same behavior by checking this variable in their custom `auto_approve` function
+  - Simplifies auto-approval logic and removes plugin-specific dependencies
+- Refactored extension system for better modularity and type safety
+- Updated auto-approval priority: function-based → server config → user prompt
+- Enhanced hub startup logic with better state management and restart handling
+
+### Documentation
+
+- Added comprehensive function-based auto-approval examples and parameter documentation
+- Updated integration guides for Avante and CodeCompanion with new auto-approval patterns
+- Added real-world examples for GitHub access control and project-scoped operations
+
+## [5.7.5] - 2025-06-18
+
+### Fixed
+
+- Fixed nested placeholder resolution in environment variables not working correctly (#170)
+
+### Changed
+
+- Updated mcp-hub dependency to v3.4.5 for improved nested placeholder resolution
+
 ## [5.7.4] - 2025-06-16
 
 ### Added
+
 - Added vim.g.mcphub configuration support for package manager friendly configuration (#167)
 - Auto-setup logic for vim.g.mcphub in plugin/mcphub.lua
 - Comprehensive welcome screen for not_started state with configuration examples
@@ -16,27 +53,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added devShell with pandoc and stylua for development (#165)
 
 ### Changed
+
 - Moved MCPHub command creation to plugin file with on-demand UI creation
 - Decoupled command creation from setup() function for better initialization
 - Maintain full backward compatibility with existing setup approaches
 
 ### Fixed
+
 - Show better error messages with config errors (#163)
 - Fire tool call result on MCPHubToolEnd events
 
 ## [5.7.3] - 2025-06-13
 
 ### Changed
+
 - Added proper plugin initialization with highlight setup
 - Refactored highlights to use theme-linked groups instead of custom colors (#158)
 - configurable builtin replace_in_file tool keymaps (#159)
 
 ### Fixed
+
 - Fixed env resolution strict mode preventing server startups
 
 ## [5.7.2] - 2025-06-11
 
 ### Fixed
+
 - Fixed `${cmd: ...}` placeholders not working in remote server configs without an `env` field
 - Commands can now be executed in any config field (url, headers, args, command), not just env
 - Better handling of circular dependencies in environment variable resolution
@@ -44,17 +86,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [5.7.1] - 2025-06-10
 
 ### Changed
+
 - Server configuration now supports `${ENV_VAR}` and `${cmd: command args}` syntax in all fields
 - Updated mcp-hub dependency to v3.4.0 for universal `${}` placeholder syntax support
 - Updated documentation to reflect new universal placeholder syntax features
-- Better log avante tool calls 
+- Better log avante tool calls
 
 ## [5.7.0] - 2025-06-05
 
 ### Added
+
 - Use `name` field from MCP server config in the UI (#152)
 
 ### Fixed
+
 - Bug when server has only resource templates (#147)
 - Validate MCP server config fields (#149)
 - Show error message on setup failed
@@ -62,20 +107,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fallback to curl to fetch marketplace data
 
 ### Changed
+
 - Use pname in nix-flake (#146)
 - Updated sponsors in README
 
 ## [5.6.1] - 2025-05-30
 
 ## Fixed
+
 - Tool list changed event not updating in the UI
 
 ### Changed
+
 - Updated mcp-hub dependency to v3.3.1 for improved subscription event handling
 
 ## [5.6.0] - 2025-05-28
 
 ### Added
+
 - Fine-grained auto-approval support for servers and tools
 - `autoApprove` field in server config (boolean or string array)
 - `a` keymap to toggle auto-approval on servers and individual tools
@@ -83,49 +132,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for editing native server config fields from UI
 
 ### Changed
+
 - Resources are now always auto-approved by default
 - Enhanced confirmation prompt UI
 
 ### Fixed
+
 - Nix flake now includes plenary dependency
 
 ## [5.5.0] - 2025-05-26
 
 ### Added
+
 - Dev mode support for automatic MCP server restart on file changes during development
 - Documentation for `dev` configuration field with watch patterns and working directory
 - Enhanced development workflow with hot reload capabilities
 
 ### Changed
+
 - Updated mcp-hub dependency to v3.3.0 for dev mode support
 
 ## [5.4.0] - 2025-05-24
 
 ### Added
+
 - Beautiful tool confirmation dialog with floating window
 - Syntax highlighting for parameters in confirmation dialog
 - Support for multiline strings in tool confirmations
 
 ### Fixed
+
 - Tool confirmation dialog not displaying properly (#131)
 - Screen flashing issue during confirmation prompts
 
 ## [5.3.1] - 2025-05-24
 
 ### Added
+
 - For long running tools or prompts or resources, we can now set `mcp_request_timeout` in ms to wait for the execution to finish. Defaults to 60s.
 
 ### Changed
+
 - Updated mcp-hub dependency version
 
 ## [5.3.0] - 2025-05-22
 
 ### Added
+
 - Added image support in CodeCompanion extension
 
 ### Fixed
+
 - Fixed empty tool responses handling in extensions
-- Fixed multiline input box not opening while testing capabilities 
+- Fixed multiline input box not opening while testing capabilities
 - Fixed MCP server stderr output being incorrectly logged as warning
 - Fixed padding issues when no servers are present
 - Fixed editor not opening while adding servers from marketplace detail view
@@ -133,47 +192,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed deprecated replace_headers usage (fixes #122)
 
 ### Changed
+
 - Complete overhaul of documentation with new GitHub pages website
-  * Updated sponsors section
-  * Migrated content from wiki
+  - Updated sponsors section
+  - Migrated content from wiki
 - Added more TypeScript type definitions for better code quality
 - Updated mcp-hub dependency version
 
 ## [5.2.0] - 2025-05-06
 
 ### Added
+
 - Support for `$: cmd arg1 arg2` syntax in env config to execute shell commands to resolve env values
-- E.g 
+- E.g
 
 ```json
 {
-    "command": "npx",
-    "args": [
-      "-y",
-      "@modelcontextprotocol/server-everything"
-    ],
-    "env": {
-        "MY_ENV_VAR": "$: cmd:op read op://mysecret/myenvvar"
-    }
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-everything"],
+  "env": {
+    "MY_ENV_VAR": "$: cmd:op read op://mysecret/myenvvar"
+  }
 }
 ```
 
 ## [5.1.0] - 2025-05-06
 
 ### Changed
+
 - Improved UX for tool execution results in CodeCompanion chat
-  * Better formatted success messages showing tool name
-  * Modified tool output display for clearer feedback
-  * Silent error throwing for better UX in chat plugins
+  - Better formatted success messages showing tool name
+  - Modified tool output display for clearer feedback
+  - Silent error throwing for better UX in chat plugins
 
 ### Fixed
-- Enhanced error handling and propagation for MCP tool execution
-  * Consistent error handling across Avante and CodeCompanion
-- Fixed bugs in first-time config creation
-  * Ensure config directory exists before file creation
-  * Fixed default configuration JSON encoding (empty dict instead of array)
-- Enhanced server deletion UX by replacing confirm with select menu
 
+- Enhanced error handling and propagation for MCP tool execution
+  - Consistent error handling across Avante and CodeCompanion
+- Fixed bugs in first-time config creation
+  - Ensure config directory exists before file creation
+  - Fixed default configuration JSON encoding (empty dict instead of array)
+- Enhanced server deletion UX by replacing confirm with select menu
 
 ## [5.0.1] - 2025-05-03
 
@@ -188,7 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 In view of v15 release of codecompanion, we have made some breaking changes to the mcphub.nvim plugin.
 
-* Now mcphub provides `@mcp` as both an xml tool (when using `has-xml-tools` branch of codecompanion) as well as a function tool (with `main` branch of codecompanion) automatically based on the codecompanion branch.
+- Now mcphub provides `@mcp` as both an xml tool (when using `has-xml-tools` branch of codecompanion) as well as a function tool (with `main` branch of codecompanion) automatically based on the codecompanion branch.
 
 1. 🚨 You need to remove the old mcp tool entry from codecompanion.config.strategies.chat.tools
 
@@ -210,6 +269,7 @@ require("codecompanion").setup({
   },
 })
 ```
+
 2. codecompanion extension is now more streamlined in one place using the codecompanoin's extensions api.
 
 ```lua
@@ -229,22 +289,24 @@ extensions = {
 
 ```
 
-* The `@mcp` tool is split into two separate tools `use_mcp_tool` and `access_mcp_resource`
-* mcphub.config.extensions.codecompanion is deprecated as the options are now declared at codecompanion extension itself.
-
+- The `@mcp` tool is split into two separate tools `use_mcp_tool` and `access_mcp_resource`
+- mcphub.config.extensions.codecompanion is deprecated as the options are now declared at codecompanion extension itself.
 
 ## [4.11.0] - 2025-04-25
 
 ### Added
+
 - Added support for ${} placeholder values in env and headers (#100)
 - Modified "R" key to kill and restart mcp-hub to reload latest process.env (#98)
 
 ### Fixed
+
 - Fixed notifications persisting from stopped servers
 - Fixed false positive modified triggers for servers with env field containing falsy values
 - Fixed system prompt to ensure exact server names are used
 
 ### Documentation
+
 - Updated lualine documentation
 - Updated README with ${} placeholder support
 - Updated TODOs
@@ -252,6 +314,7 @@ extensions = {
 ## [4.10.0] - 2025-04-23
 
 ### Added
+
 - Full support for MCP 2025-03-26 specification
 - Streamable-HTTP transport support with OAuth PKCE flow
 - SSE fallback transport for remote servers
@@ -260,7 +323,8 @@ extensions = {
 - Comprehensive capabilities matrix in documentation
 
 ### Documentation
-- Improved installation instructions 
+
+- Improved installation instructions
 - Enhanced server configuration examples
 - Complete rewrite of features section
 - Added official spec references
@@ -269,66 +333,78 @@ extensions = {
 ## [4.9.0] - 2025-04-21
 
 ### Added
+
 - Can add servers: Press 'A' in main view to open editor and paste server config
-- Can edit servers: Press 'e' to modify existing server configurations  
+- Can edit servers: Press 'e' to modify existing server configurations
 - Can remove servers: Press 'd' to delete servers
 - Added manual installation support from marketplace
 
 ## [4.8.0] - 2025-04-14
 
 ### Added
+
 - Added `toggle_mcp_server` tool to mcphub native server
-  * Moved mcphub related resources from neovim server into mcphub server
-  * Added toggle_mcp_server tool that toggles a MCP server and returns the server schema when enabled
-  * We now do not need to pass the entire prompt of all servers upfront. As long as we have servers in our config LLM can see them. With disabled servers we send the server name and description if any so that LLM can dynamically start and stop servers
-  * Added description to MCP Servers (so that LLM has an overview of the server to pick which server to enable when we send disabled servers as well)
+
+  - Moved mcphub related resources from neovim server into mcphub server
+  - Added toggle_mcp_server tool that toggles a MCP server and returns the server schema when enabled
+  - We now do not need to pass the entire prompt of all servers upfront. As long as we have servers in our config LLM can see them. With disabled servers we send the server name and description if any so that LLM can dynamically start and stop servers
+  - Added description to MCP Servers (so that LLM has an overview of the server to pick which server to enable when we send disabled servers as well)
     - Usual MCP Servers do not have any description
     - Description will be attached to MCP Servers that are added from Marketplace
     - You can also add description to native servers
 
 - Enhanced server prompts with disabled servers support
-  * Previously, disabled servers were hidden from system prompts
-  * Now includes both connected and disabled servers in system prompts with clear section separation
+  - Previously, disabled servers were hidden from system prompts
+  - Now includes both connected and disabled servers in system prompts with clear section separation
 
 ### Changed
+
 - Improved CodeCompanion integration for better LLM interactions
-  * Enabled show_result_in_chat by default to provide better visibility of tool responses
-  * Whenever there are #Headers in the response when using mcp tools, we replace # with > because showing result in chat gives user more control and currently the # are not making it possible
-  * Pseudocode examples seems to produce better results even for xml based tools
-  * Renamed `arguments` parameter to `tool_input` in XML for clearer structure
+  - Enabled show_result_in_chat by default to provide better visibility of tool responses
+  - Whenever there are #Headers in the response when using mcp tools, we replace # with > because showing result in chat gives user more control and currently the # are not making it possible
+  - Pseudocode examples seems to produce better results even for xml based tools
+  - Renamed `arguments` parameter to `tool_input` in XML for clearer structure
 
 ### Fixed
+
 - Fixed 'gd' preview rendering to properly highlight markdown syntax
 
 ## [4.7.0] - 2025-04-13
 
 ### Added
+
 - Complete multi-instance support
-  * Complete support for opening multiple neovim instance at a time
-  * MCP Hubs in all neovim instances are always in sync (toggling something or change changing config in one neovim will auto syncs other neovim instances)
-  * Changed lualine extension to adapt to these changes
+
+  - Complete support for opening multiple neovim instance at a time
+  - MCP Hubs in all neovim instances are always in sync (toggling something or change changing config in one neovim will auto syncs other neovim instances)
+  - Changed lualine extension to adapt to these changes
 
 - Added file watching for servers.json
-  * Watches config file and updates necessary servers. No need to exit and enter neovim or press "R" to reload any servers after your servers.json file is changed.
-  * Config changes apply instantly without restart
-  * Changes sync across all running instances
-  * Smart reload that only updates affected servers
+
+  - Watches config file and updates necessary servers. No need to exit and enter neovim or press "R" to reload any servers after your servers.json file is changed.
+  - Config changes apply instantly without restart
+  - Changes sync across all running instances
+  - Smart reload that only updates affected servers
 
 - Added smart shutdown with delay
-  * Previoulsy when we exit neovim mcphub.nvim stops the server and when we enter neovim it starts the server.
-  * We can now set shutdown_delay (in millisecond) to let the server wait before shutdown. If we enter neovim again within this time it will cancel the timer.
-  * Defaults to 10 minutes. You can set this to as long as you want to make it run essentially as a systemd service
+
+  - Previoulsy when we exit neovim mcphub.nvim stops the server and when we enter neovim it starts the server.
+  - We can now set shutdown_delay (in millisecond) to let the server wait before shutdown. If we enter neovim again within this time it will cancel the timer.
+  - Defaults to 10 minutes. You can set this to as long as you want to make it run essentially as a systemd service
 
 - Improved UI navigation
-  * Added vim-style keys (hjkl) for movement
+  - Added vim-style keys (hjkl) for movement
 
 ### Changed
+
 - Updated MCP Hub to v3.0.0 for multi-instance support
+
 * Auto-resize windows on editor resize
 
 ## [4.6.1] - 2025-04-10
 
-### Added 
+### Added
+
 - In cases where mcp-hub server is hosted somewhere, you can set `config.server_url` e.g `http://mydomain.com:customport` or `https://url_without_need_for_port.com`
 - `server_url` defaults to `http://localhost:{config.port}`
 
@@ -357,11 +433,11 @@ extensions = {
 
 ### Added
 
-- Added support for Avante slash commands 
-  * Prompts from MCP servers will be available as `/mcp:server_name:prompt_name` in Avant chat
-  * When slash command is triggered, messages from the prompt with appropriate roles will be added to chat history.
-  * Along with MCP Server prompt, you can also create your own prompts with mcphub.add_prompt api. ([Native Servers](https://github.com/ravitemer/mcphub.nvim/wiki/Weather-Server))
-  * You can disable this with `config.extensions.avante.make_slash_commands = false` in the setup.
+- Added support for Avante slash commands
+  - Prompts from MCP servers will be available as `/mcp:server_name:prompt_name` in Avant chat
+  - When slash command is triggered, messages from the prompt with appropriate roles will be added to chat history.
+  - Along with MCP Server prompt, you can also create your own prompts with mcphub.add_prompt api. ([Native Servers](https://github.com/ravitemer/mcphub.nvim/wiki/Weather-Server))
+  - You can disable this with `config.extensions.avante.make_slash_commands = false` in the setup.
 - Avante mcp_tool() return two separate `use_mcp_tool` and `access_mcp_resource` tools which should make it easy for models to generate proper schemas for tool calls. (No need to change anything in the config)
 
 ## [4.4.0] - 2025-04-05
@@ -450,30 +526,35 @@ extensions = {
 ### Added
 
 - Zero Configuration Support
+
   - Default port to 37373
   - Default config path to ~/.config/mcphub/servers.json
   - Auto-create config file with empty mcpServers object
   - Works out of the box with just require("mcphub").setup({})
 
 - Installation Improvements
+
   - Added bundled installation option for users without global npm access
   - Added `build = "bundled_build.lua"` alternative
   - Auto-updates with plugin updates
   - Flexible cmd and cmdArgs configuration for custom environments
 
 - UI Window Customization
+
   - Configurable width and height (ratio, percentage, or raw number)
   - Border style options
   - Relative positioning
   - Z-index control
 
 - Lualine Integration
+
   - Dynamic status indicator
   - Server connection state
   - Active operation spinner
   - Total connected servers display
 
 - Native MCP Servers Support
+
   - Write once, use everywhere design
   - Clean chained API for tools and resources
   - Full URI-based resource system with templates
@@ -481,6 +562,7 @@ extensions = {
   - Auto-generate Native MCP servers with LLMs
 
 - Built-in Neovim MCP Server
+
   - Common utility tools and resources
   - Configurable tool enablement
   - Interactive file operations with diff view
@@ -494,6 +576,7 @@ extensions = {
 ### Changed
 
 - Enhanced UI features
+
   - Added syntax highlighting for config view and markdown text
   - Added multiline input textarea support with "o" keymap
   - Improved Hub view with breadcrumb preview
@@ -788,10 +871,4 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
-
-
-
-
-
-
 

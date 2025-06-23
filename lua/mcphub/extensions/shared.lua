@@ -1,58 +1,55 @@
 local M = {}
 local NuiLine = require("mcphub.utils.nuiline")
+local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local ui_utils = require("mcphub.utils.ui")
 
----@alias MCPCallParams {errors: string[], action: MCPHubToolType, server_name: string, tool_name: string, uri: string, arguments: table, should_auto_approve: boolean}
+---@class MCPHub.ParsedParams
+---@field errors string[] List of errors encountered during parsing
+---@field action MCPHub.ActionType Action type, either "use_mcp_tool" or "access_mcp_resource"
+---@field server_name string Name of the server to call the tool/resource on
+---@field tool_name string Name of the tool to call (nil for resources)
+---@field arguments table Input arguments for the tool call (empty table for resources)
+---@field uri string URI of the resource to access (nil for tools)
+---@field is_auto_approved_in_server boolean Whether the tool autoApproved in the servers.json
 
----Check if auto-approval is enabled for a specific tool/resource
----@param server_name string
----@param tool_name? string Tool name for tool calls (nil for resources)
----@return boolean
-local function should_auto_approve(server_name, tool_name)
-    -- Global auto-approve check
-    if vim.g.mcphub_auto_approve == true then
-        return true
-    end
+---@class MCPHub.ToolCallArgs
+---@field server_name string Name of the server to call the tool on.
+---@field tool_name string Name of the tool to call.
+---@field tool_input table | string Input for the tool call. Must be an object for `use_mcp_tool` action.
 
-    -- Get server config
-    local State = require("mcphub.state")
+---@class MCPHub.ResourceAccessArgs
+---@field server_name string Name of the server to call the resource on.
+---@field uri string URI of the resource to access.
+
+---@param server_name string Name of the server to check
+---@param tool_name string Name of the tool to check
+---@return boolean Whether the tool is auto-approved in the server
+function M.is_auto_approved_in_server(server_name, tool_name)
     local native = require("mcphub.native")
-
     local is_native = native.is_native_server(server_name)
     local server_config = is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-
     if not server_config then
         return false
     end
-
     local auto_approve = server_config.autoApprove
     if not auto_approve then
         return false
     end
-
     -- If autoApprove is true, approve everything for this server
     if auto_approve == true then
         return true
     end
-
     -- If autoApprove is an array, check if tool is in the list
     if type(auto_approve) == "table" and vim.islist(auto_approve) then
-        -- For resources, always auto-approve (no explicit config needed)
-        if not tool_name then
-            return true
-        end
-
-        -- For tools, check if the specific tool is in the list
         return vim.tbl_contains(auto_approve, tool_name)
     end
-
     return false
 end
 
----@param params {server_name: string, tool_name: string, uri: string, tool_input: table | string}
----@param action_name MCPHubToolType
----@return MCPCallParams
+---@param params MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs
+---@param action_name MCPHub.ActionType
+---@return MCPHub.ParsedParams
 function M.parse_params(params, action_name)
     params = params or {}
 
@@ -86,18 +83,14 @@ function M.parse_params(params, action_name)
         table.insert(errors, "uri is required")
     end
 
-    -- Check auto-approval based on server config and tool/resource
-    local should_auto_approve_result =
-        should_auto_approve(server_name, action_name == "use_mcp_tool" and tool_name or nil)
-
     return {
         errors = errors,
         action = action_name or "nil",
         server_name = server_name or "nil",
         tool_name = tool_name or "nil",
-        uri = uri or "nil",
         arguments = arguments or {},
-        should_auto_approve = should_auto_approve_result,
+        uri = uri or "nil",
+        is_auto_approved_in_server = M.is_auto_approved_in_server(server_name, tool_name),
     }
 end
 
@@ -129,7 +122,6 @@ function M.collect_arguments(arguments, callback)
         end
 
         local function cancel_input()
-            vim.notify("cancel")
             if arg.required then
                 vim.notify("Value for " .. arg.name .. " is required", vim.log.levels.ERROR)
                 should_proceed = false
@@ -150,120 +142,8 @@ function M.collect_arguments(arguments, callback)
     end
 end
 
----Add slash commands to Avante for all mcp servers
----@param enabled boolean
-function M.setup_avante_slash_commands(enabled)
-    if not enabled then
-        return
-    end
-
-    local mcphub = require("mcphub")
-    --setup event listners to update variables, tools etc
-    mcphub.on({ "servers_updated", "prompt_list_changed" }, function(_)
-        local hub = mcphub.get_hub_instance()
-        if not hub then
-            return
-        end
-        local prompts = hub:get_prompts()
-        local ok, config = pcall(require, "avante.config")
-        if not ok then
-            return
-        end
-
-        local slash_commands = config.slash_commands or {}
-        -- remove existing mcp slash commands that start with mcp so that when user disables a server, those prompts are removed
-        for i, value in ipairs(slash_commands) do
-            local id = value.name or ""
-            if id:sub(1, 3) == "mcp" then
-                slash_commands[i] = nil
-            end
-        end
-        --add all the current prompts
-        for _, prompt in ipairs(prompts) do
-            local server_name = prompt.server_name
-            local prompt_name = prompt.name or ""
-            local description = prompt.description or ""
-            local arguments = prompt.arguments or {}
-            if type(description) == "function" then
-                local desc_ok, desc = pcall(description, prompt)
-                if desc_ok then
-                    description = desc or ""
-                else
-                    description = "Error in description function: " .. (desc or "")
-                end
-            end
-            if type(arguments) == "function" then
-                local args_ok, args = pcall(arguments, prompt)
-                if args_ok then
-                    arguments = args or {}
-                else
-                    vim.notify("Error in arguments function: " .. (args or ""), vim.log.levels.ERROR)
-                    arguments = {}
-                end
-            end
-            --remove new lines
-            description = description:gsub("\n", " ")
-
-            description = prompt_name .. " (" .. description .. ")"
-            local slash_command = {
-                name = "mcp:" .. server_name .. ":" .. prompt_name,
-                description = description,
-                callback = function(sidebar, args, cb)
-                    M.collect_arguments(arguments, function(values)
-                        local response, err = hub:get_prompt(server_name, prompt_name, values, {
-                            caller = {
-                                type = "avante",
-                                avante = sidebar,
-                                meta = {
-                                    is_within_slash_command = true,
-                                },
-                            },
-                            parse_response = true,
-                        })
-                        if not response then
-                            if err then
-                                vim.notify("Error in slash command: " .. err, vim.log.levels.ERROR)
-                                vim.notify("Prompt cancelled", vim.log.levels.INFO)
-                            end
-                            return
-                        end
-                        local messages = response.messages or {}
-                        local text_messages = {}
-                        for i, message in ipairs(messages) do
-                            local output = message.output
-                            if output.text and output.text ~= "" then
-                                if i == #messages and message.role == "user" then
-                                    sidebar:set_input_value(output.text)
-                                else
-                                    table.insert(text_messages, {
-                                        role = message.role,
-                                        content = output.text,
-                                    })
-                                end
-                            end
-                        end
-                        sidebar:add_chat_history(text_messages, { visible = true })
-                        vim.notify(
-                            string.format(
-                                "%s message%s added successfully",
-                                #text_messages,
-                                #text_messages == 1 and "" or "s"
-                            ),
-                            vim.log.levels.INFO
-                        )
-                        if cb then
-                            cb()
-                        end
-                    end)
-                end,
-            }
-            table.insert(slash_commands, slash_command)
-        end
-    end)
-end
-
 ---Create the confirmation prompt for mcp tool
----@param params MCPCallParams
+---@param params MCPHub.ParsedParams
 ---@return string
 function M.get_mcp_tool_prompt(params)
     local action_name = params.action
@@ -299,14 +179,10 @@ function M.get_mcp_tool_prompt(params)
     return msg
 end
 
----@param params MCPCallParams
----@return boolean, boolean
+---@param params MCPHub.ParsedParams
+---@return boolean confirmed
+---@return boolean cancelled
 function M.show_mcp_tool_prompt(params)
-    -- Check if we should auto-approve based on server/tool config
-    if params.should_auto_approve then
-        return true, false -- approved, not cancelled
-    end
-
     local action_name = params.action
     local server_name = params.server_name
     local tool_name = params.tool_name
@@ -380,4 +256,44 @@ function M.show_mcp_tool_prompt(params)
         max_width = 100,
     })
 end
+
+---@param parsed_params MCPHub.ParsedParams
+---@return {error?:string}
+function M.handle_auto_approval_decision(parsed_params)
+    local auto_approve = State.config.auto_approve or false
+    local status = { approve = false, error = nil }
+    --- If user has a custom function that decides whether to auto-approve
+    --- call that with params + saved autoApprove state as is_auto_approved_in_server field
+    if type(auto_approve) == "function" then
+        local ok, res = pcall(auto_approve, parsed_params)
+        if not ok or type(res) == "string" then
+            --- If auto_approve function throws an error, or returns a string, treat it as an error
+            status = { approve = false, error = res }
+        elseif type(res) == "boolean" then
+            --- If auto_approve function returns a boolean, use that as the decision
+            status = { approve = res, error = nil }
+        end
+    elseif type(auto_approve) == "boolean" then
+        --- If auto_approve is a true, allow all calls, if false we need to check for auto-approval in servers.json
+        if auto_approve == true then
+            status = { approve = true, error = nil }
+        end
+    end
+
+    -- Check if auto-approval is enabled in servers.json
+    if parsed_params.is_auto_approved_in_server then
+        status = { approve = true, error = nil }
+    end
+
+    if status.error then
+        return { error = status.error or "Something went wrong with auto-approval" }
+    end
+
+    if status.approve == false then
+        local confirmed, _ = M.show_mcp_tool_prompt(parsed_params)
+        return { error = not confirmed and "User cancelled the operation" }
+    end
+    return { error = nil }
+end
+
 return M
