@@ -216,6 +216,19 @@ function MCPHub:get_server(name)
     return nil
 end
 
+---@param url string The OAuth callback URL
+function MCPHub:handle_oauth_callback(url, callback)
+    if not url or vim.trim(url) == "" then
+        return vim.notify("No OAuth callback URL provided", vim.log.levels.ERROR)
+    end
+    self:api_request("POST", "oauth/manual_callback", {
+        body = {
+            url = url,
+        },
+        callback = callback,
+    })
+end
+
 ---@param name any
 ---@param _ any
 function MCPHub:authorize_mcp_server(name, _)
@@ -776,6 +789,7 @@ function MCPHub:update_servers(servers, callback)
         }, "server")
         -- Fire state change event with updated stats
         self:fire_hub_update()
+        utils.fire("MCPHubServersUpdated")
         -- Emit server update event with prompt
         State:emit("servers_updated", {
             hub = self,
