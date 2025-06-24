@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.9.0] - 2025-06-24
+
+### Added
+
+- Improved OAuth flow for remote/headless servers
+  - New auth popup UI with clear instructions
+  - Manual callback URL support for headless environments
+  - Auto-closing popup on successful authorization
+  - Better error handling and validation
+  - Tab navigation between info and input windows
+
+### Changed
+
+- Updated mcp-hub dependency to v3.5.0 for improved OAuth support
+
 ## [5.8.0] - 2025-06-23
 
 ### Added
@@ -871,4 +886,5 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 
