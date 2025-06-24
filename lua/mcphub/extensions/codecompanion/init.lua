@@ -75,7 +75,7 @@ function M.create_tools(opts)
     local tools = {
         groups = {
             mcp = {
-                description = " Call tools and resources from MCP servers with:\n\n - `use_mcp_tool`\n - `access_mcp_resource`\n",
+                description = "Call tools and resources from MCP servers",
                 system_prompt = function(_)
                     local hub = require("mcphub").get_hub_instance()
                     if not hub then
