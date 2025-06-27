@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 June 16
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 June 27
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -76,11 +76,38 @@ SERVERS MANAGER ~
 
 - When MCP Hub’s `setup()` is called typically when Neovim starts, it launches the nodejs binary, mcp-hub <https://github.com/ravitemer/mcp-hub> with the `servers.json` file.
 - The `mcp-hub` binary reads `servers.json` file and starts the MCP servers.
-- It provides a express REST API endpoint (default: `http://localhost:37373`) for clients to interact with MCP servers
-- The plugin communicates with this endpoint to:
-    - Start/stop MCP servers
-    - Execute tools, resources, prompts etc
-    - Handle real-time server events when tools or resources are changed.
+- It provides two key interfaces:
+    1. **Management API** (default: `http://localhost:37373/api`):- Used by this plugin to manage MCP servers
+    - Start/stop servers, execute tools, access resources
+    - Handle real-time server events
+    2. **Unified MCP Endpoint** (`http://localhost:37373/mcp`):- A single MCP server that other MCP clients can connect to
+    - Exposes ALL capabilities from ALL managed servers
+    - Automatically namespaces capabilities to prevent conflicts
+    - Use this endpoint in Claude Desktop, Cline, or any MCP client
+
+For example, instead of configuring each MCP client with multiple servers:
+
+>json
+    {
+        "mcpServers" : {
+            "filesystem": { ... },
+            "search": { ... },
+            "database": { ... }
+        }
+    }
+<
+
+Just configure them to use MCP Hub’s unified endpoint:
+
+>json
+    {
+        "mcpServers" : {
+            "Hub": {
+                "url" : "http://localhost:37373/mcp
+            }
+        }
+    }
+<
 
 
 USAGE ~
@@ -386,7 +413,7 @@ detail.
                 shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
                 use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
                 mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
-    
+
                 ---Chat-plugin related options-----------------
                 auto_approve = false, -- Auto approve mcp tool calls
                 auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
@@ -395,7 +422,7 @@ detail.
                         make_slash_commands = true, -- make /slash commands from MCP server prompts
                     }
                 },
-    
+
                 --- Plugin specific options-------------------
                 native_servers = {}, -- add your custom lua native servers here
                 ui = {
@@ -535,17 +562,85 @@ Default: `false`
 By default when the LLM calls a tool or resource on a MCP server, we show a
 confirmation window like below.
 
-Set it to `true` to automatically approve all MCP tool calls without user
-confirmation. This also sets `vim.g.mcphub_auto_approve` variable to `true`.
-You can toggle this option in the MCP Hub UI with `ga` keymap. You can see the
-current auto approval status in the Hub UI.
 
-**Fine-Grained Auto-Approval**: For more granular control, configure
-auto-approval per server or per tool using the `autoApprove` field in your
-`servers.json`. You can also toggle auto-approval from the Hub UI using the `a`
-keymap on individual servers or tools. See servers.json configuration
-</mcp/servers_json#auto-approval-configuration> for detailed examples and
-configuration options.
+BOOLEAN AUTO-APPROVAL
+
+Set it to `true` to automatically approve all MCP tool calls without user
+confirmation:
+
+>lua
+    require("mcphub").setup({
+        auto_approve = true, -- Auto approve all MCP tool calls
+    })
+<
+
+This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can toggle
+this option in the MCP Hub UI with `ga` keymap. You can see the current auto
+approval status in the Hub UI.
+
+
+FUNCTION-BASED AUTO-APPROVAL
+
+For maximum control, provide a function that decides approval based on the
+specific tool call:
+
+>lua
+    require("mcphub").setup({
+        auto_approve = function(params)
+            -- Auto-approve GitHub issue reading
+            if params.server_name == "github" and params.tool_name == "get_issue" then
+                return true -- Auto approve
+            end
+
+            -- Block access to private repos
+            if params.arguments.repo == "private" then
+                return "You can't access my private repo" -- Error message
+            end
+
+            -- Auto-approve safe file operations in current project
+            if params.tool_name == "read_file" then
+                local path = params.arguments.path or ""
+                if path:match("^" .. vim.fn.getcwd()) then
+                    return true -- Auto approve
+                end
+            end
+
+            -- Check if tool is configured for auto-approval in servers.json
+            if params.is_auto_approved_in_server then
+                return true -- Respect servers.json configuration
+            end
+
+            return false -- Show confirmation prompt
+        end,
+    })
+<
+
+**Parameters available in the function:** - `params.server_name` - Name of the
+MCP server - `params.tool_name` - Name of the tool being called (nil for
+resources) - `params.arguments` - Table of arguments passed to the tool -
+`params.action` - Either "use_mcp_tool" or "access_mcp_resource" - `params.uri`
+- Resource URI (for resource access) - `params.is_auto_approved_in_server` -
+Boolean indicating if tool is configured for auto-approval in servers.json
+
+**Return values:** - `true` - Auto-approve the call - `false` - Show
+confirmation prompt - `string` - Deny with error message - `nil` - Show
+confirmation prompt (same as false)
+
+
+SERVER-LEVEL AUTO-APPROVAL
+
+For fine-grained control per server or tool, configure auto-approval using the
+`autoApprove` field in your `servers.json`. You can also toggle auto-approval
+from the Hub UI using the `a` keymap on individual servers or tools. See
+servers.json configuration </mcp/servers_json#auto-approval-configuration> for
+detailed examples and configuration options.
+
+
+AUTO-APPROVAL PRIORITY
+
+The system checks auto-approval in this order: 1. **Function**: Custom
+`auto_approve` function (if provided) 2. **Server-specific**: `autoApprove`
+field in server config 3. **Default**: Show confirmation dialog
 
 
 AUTO_TOGGLE_MCP_SERVERS ~
@@ -2086,7 +2181,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM’S PARROT PROMPT
+REAL EXAMPLE: NEOVIM'S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -2515,12 +2610,59 @@ individual tool to toggle auto-approval for just that tool - Resources are
 always auto-approved (no configuration needed)
 
 
+FUNCTION-BASED AUTO-APPROVAL
+
+For maximum control, provide a function that decides approval based on the
+specific tool call:
+
+>lua
+    require("mcphub").setup({
+        auto_approve = function(params)
+            -- Auto-approve GitHub issue reading
+            if params.server_name == "github" and params.tool_name == "get_issue" then
+                return true -- Auto approve
+            end
+            
+            -- Block access to private repos
+            if params.arguments.repo == "private" then
+                return "You can't access my private repo" -- Error message
+            end
+            
+            -- Auto-approve safe file operations in current project
+            if params.tool_name == "read_file" then
+                local path = params.arguments.path or ""
+                if path:match("^" .. vim.fn.getcwd()) then
+                    return true -- Auto approve
+                end
+            end
+            
+            -- Check if tool is configured for auto-approval in servers.json
+            if params.is_auto_approved_in_server then
+                return true -- Respect servers.json configuration
+            end
+            
+            return false -- Show confirmation prompt
+        end,
+    })
+<
+
+**Parameters available in the function:** - `params.server_name` - Name of the
+MCP server - `params.tool_name` - Name of the tool being called (nil for
+resources) - `params.arguments` - Table of arguments passed to the tool -
+`params.action` - Either "use_mcp_tool" or "access_mcp_resource" - `params.uri`
+- Resource URI (for resource access) - `params.is_auto_approved_in_server` -
+Boolean indicating if tool is configured for auto-approval in servers.json
+
+**Return values:** - `true` - Auto-approve the call - `false` - Show
+confirmation prompt - `string` - Deny with error message - `nil` - Show
+confirmation prompt (same as false)
+
+
 AUTO-APPROVAL PRIORITY
 
-The system checks auto-approval in this order: 1. **Global**:
-`vim.g.mcphub_auto_approve = true` (approves everything) 2.
-**Server-specific**: `autoApprove` field in server config 3. **Default**: Show
-confirmation dialog
+The system checks auto-approval in this order: 1. **Function**: Custom
+`auto_approve` function (if provided) 2. **Server-specific**: `autoApprove`
+field in server config 3. **Default**: Show confirmation dialog
 
 
 USAGE ~
@@ -2634,13 +2776,64 @@ individual tool to toggle auto-approval for just that tool - Resources are
 always auto-approved (no configuration needed)
 
 
+FUNCTION-BASED AUTO-APPROVAL
+
+For maximum control, provide a function that decides approval based on the
+specific tool call:
+
+>lua
+    require("mcphub").setup({
+        auto_approve = function(params)
+            -- Respect CodeCompanion's auto tool mode when enabled
+            if vim.g.codecompanion_auto_tool_mode == true then
+                return true -- Auto approve when CodeCompanion auto-tool mode is on
+            end
+            
+            -- Auto-approve GitHub issue reading
+            if params.server_name == "github" and params.tool_name == "get_issue" then
+                return true -- Auto approve
+            end
+            
+            -- Block access to private repos
+            if params.arguments.repo == "private" then
+                return "You can't access my private repo" -- Error message
+            end
+            
+            -- Auto-approve safe file operations in current project
+            if params.tool_name == "read_file" then
+                local path = params.arguments.path or ""
+                if path:match("^" .. vim.fn.getcwd()) then
+                    return true -- Auto approve
+                end
+            end
+            
+            -- Check if tool is configured for auto-approval in servers.json
+            if params.is_auto_approved_in_server then
+                return true -- Respect servers.json configuration
+            end
+            
+            return false -- Show confirmation prompt
+        end,
+    })
+<
+
+**Parameters available in the function:** - `params.server_name` - Name of the
+MCP server - `params.tool_name` - Name of the tool being called (nil for
+resources) - `params.arguments` - Table of arguments passed to the tool -
+`params.action` - Either "use_mcp_tool" or "access_mcp_resource" - `params.uri`
+- Resource URI (for resource access) - `params.is_auto_approved_in_server` -
+Boolean indicating if tool is configured for auto-approval in servers.json
+
+**Return values:** - `true` - Auto-approve the call - `false` - Show
+confirmation prompt - `string` - Deny with error message - `nil` - Show
+confirmation prompt (same as false)
+
+
 AUTO-APPROVAL PRIORITY
 
-The system checks auto-approval in this order: 1. **Global**:
-`vim.g.mcphub_auto_approve = true` (approves everything) 2. **CodeCompanion**:
-`vim.g.codecompanion_auto_tool_mode = true` (toggled via `gta` in chat buffer)
-3. **Server-specific**: `autoApprove` field in server config 4. **Default**:
-Show confirmation dialog
+The system checks auto-approval in this order: 1. **Function**: Custom
+`auto_approve` function (if provided) 2. **Server-specific**: `autoApprove`
+field in server config 3. **Default**: Show confirmation dialog
 
 
 COPILOTCHAT INTEGRATION      *mcphub.nvim-extensions-copilotchat-integration-*
@@ -2812,14 +3005,11 @@ section to use it. The following example shows how to add the component to the
         sections = {
             lualine_x = {
                 -- Other lualine components in "x" section
-                {require('mcphub.extensions.lualine')},
+                {require('mcphub.extensions.lualine')}, -- Uses defaults
             },
         },
     }
 <
-
-
-USAGE ~
 
 
 WHEN MCP HUB IS CONNECTING:
@@ -2829,6 +3019,55 @@ WHEN CONNECTED SHOWS NUMBER OF CONNECTED SERVERS:
 
 
 WHEN A TOOL OR RESOURCE IS BEING CALLED, SHOWS SPINNER:
+
+
+USAGE ~
+
+
+OPTIONS
+
+The lualine component accepts the standard lualine options and the following
+options: - `icon`: Icon to display. (default: `"󰐻"`) - `colored`: Enable
+dynamic colors (default: `true`) - `colors`: The color to dynamically display
+for each MCP Hub state - `connecting`: The color to use when MCP Hub is
+connecting (default: `"DiagnosticWarn"`) - `connected`: The color to use when
+MCP Hub is connected (default: `"DiagnosticInfo"`) - `error`: The color to use
+when MCP Hub encounters an error (default: `"DiagnosticError"`)
+
+
+CUSTOMIZATION EXAMPLES
+
+>lua
+    -- Custom icon
+    {require('mcphub.extensions.lualine'), icon = ''}
+<
+
+>lua
+    -- Custom colors
+    {
+      require('mcphub.extensions.lualine'),
+      colors = {
+      connecting = { fg = "#ffff00" }, -- Yellow
+      connected = { fg = "#00ff00" }, -- Green
+      error = { fg = "#ff0000" }, -- Red
+      },
+    }
+<
+
+>lua
+    -- Statically color the icon, dynamically color the status text
+    {require('mcphub.extensions.lualine'), icon = { '󰐻', color = {fg = '#eeeeee'}}}
+<
+
+>lua
+    -- Dynamically color the icon, statically color the status text
+    {require('mcphub.extensions.lualine'), color = {fg = '#eeeeee'}}
+<
+
+>lua
+    -- Disable coloring
+    {require('mcphub.extensions.lualine'), colored = false}
+<
 
 
 ==============================================================================
@@ -2867,6 +3106,11 @@ doc/other/architecture.md doc/other/troubleshooting.md
 25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
 26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
 27. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
+28. *Image*: doc/extensions/https:/github.com/user-attachments/assets/3f4fd202-d780-441f-a8cf-58d8a8414ab1
+29. *Image*: doc/extensions/https:/github.com/user-attachments/assets/5522b929-d9b1-472c-9bf8-1c14aef36dbe
+30. *Image*: doc/extensions/https:/github.com/user-attachments/assets/9f309871-5fda-458f-967e-e7d3d8b269a5
+31. *Image*: doc/extensions/https:/github.com/user-attachments/assets/e3c16813-2210-4b7c-9f79-2737c19c6c30
+32. *Image*: doc/extensions/https:/github.com/user-attachments/assets/78aea188-59e8-4299-a375-1acc0784c7bf
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
