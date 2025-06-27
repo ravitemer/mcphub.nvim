@@ -474,13 +474,6 @@ function M.open_auth_popup(server_name, auth_url)
         Text.empty_line(),
         Text.pad_line(
             NuiLine():append(
-                "Once authorized, you'll be redirected to complete the OAuth flow.",
-                Text.highlights.success
-            )
-        ),
-        Text.empty_line(),
-        Text.pad_line(
-            NuiLine():append(
                 "If you're running mcphub on a remote machine, paste the redirect URL below",
                 Text.highlights.muted
             )
@@ -495,12 +488,12 @@ function M.open_auth_popup(server_name, auth_url)
         Text.pad_line(
             NuiLine():append(
                 "This popup will automatically close once authentication is successful.",
-                Text.highlights.info
+                Text.highlights.muted
             )
         ),
     }
 
-    local info_height = #info_lines
+    local info_height = #info_lines + 4
     local input_height = 1
 
     -- Position at top center
@@ -554,7 +547,7 @@ function M.open_auth_popup(server_name, auth_url)
 
     -- Set window options
     for _, win in ipairs({ info_win, input_win }) do
-        vim.api.nvim_win_set_option(win, "wrap", false)
+        vim.api.nvim_win_set_option(win, "wrap", true)
         vim.api.nvim_win_set_option(win, "cursorline", false)
     end
 
@@ -565,7 +558,7 @@ function M.open_auth_popup(server_name, auth_url)
             virt_text_pos = "right_align",
         })
     end
-    update_virtual_text("Press <Cr> to submit", Text.highlights.comment)
+    update_virtual_text("[<Cr> submit, <Tab> Cycle]", Text.highlights.muted)
 
     -- Track current window
     local current_win = info_win

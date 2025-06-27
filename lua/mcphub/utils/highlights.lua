@@ -183,7 +183,10 @@ function M.apply_highlights()
         [M.groups.json_punctuation] = "Delimiter",
 
         -- Markdown highlights
-        [M.groups.text] = "Normal",
+        [M.groups.text] = {
+            fg = normal_fg,
+            bg = "NONE",
+        },
         [M.groups.code] = "Special",
         [M.groups.heading] = "Title",
 
