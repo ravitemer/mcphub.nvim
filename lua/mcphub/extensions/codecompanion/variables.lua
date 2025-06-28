@@ -99,7 +99,8 @@ function M.update_variable_syntax(resources)
                 vim.api.nvim_buf_call(bufnr, function()
                     for _, resource in ipairs(resources) do
                         local uri = resource.uri
-                        vim.cmd.syntax('match CodeCompanionChatVariable "#' .. uri .. '\\(\\ze\\s\\|\\ze$\\)"')
+                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. uri .. '}"')
+                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. uri .. '}{[^}]*}"')
                     end
                 end)
             end
