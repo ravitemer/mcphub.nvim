@@ -388,11 +388,9 @@ function M.update_syntax_highlighting(server_tools)
                 vim.api.nvim_buf_call(bufnr, function()
                     for safe_server_name, server_data in pairs(server_tools) do
                         local tool_names = server_data.tool_names
-                        vim.cmd.syntax(
-                            'match CodeCompanionChatToolGroup "@' .. safe_server_name .. '\\(\\ze\\s\\|\\ze$\\)"'
-                        )
+                        vim.cmd.syntax('match CodeCompanionChatToolGroup "@{' .. safe_server_name .. '}"')
                         vim.iter(tool_names):each(function(name)
-                            vim.cmd.syntax('match CodeCompanionChatTool "@' .. name .. '\\(\\ze\\s\\|\\ze$\\)"')
+                            vim.cmd.syntax('match CodeCompanionChatTool "@{' .. name .. '}"')
                         end)
                     end
                 end)
