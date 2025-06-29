@@ -271,11 +271,11 @@ function M.register(opts)
                     tools[namespaced_tool_name] = {
                         id = "mcp_dynamic:" .. safe_name .. ":" .. tool_name,
                         description = tool.description,
+                        visible = opts.show_server_tools_in_chat == true,
                         callback = {
                             name = namespaced_tool_name,
                             cmds = { create_individual_tool_handler(server.name, tool_name, namespaced_tool_name) },
                             output = core.create_output_handlers(namespaced_tool_name, true, opts),
-                            visible = opts.show_server_tools_in_chat == true,
                             schema = {
                                 type = "function",
                                 ["function"] = {
