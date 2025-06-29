@@ -46,9 +46,9 @@ end
 --- Create handler for individual tools
 ---@param server_name string MCP Server name
 ---@param tool_name string Tool name on the server
----@param opts MCPHub.Extensions.CodeCompanionConfig
+---@param namespaced_name string Namespaced tool name (safe_server_name__safe_tool_name)
 ---@return function
-local function create_individual_tool_handler(server_name, tool_name, opts)
+local function create_individual_tool_handler(server_name, tool_name, namespaced_name)
     ---@param agent CodeCompanion.Agent The Editor tool
     ---@param args MCPHub.ToolCallArgs
     ---@param output_handler function Callback for asynchronous calls
@@ -58,7 +58,6 @@ local function create_individual_tool_handler(server_name, tool_name, opts)
             tool_name = tool_name,
             tool_input = args,
         }
-        local namespaced_name = create_namespaced_tool_name(server_name, tool_name)
         ---@type MCPHub.ToolCallContext
         local context = {
             tool_display_name = namespaced_name,
@@ -244,6 +243,9 @@ function M.register(opts)
 
         used_safe_names[safe_name] = true
 
+        if opts.add_mcp_prefix_to_tool_names then
+            safe_name = "mcp__" .. safe_name
+        end
         -- Check if this safe_name conflicts with existing group
         if groups[safe_name] then
             table.insert(skipped_groups, safe_name)
@@ -258,7 +260,6 @@ function M.register(opts)
             for _, tool in ipairs(server.capabilities.tools) do
                 local tool_name = tool.name
                 local namespaced_tool_name = create_namespaced_tool_name(safe_name, tool_name)
-
                 -- Check for tool name conflicts (after cleanup, no mcp_dynamic should exist)
                 if tools[namespaced_tool_name] then
                     table.insert(skipped_tools, namespaced_tool_name)
@@ -272,7 +273,7 @@ function M.register(opts)
                         description = tool.description,
                         callback = {
                             name = namespaced_tool_name,
-                            cmds = { create_individual_tool_handler(server.name, tool_name, opts) },
+                            cmds = { create_individual_tool_handler(server.name, tool_name, namespaced_tool_name) },
                             output = core.create_output_handlers(namespaced_tool_name, true, opts),
                             visible = opts.show_server_tools_in_chat == true,
                             schema = {
@@ -364,7 +365,7 @@ function M.register(opts)
 end
 
 --- Setup dynamic tools (individual tools + server groups)
----@class MCPHub.Extensions.CodeCompanionConfig
+---@param opts MCPHub.Extensions.CodeCompanionConfig
 function M.setup_dynamic_tools(opts)
     if not opts.make_tools then
         return

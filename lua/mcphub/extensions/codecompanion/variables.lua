@@ -1,7 +1,8 @@
 local M = {}
 local mcphub = require("mcphub")
 
-function M.register()
+---@param opts MCPHub.Extensions.CodeCompanionConfig
+function M.register(opts)
     local hub = mcphub.get_hub_instance()
     if not hub then
         return
@@ -23,6 +24,7 @@ function M.register()
         end
     end
 
+    local added_resources = {}
     -- Add current resources as variables
     for _, resource in ipairs(resources) do
         local server_name = resource.server_name
@@ -31,8 +33,8 @@ function M.register()
         local description = resource.description or ""
         description = description:gsub("\n", " ")
         description = resource_name .. " (" .. description .. ")"
-
-        cc_variables[uri] = {
+        local var_id = "mcp:" .. uri
+        cc_variables[var_id] = {
             id = "mcp" .. server_name .. uri,
             description = description,
             callback = function(self)
@@ -68,10 +70,11 @@ function M.register()
                 return result.text
             end,
         }
+        table.insert(added_resources, var_id)
     end
 
     -- Update syntax highlighting for variables
-    M.update_variable_syntax(resources)
+    M.update_variable_syntax(added_resources)
 end
 -- Setup MCP resources as CodeCompanion variables
 ---@param opts MCPHub.Extensions.CodeCompanionConfig
@@ -80,27 +83,26 @@ function M.setup(opts)
         return
     end
     vim.schedule(function()
-        M.register()
+        M.register(opts)
     end)
     mcphub.on(
         { "servers_updated", "resource_list_changed" },
         vim.schedule_wrap(function()
-            M.register()
+            M.register(opts)
         end)
     )
 end
 
 --- Update syntax highlighting for variables
----@param resources MCPResource[]
+---@param resources string[]
 function M.update_variable_syntax(resources)
     vim.schedule(function()
         for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
             if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "codecompanion" then
                 vim.api.nvim_buf_call(bufnr, function()
                     for _, resource in ipairs(resources) do
-                        local uri = resource.uri
-                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. uri .. '}"')
-                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. uri .. '}{[^}]*}"')
+                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. resource .. '}"')
+                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. resource .. '}{[^}]*}"')
                     end
                 end)
             end
