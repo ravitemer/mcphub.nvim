@@ -46,6 +46,12 @@ export default withMermaid(
         enabled: true,
         cards: [
           {
+            href: "https://vapi.ai",
+            image: "/mcphub.nvim/sponsors/vapi.png",
+            text: "Build Voice AI Agents with VAPI MCP Server",
+            alt: "Vapi"
+          },
+          {
             href: "https://www.warp.dev/mcp-hub-nvim",
             image: "/mcphub.nvim/sponsors/warp.png",
             text: "Warp, the Intelligent Terminal. Run mcphub.nvim in Warp today",

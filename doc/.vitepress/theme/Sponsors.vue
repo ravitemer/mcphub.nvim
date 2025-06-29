@@ -1,99 +1,91 @@
 <script setup lang="ts">
 import type { DefaultTheme } from 'vitepress/theme'
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useData } from 'vitepress'
 
-const { page } = useData()
+const currentSponsorIndex = ref(0)
+let intervalId: ReturnType<typeof setInterval> | null = null
+const INTERVAL_DURATION = 10000 // Cycle every 10 seconds
+
 const props = defineProps<{
   sponsors: DefaultTheme.sponsors
 }>()
 
-const sponsors = props.sponsors
+const { page } = useData()
 
-const container = ref()
+const sponsorCards = computed(() => props.sponsors?.cards || [])
 
-let currentCard = ref(0)
-//Cycle through the ads on every new page
-function refresh() {
-  if (sponsors && sponsors.cards) {
-    const cards = sponsors.cards
-    const index = (currentCard.value) % cards.length
-    const card = cards[index]
-    currentCard.value = index + 1
-    // Clear existing content
-    container.value.innerHTML = ''
+const displaySponsor = computed(() => {
+  if (sponsorCards.value.length === 0) {
+    return null
+  }
+  return sponsorCards.value[currentSponsorIndex.value]
+})
 
-    const link = document.createElement('a')
-    link.href = card.href
-    link.target = '_blank'
-    link.rel = 'noopener'
+function startCycling() {
+  stopCycling() // Clear any existing interval before starting a new one
 
-    const img = document.createElement('img')
-    img.src = card.image
-    img.alt = card.alt
-
-    const cardContent = document.createElement('div')
-    cardContent.className = 'card-content'
-
-    link.appendChild(img)
-    cardContent.appendChild(link)
-
-    const title = document.createElement('a')
-    title.href = card.href
-    title.target = '_blank'
-    title.rel = 'noopener'
-    title.className = 'carbon-text'
-    title.textContent = card.text
-    cardContent.appendChild(title)
-
-    const poweredBy = document.createElement("a")
-    poweredBy.className = "carbon-poweredby"
-    poweredBy.textContent = "Featured Sponsor"
-    poweredBy.href = "https://github.com/sponsors/ravitemer"
-    poweredBy.target = '_blank'
-    poweredBy.rel = 'noopener'
-    cardContent.appendChild(poweredBy)
-
-    container.value.appendChild(cardContent)
+  if (sponsorCards.value.length > 1) { // Only cycle if there's more than one sponsor
+    intervalId = setInterval(() => {
+      currentSponsorIndex.value = (currentSponsorIndex.value + 1) % sponsorCards.value.length
+    }, INTERVAL_DURATION)
   }
 }
 
-let isInitialized = false
-function init() {
-  if (!isInitialized) {
-    isInitialized = true
-    refresh()
+// Function to stop the ad cycling interval
+function stopCycling() {
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
   }
 }
-watch(() => page.value.relativePath, () => {
-  if (isInitialized) {
-    refresh()
+
+// Lifecycle hook: When the component is mounted, start cycling
+onMounted(() => {
+  if (props.sponsors?.enabled) {
+    startCycling()
   }
 })
 
-// no need to account for option changes during dev, we can just
-// refresh the page
-if (sponsors && sponsors.enabled) {
-  onMounted(() => {
-    init()
-  })
-}
+// Lifecycle hook: When the component is unmounted, stop cycling
+onUnmounted(() => {
+  stopCycling()
+})
+
 </script>
 
 <template>
-  <div class="VpSponsorCard" ref="container" />
+  <div class="VpSponsorCard">
+    <!-- Use Vue's Transition component for smooth fade effects -->
+    <Transition name="sponsor-fade" mode="out-in">
+      <div v-if="sponsors?.enabled && displaySponsor" :key="currentSponsorIndex" class="card-content">
+        <a :href="displaySponsor.href" target="_blank" rel="noopener">
+          <img :src="displaySponsor.image" :alt="displaySponsor.alt">
+        </a>
+        <a :href="displaySponsor.href" target="_blank" rel="noopener" class="carbon-text">
+          {{ displaySponsor.text }}
+        </a>
+        <a href="https://github.com/sponsors/ravitemer" target="_blank" rel="noopener" class="carbon-poweredby">
+          Featured Sponsor
+        </a>
+      </div>
+      <!-- Optional: Placeholder or empty state when no sponsor is displayed -->
+      <div v-else>
+        <!-- Content to display when no sponsor is active or enabled -->
+      </div>
+    </Transition>
+  </div>
 </template>
 
 <style scoped>
 .VpSponsorCard {
   display: flex;
   margin-top: 10px;
-  /* margin-left: 10px; */
   justify-content: center;
   align-items: center;
   padding: 24px;
   border-radius: 12px;
-  min-height: 256px;
+  min-height: 256px; /* Maintain height during transitions to prevent layout shifts */
   text-align: center;
   line-height: 18px;
   font-size: 12px;
@@ -111,7 +103,7 @@ if (sponsors && sponsors.enabled) {
   margin: 0 auto;
   padding-top: 12px;
   color: var(--vp-carbon-ads-text-color);
-  transition: color 0.25s;
+  transition: color 0.2s;
 }
 
 .VpSponsorCard :deep(.carbon-text:hover) {
@@ -125,24 +117,31 @@ if (sponsors && sponsors.enabled) {
   font-weight: 500;
   color: var(--vp-carbon-ads-poweredby-color);
   text-transform: uppercase;
-  transition: color 0.25s;
+  transition: color 0.2s;
 }
 
 .VpSponsorCard :deep(.carbon-poweredby:hover) {
   color: var(--vp-carbon-ads-hover-poweredby-color);
 }
 
-.VpSponsorCard :deep(> div) {
-  display: none;
-}
-
-.VpSponsorCard :deep(> div:first-of-type) {
-  display: block;
-}
-
+/* Base styles for the content container */
 .card-content {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%; /* Ensure content fills available space within VpSponsorCard */
+  /* Opacity and transition handled by Vue's Transition classes */
 }
+
+/* Vue Transition classes for fade effect */
+.sponsor-fade-enter-active,
+.sponsor-fade-leave-active {
+  transition: opacity 0.2s ease; /* Adjust transition duration as desired */
+}
+
+.sponsor-fade-enter-from,
+.sponsor-fade-leave-to {
+  opacity: 0;
+}
+
 </style>

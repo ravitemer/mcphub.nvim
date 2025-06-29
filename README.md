@@ -28,13 +28,14 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 
 ## 💜 Sponsors
 
-<!-- sponsors --> <p align="center"> <a href="https://github.com/CryogenicPlanet"><img src="https://github.com/CryogenicPlanet.png" width="60px" alt="CryogenicPlanet" /></a> <a href="https://github.com/supermemoryai"><img src="https://github.com/supermemoryai.png" width="60px" alt="Super Memory" /></a> <a href="https://github.com/yingmanwumen"><img src="https://github.com/yingmanwumen.png" width="60px" alt="yingmanwumen" /></a> <a href="https://github.com/yetone"><img src="https://github.com/yetone.png" width="60px" alt="Yetone" /></a> <a href="https://github.com/omarcresp"><img src="https://github.com/omarcresp.png" width="60px" alt="omarcresp" /></a> <a href="https://github.com/petermoser"><img src="https://github.com/petermoser.png" width="60px" alt="petermoser" /></a> <a href="https://github.com/watsy0007"><img src="https://github.com/watsy0007.png" width="60px" alt="watsy0007" /></a> <a href="https://github.com/kohane27"><img src="https://github.com/kohane27.png" width="60px" alt="kohane27" /></a>  <a href="https://github.com/copleykj"><img src="https://github.com/copleykj.png" width="60px" alt="Kelly Copley" /></a></p><!-- sponsors -->
+<!-- sponsors --> <p align="center"> <a href="https://github.com/CryogenicPlanet"><img src="https://github.com/CryogenicPlanet.png" width="50px" alt="CryogenicPlanet" /></a> <a href="https://github.com/olimorris"><img src="https://github.com/olimorris.png" width="50px" alt="Oli Morris" /></a> <a href="https://github.com/supermemoryai"><img src="https://github.com/supermemoryai.png" width="50px" alt="Super Memory" /></a> <a href="https://github.com/yingmanwumen"><img src="https://github.com/yingmanwumen.png" width="50px" alt="yingmanwumen" /></a> <a href="https://github.com/yetone"><img src="https://github.com/yetone.png" width="50px" alt="Yetone" /></a> <a href="https://github.com/omarcresp"><img src="https://github.com/omarcresp.png" width="50px" alt="omarcresp" /></a> <a href="https://github.com/petermoser"><img src="https://github.com/petermoser.png" width="50px" alt="petermoser" /></a> <a href="https://github.com/watsy0007"><img src="https://github.com/watsy0007.png" width="50px" alt="watsy0007" /></a> <a href="https://github.com/kohane27"><img src="https://github.com/kohane27.png" width="50px" alt="kohane27" /></a>  <a href="https://github.com/copleykj"><img src="https://github.com/copleykj.png" width="50px" alt="Kelly Copley" /></a></p><!-- sponsors -->
 
 <p align="center">
   <b>Special thanks to:</b> 
 </p>
 <p align="center">
-  <a href="https://dub.sh/composio-mcp" target="_blank"> <img src="https://composio.dev/wp-content/uploads/2025/01/Composio-logo-25.png" height="30px" alt="Composio.dev logo" />  </a>
+<a href="https://dub.sh/composio-mcp" target="_blank"> <img src="https://ravitemer.github.io/mcphub.nvim/sponsors/composio-logo.png" height="60px" alt="Composio.dev logo" />  </a>
+ <a href="https://vapi.ai" target="_blank"> <img src="https://github.com/user-attachments/assets/32b4d458-b2d1-484d-b096-dfb083b44c2c" height="60px" alt="Vapi logo" /></a>
 </p>
 
 ## ✨ Features 
