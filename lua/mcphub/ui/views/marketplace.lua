@@ -1,21 +1,18 @@
----@diagnostic disable: unused-local
 ---[[
 --- Marketplace view for MCPHub UI
 --- Browse, search and install MCP servers
 ---]]
-local Installers = require("mcphub.utils.installers")
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
-local ui_utils = require("mcphub.utils.ui")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.utils.validation")
 
 ---@class MarketplaceView: View
 ---@field active_mode "browse"|"details" Current view mode
 ---@field selected_server MarketplaceItem|nil Currently selected server
 ---@field cursor_positions table
+---@field active_installation_index number Currently selected installation method index
 local MarketplaceView = setmetatable({}, {
     __index = View,
 })
@@ -36,44 +33,6 @@ function MarketplaceView:new(ui)
     instance.keymaps = {}
 
     return instance
-end
-
--- Add this new method to handle visual selection hints
-function MarketplaceView:update_visual_selection_hints()
-    -- Clear existing virtual text
-    if self._virt_namespace then
-        vim.api.nvim_buf_clear_namespace(self.ui.buffer, self._virt_namespace, 0, -1)
-    else
-        self._virt_namespace = vim.api.nvim_create_namespace("mcphub_visual_selection")
-    end
-    if not (ui_utils.is_visual_mode()) or self.active_mode ~= "details" then
-        return
-    end
-    local visual_context = ui_utils.get_selection(self.ui.buffer)
-    local end_line = visual_context.end_line
-    -- Show hint at the end of selection
-    vim.api.nvim_buf_set_extmark(self.ui.buffer, self._virt_namespace, end_line - 1, 0, {
-        virt_text = { { " [<a>: Add Config To Editor]", Text.highlights.success } },
-        virt_text_pos = "eol",
-    })
-
-    -- Set up keymap for the 'a' key in visual mode only
-    if not self._visual_keymap_set then
-        vim.api.nvim_buf_set_keymap(self.ui.buffer, "v", "a", "", {
-            callback = function()
-                local v_context = ui_utils.get_selection(self.ui.buffer)
-                local lines = v_context.lines
-                local selected_text = table.concat(lines, "\n")
-                if selected_text and #selected_text > 0 then
-                    self:open_config_editor(selected_text)
-                end
-            end,
-            noremap = true,
-            silent = true,
-            desc = "Add Config from selection",
-        })
-        self._visual_keymap_set = true
-    end
 end
 
 ---Extract unique categories and tags from catalog items
@@ -181,13 +140,13 @@ function MarketplaceView:filter_and_sort_items(items)
     -- Sort results
     local sort_funcs = {
         newest = function(a, b)
-            return (a.createdAt or 0) > (b.createdAt or 0)
+            return (a.lastCommit or 0) > (b.lastCommit or 0)
         end,
         downloads = function(a, b)
-            return (a.downloadCount or 0) > (b.downloadCount or 0)
+            return #(a.installations or {}) > #(b.installations or {})
         end,
         stars = function(a, b)
-            return (a.githubStars or 0) > (b.githubStars or 0)
+            return (a.stars or 0) > (b.stars or 0)
         end,
         name = function(a, b)
             return (a.name or ""):lower() < (b.name or ""):lower()
@@ -231,15 +190,6 @@ function MarketplaceView:after_enter()
             buffer = self.ui.buffer,
             group = group,
         })
-
-        -- Create autocmd for visual mode
-        vim.api.nvim_create_autocmd({ "CursorMoved", "ModeChanged" }, {
-            buffer = self.ui.buffer,
-            group = group,
-            callback = function()
-                self:update_visual_selection_hints()
-            end,
-        })
     end
 end
 
@@ -256,10 +206,6 @@ function MarketplaceView:before_leave()
         self._visual_keymap_set = false
     end
 
-    -- Clear virtual text
-    if self._virt_namespace then
-        pcall(vim.api.nvim_buf_clear_namespace, self.ui.buffer, self._virt_namespace, 0, -1)
-    end
     View.before_leave(self)
 end
 
@@ -294,8 +240,8 @@ function MarketplaceView:setup_active_mode()
                 action = function()
                     local sorts = {
                         { text = "Most Stars", value = "stars" },
-                        { text = "Most Downloads", value = "downloads" },
-                        { text = "Newest First", value = "newest" },
+                        -- { text = "Most Installations", value = "downloads" },
+                        { text = "Recently Updated", value = "newest" },
                         { text = "Name (A-Z)", value = "name" },
                     }
                     vim.ui.select(sorts, {
@@ -366,16 +312,11 @@ function MarketplaceView:setup_active_mode()
                     local cursor = vim.api.nvim_win_get_cursor(0)
                     local server = self:get_server_at_line(cursor[1])
                     if server then
-                        -- Store browse mode position
                         self.cursor_positions.browse_mode = cursor
-                        -- Switch to details mode
                         self.selected_server = server
                         self.active_mode = "details"
+                        self.active_installation_index = 1
                         self:setup_active_mode()
-                        -- Fetch details
-                        if State.hub_instance then
-                            State.hub_instance:get_marketplace_server_details(server.mcpId)
-                        end
                         self:draw()
                         local install_line = self.interactive_lines[1]
                         vim.api.nvim_win_set_cursor(0, { install_line and install_line.line or 7, 0 })
@@ -385,13 +326,10 @@ function MarketplaceView:setup_active_mode()
             },
         }
     else
-        -- Details mode keymaps (simpler, focused on installation)
         self.keymaps = {
             ["h"] = {
                 action = function()
-                    -- Store details mode position
                     self.cursor_positions.details_mode = vim.api.nvim_win_get_cursor(0)
-                    -- Switch back to browse mode
                     self.active_mode = "browse"
                     self.selected_server = nil
                     self:setup_active_mode()
@@ -403,64 +341,169 @@ function MarketplaceView:setup_active_mode()
                 end,
                 desc = "Back to list",
             },
+            ["<Tab>"] = {
+                action = function()
+                    if self.selected_server and self.selected_server.installations then
+                        local num_installations = #self.selected_server.installations
+                        if num_installations >= 1 then
+                            local is_installed = State:is_server_installed(self.selected_server.id)
+                            -- For installed servers, we have 1 extra "Current" tab
+                            self.active_installation_index = (
+                                self.active_installation_index
+                                % (is_installed and num_installations + 1 or num_installations)
+                            ) + 1
+                            self:draw()
+                            -- Keep cursor on install/uninstall line
+                            if self.interactive_lines and #self.interactive_lines > 0 then
+                                for _, line_info in ipairs(self.interactive_lines) do
+                                    if
+                                        line_info.type == "install_with_method"
+                                        or line_info.type == "uninstall_server"
+                                    then
+                                        vim.api.nvim_win_set_cursor(0, { line_info.line, 0 })
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end,
+                desc = "Switch installation method",
+            },
             ["l"] = {
                 action = function()
                     local cursor = vim.api.nvim_win_get_cursor(0)
                     local type, context = self:get_line_info(cursor[1])
-                    -- Only allow installation if not already installed
-                    if type == "install" and not State:is_server_installed(self.selected_server.mcpId) then
-                        -- Get available installers
-                        local available_installers = self:get_available_installers()
 
-                        if #available_installers > 0 then
-                            -- Create selection items with installer names
-                            local items = vim.tbl_map(function(installer)
-                                return installer.name
-                            end, available_installers)
-
-                            -- Show installer selection
-                            vim.ui.select(items, {
-                                prompt = "Choose installer:",
-                            }, function(choice)
-                                if choice then
-                                    -- Find selected installer
-                                    for _, installer in ipairs(available_installers) do
-                                        if installer.name == choice then
-                                            self:handle_install(self.selected_server, installer.id)
-                                            break
-                                        end
-                                    end
-                                end
-                            end)
-                        else
-                            vim.notify(
-                                "No installers available. Please install CodeCompanion or Avante.",
-                                vim.log.levels.ERROR
-                            )
+                    if type == "install_with_method" and not State:is_server_installed(self.selected_server.id) then
+                        -- Open installation editor directly
+                        self:handle_installation_selection(
+                            context --[[@as { server: MarketplaceItem, installation: MarketplaceInstallation }]]
+                        )
+                    elseif type == "uninstall_server" and State:is_server_installed(self.selected_server.id) then
+                        -- Show confirmation and uninstall
+                        if context then
+                            local server_id = context.server.id --[[@as string]]
+                            utils.confirm_and_delete_server(server_id)
                         end
-                    elseif type == "manual_install" then
-                        self:open_config_editor()
+                    else
+                        -- Normal vim movement: move cursor right
+                        vim.cmd("normal! l")
                     end
                 end,
-                desc = "Install",
+                desc = "Install/Uninstall",
             },
         }
     end
     self:apply_keymaps()
 end
 
-function MarketplaceView:open_config_editor(placeholder)
-    utils.open_server_editor(placeholder)
+--- Handle installation selection from details mode
+---@param context { server: MarketplaceItem, installation: MarketplaceInstallation }
+function MarketplaceView:handle_installation_selection(context)
+    local server = context.server
+    local installation = context.installation
+
+    -- Create server config object with the server ID
+    local server_config = {
+        [server.id] = vim.json.decode(installation.config),
+    }
+
+    -- Open the editor with the pre-populated config
+    utils.open_server_editor({
+        title = "Install " .. server.name .. " (" .. installation.name .. ")",
+        placeholder = utils.pretty_json(vim.json.encode(server_config)),
+        start_insert = false,
+        go_to_placeholder = true, -- Position cursor at first ${} placeholder
+        virtual_lines = {
+            { Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced", "DiagnosticHint" },
+            { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "DiagnosticHint" },
+        },
+        on_success = function()
+            -- Switch to main view and browse mode after successful installation
+            self.active_mode = "browse"
+            self.selected_server = nil
+            self.active_installation_index = nil
+            self.ui:switch_view("main")
+        end,
+    })
+end
+
+--- Render installation details for a server
+---@param installation MarketplaceInstallation
+---@param line_offset number
+function MarketplaceView:render_installation_details(installation, line_offset)
+    local lines = {}
+
+    -- Configuration preview (no indent)
+    if installation.config then
+        vim.list_extend(lines, Text.render_json(installation.config))
+        table.insert(lines, Text.pad_line(NuiLine()))
+    end
+
+    -- Placeholders section (only show if parameters exist)
+    if installation.parameters and #installation.parameters > 0 then
+        table.insert(lines, Text.pad_line(NuiLine():append("Placeholders", Text.highlights.muted)))
+
+        for _, param in ipairs(installation.parameters) do
+            -- Single line: key: placeholder
+            local placeholder_line = NuiLine()
+            if param.required ~= false then
+                placeholder_line:append("* ", Text.highlights.error)
+            else
+                placeholder_line:append("  ", Text.highlights.error)
+            end
+            placeholder_line:append(param.key, Text.highlights.json_property)
+            placeholder_line:append(": ", Text.highlights.json_punctuation)
+            if param.placeholder then
+                placeholder_line:append(param.placeholder, Text.highlights.muted)
+            end
+            table.insert(lines, Text.pad_line(placeholder_line))
+        end
+
+        table.insert(lines, Text.pad_line(NuiLine()))
+    end
+
+    return lines
+end
+
+--- Render current server configuration in details mode
+---@param server MarketplaceItem
+---@param line_offset number
+function MarketplaceView:render_current_server_config(server, line_offset)
+    local lines = {}
+
+    -- Get current server configuration
+    local current_config = nil
+    if State.hub_instance then
+        -- Load the current config from servers.json
+        local config_result = State.hub_instance:load_config()
+        if config_result and config_result.mcpServers and config_result.mcpServers[server.id] then
+            current_config = config_result.mcpServers[server.id]
+        end
+    end
+
+    if current_config then
+        -- Render current config as JSON
+        vim.list_extend(lines, Text.render_json(vim.json.encode(current_config)))
+        table.insert(lines, Text.pad_line(NuiLine()))
+    else
+        table.insert(lines, Text.pad_line(NuiLine():append("Current configuration not found", Text.highlights.warn)))
+        table.insert(lines, Text.pad_line(NuiLine()))
+    end
+
+    return lines
 end
 
 --- Helper to find server at cursor line
+--- @param line number Line number to check
 ---@return MarketplaceItem|nil
 function MarketplaceView:get_server_at_line(line)
     local type, context = self:get_line_info(line)
-    if type == "server" and (context and context.mcpId) then
+    if type == "server" and (context and context.id) then
         -- Look up server in catalog by id
         for _, server in ipairs(State.marketplace_state.catalog.items) do
-            if server.mcpId == context.mcpId then
+            if server.id == context.id then
                 return server
             end
         end
@@ -516,9 +559,13 @@ function MarketplaceView:render_header_controls()
     return lines
 end
 
+--- Render a server card for the marketplace
+---@param server MarketplaceItem
+---@param index number
+---@param line_offset number
 function MarketplaceView:render_server_card(server, index, line_offset)
     local lines = {}
-    local is_installed = State:is_server_installed(server.mcpId)
+    local is_installed = State:is_server_installed(server.id)
 
     -- Create server name section (left part)
     local name_section = NuiLine():append(
@@ -534,18 +581,16 @@ function MarketplaceView:render_server_card(server, index, line_offset)
     -- Create metadata section (right part)
     local meta_section = NuiLine()
 
-    -- Add recommended badge if server is recommended
-    if server.isRecommended then
+    -- Add featured badge if server is featured
+    if server.featured then
         meta_section:append(Text.icons.sparkles .. " ", Text.highlights.success)
     end
 
-    -- Show stars and downloads
+    -- Show stars and installations count
     meta_section
         :append(Text.icons.favorite, Text.highlights.muted)
-        :append(" " .. (server.githubStars or "0"), Text.highlights.muted)
+        :append(" " .. (server.stars or "0"), Text.highlights.muted)
         :append(" ", Text.highlights.muted)
-        :append(Text.icons.download, Text.highlights.muted)
-        :append(" " .. (server.downloadCount or "0"), Text.highlights.muted)
 
     -- Calculate padding between name and metadata
     local padding = 2 -- width - (name_section:width() + meta_section:width())
@@ -556,14 +601,12 @@ function MarketplaceView:render_server_card(server, index, line_offset)
     -- Track line for server selection (storing only id)
     self:track_line(line_offset, "server", {
         type = "server",
-        mcpId = server.mcpId,
+        id = server.id,
         hint = "[<l> Details]",
     })
     table.insert(lines, Text.pad_line(title_line))
 
-    -- Description (with spacing)
     if server.description then
-        -- table.insert(lines, Text.pad_line(NuiLine())) -- Add blank line before description
         table.insert(lines, Text.pad_line(NuiLine():append(server.description, Text.highlights.muted)))
     end
 
@@ -571,13 +614,14 @@ function MarketplaceView:render_server_card(server, index, line_offset)
     return lines
 end
 
+--- Render marketplace in browse mode
+--- @param line_offset number Offset to apply to line numbers for tracking
 function MarketplaceView:render_browse_mode(line_offset)
     local lines = {}
 
     -- Show appropriate state
     local state = State.marketplace_state
-    if state.status == "loading" then
-        table.insert(lines, NuiLine())
+    if state.status == "loading" or state.status == "empty" then
         table.insert(lines, Text.pad_line(NuiLine():append("Loading marketplace catalog...", Text.highlights.muted)))
     elseif state.status == "error" then
         table.insert(
@@ -644,23 +688,18 @@ function MarketplaceView:render_details_mode(line_offset)
         {
             label = "URL      ",
             icon = Text.icons.link,
-            value = server.githubUrl,
+            value = server.url,
             is_url = true,
         },
         {
             label = "ID       ",
             icon = Text.icons.info,
-            value = server.mcpId,
+            value = server.id,
         },
         {
             label = "Author   ",
             icon = Text.icons.octoface,
             value = server.author or "Unknown",
-        },
-        {
-            label = "Downloads",
-            icon = Text.icons.download,
-            value = tostring(server.downloadCount or "0"),
         },
     }
 
@@ -699,126 +738,134 @@ function MarketplaceView:render_details_mode(line_offset)
     table.insert(lines, Text.pad_line(NuiLine()))
 
     -- Install section
-    if server.mcpId then
-        local details = State.marketplace_state.server_details[server.mcpId]
-        local is_loading = details == nil
-        local is_installed = State:is_server_installed(server.mcpId)
+    if server.id then
+        local is_installed = State:is_server_installed(server.id)
 
-        -- Install button or status
-        local button_line = NuiLine()
-        if is_loading then
-            -- Show only loading state
-            button_line:append(" " .. Text.icons.loading .. " ", Text.highlights.muted)
-            button_line:append("Loading...", Text.highlights.muted)
-        elseif is_installed then
-            -- Just show installed status
-            button_line:append(" " .. Text.icons.install .. " ", Text.highlights.success)
-            button_line:append("Installed", Text.highlights.success)
-        else
-            -- Show install button with available installers
-            button_line:append(" " .. Text.icons.octoface .. " ", Text.highlights.header_btn)
-            button_line:append(" AI Install ", Text.highlights.header_btn)
-            button_line:append(" with: ", Text.highlights.muted)
+        if is_installed then
+            -- Create uninstall button with Current as first tab
+            local uninstall_line = NuiLine()
+            uninstall_line:append(Text.icons.uninstall .. " Uninstall: ", Text.highlights.error)
 
-            -- Check each installer
-            for id, installer in pairs(Installers) do
-                if installer.check() then
-                    button_line
-                        :append("[" .. installer.name .. "]", Text.highlights.success)
-                        :append(" ", Text.highlights.muted)
-                        :append(Text.icons.check, Text.highlights.success)
-                        :append("  ", Text.highlights.muted)
-                else
-                    button_line
-                        :append("[" .. installer.name .. "]", Text.highlights.error)
-                        :append(" ", Text.highlights.muted)
-                        :append(Text.icons.uninstall, Text.highlights.error)
-                        :append("  ", Text.highlights.muted)
+            -- Add Current as index 0 (special case)
+            uninstall_line:append(" ")
+            local current_active = self.active_installation_index == 1
+            local current_highlight = current_active and Text.highlights.button_active
+                or Text.highlights.button_inactive
+            uninstall_line:append(" Current Config ", current_highlight)
+
+            if #server.installations > 0 then
+                uninstall_line:append(" " .. Text.icons.vertical_bar, Text.highlights.muted)
+                uninstall_line:append(" Available: ", Text.highlights.muted)
+            end
+            -- Add installation method tabs
+            for i, installation in ipairs(server.installations) do
+                uninstall_line:append(" ")
+
+                local is_active = self.active_installation_index == (i + 1)
+                local tab_highlight = is_active and Text.highlights.button_active or Text.highlights.button_inactive
+
+                uninstall_line:append(" " .. installation.name .. " ", tab_highlight)
+            end
+            table.insert(lines, Text.pad_line(uninstall_line))
+
+            -- Track the uninstall line for interaction
+            self:track_line(#lines + line_offset, "uninstall_server", {
+                type = "uninstall_server",
+                server = server,
+                hint = "[<l> Uninstall, <Tab> Switch Installation]",
+            })
+
+            table.insert(lines, Text.pad_line(NuiLine()))
+            local prereq_line = NuiLine()
+            prereq_line:append("PREVIEW ", Text.highlights.muted)
+            table.insert(lines, Text.pad_line(prereq_line))
+            table.insert(lines, self:divider())
+
+            -- Show details based on active tab
+            if self.active_installation_index == 1 then
+                -- Show current server configuration when Current tab is active
+                vim.list_extend(lines, self:render_current_server_config(server, line_offset))
+            else
+                -- Show installation details when an installation method is active
+                local active_installation = server.installations[self.active_installation_index - 1]
+                if active_installation then
+                    vim.list_extend(lines, self:render_installation_details(active_installation, line_offset))
                 end
             end
-        end
-        table.insert(lines, Text.pad_line(button_line))
-
-        if not is_loading and not is_installed then
-            -- Only track install button if server is not installed and not loading
-            self:track_line(#lines + line_offset, "install", {
-                type = "install",
-                mcpId = server.mcpId,
-                server = server,
-                hint = "[<l> Install]",
-            })
-            local disclaimer = [[AI Install feature sends the below README to LLM with some additional instructions. 
-It might not always complete the setup for various reasons like restricted shell commands, outdated README etc
-Having issues? Visit the above url for latest README and install instructions]]
-            vim.list_extend(
-                lines,
-                vim.tbl_map(function(l)
-                    return Text.pad_line(l, nil, 4)
-                end, Text.multiline(disclaimer, Text.highlights.muted))
-            )
-
-            table.insert(lines, Text.pad_line(NuiLine()))
-            -- Install button or status
-            local manual_line = NuiLine()
-            manual_line:append(" " .. Text.icons.install .. " ", Text.highlights.header_btn)
-            manual_line:append(" Manual Install ", Text.highlights.header_btn)
-            table.insert(lines, Text.pad_line(manual_line))
-            self:track_line(#lines + line_offset, "manual_install", {
-                type = "manual_install",
-                mcpId = server.mcpId,
-                server = server,
-                hint = "[<l> Open Editor]",
-            })
-
-            local manual_disclaimer = [[Ideal for simple copy pasting of server configs
-  * Find the JSON config blocks in the README and paste them here OR
-  * Select them in visual mode and press <a> to add them to your editor
-Make sure to follow any setup instructions like installing dependencies
-Having issues? Visit the above url for latest README and install instructions]]
-            vim.list_extend(
-                lines,
-                vim.tbl_map(function(l)
-                    return Text.pad_line(l, nil, 4)
-                end, Text.multiline(manual_disclaimer, Text.highlights.muted))
-            )
-        end
-
-        table.insert(lines, Text.pad_line(NuiLine()))
-        table.insert(lines, self:divider())
-        table.insert(lines, Text.pad_line(NuiLine()))
-    end
-
-    -- Readme section
-    local details = State.marketplace_state.server_details[server.mcpId]
-    if details and details.data and type(details.data.readmeContent) == "string" then
-        local readme = details.data.readmeContent
-        if #readme > 0 then
-            table.insert(
-                lines,
-                self:center(NuiLine():append(" " .. Text.icons.resource .. " README ", Text.highlights.header))
-            )
-            table.insert(lines, Text.pad_line(NuiLine()))
-            vim.list_extend(lines, Text.render_markdown(readme))
-            table.insert(lines, Text.pad_line(NuiLine()))
         else
-            table.insert(
-                lines,
-                self:center(
-                    NuiLine():append(
-                        string.format("README content not available, please visit `%s`", server.githubUrl),
-                        Text.highlights.warn
-                    )
+            -- Show installation interface
+            if server.installations and #server.installations > 0 then
+                local active_installation = server.installations[self.active_installation_index]
+
+                -- Create install button with method tabs
+                local install_line = NuiLine()
+                install_line:append(Text.icons.install .. " Install ", Text.highlights.success)
+                install_line:append("using: ", Text.highlights.muted)
+
+                -- Add installation method tabs
+                for i, installation in ipairs(server.installations) do
+                    if i > 1 then
+                        install_line:append(" ")
+                    end
+
+                    local is_active = i == self.active_installation_index
+                    local tab_highlight = is_active and Text.highlights.button_active or Text.highlights.button_inactive
+
+                    install_line:append(" " .. installation.name .. " ", tab_highlight)
+                end
+
+                table.insert(lines, Text.pad_line(install_line))
+
+                -- Track the install line for interaction
+                self:track_line(#lines + line_offset, "install_with_method", {
+                    type = "install_with_method",
+                    server = server,
+                    installation = active_installation,
+                    hint = "[<l> Install, <Tab> Switch Method]",
+                })
+
+                table.insert(lines, Text.pad_line(NuiLine()))
+
+                -- Show prerequisites before divider (single line)
+                -- if active_installation.prerequisites and #active_installation.prerequisites > 0 then
+                --     local prereq_line = NuiLine()
+                --     prereq_line:append("Requires: ", Text.highlights.muted)
+                --     prereq_line:append(table.concat(active_installation.prerequisites, ", "), Text.highlights.warn)
+                --     table.insert(lines, Text.pad_line(prereq_line))
+                -- end
+
+                local prereq_line = NuiLine()
+                prereq_line:append("PREVIEW ", Text.highlights.muted)
+                table.insert(lines, Text.pad_line(prereq_line))
+                table.insert(lines, self:divider())
+
+                -- Show active installation details
+                vim.list_extend(lines, self:render_installation_details(active_installation, line_offset))
+            else
+                table.insert(
+                    lines,
+                    Text.pad_line(NuiLine():append("No installation methods available", Text.highlights.warn))
                 )
-            )
+            end
         end
     end
 
+    -- Show info links
+    local info_line = NuiLine()
+    info_line:append("For more information, visit: ", Text.highlights.muted)
+    info_line:append(server.url, Text.highlights.muted)
+    table.insert(lines, Text.pad_line(info_line))
+
+    local bug_line = NuiLine()
+    bug_line:append("Report issues or suggest changes: ", Text.highlights.muted)
+    bug_line:append("https://github.com/ravitemer/mcp-registry", Text.highlights.muted)
+    table.insert(lines, Text.pad_line(bug_line))
     return lines
 end
 
 function MarketplaceView:render()
     -- Handle special states from base view
-    if State.setup_state == "failed" or State.setup_state == "in_progress" then
+    if State.setup_state == "failed" or State.setup_state == "in_progress" or State.setup_state == "not_started" then
         return View.render(self)
     end
     -- Get base header
@@ -829,7 +876,7 @@ function MarketplaceView:render()
         -- Render controls
         vim.list_extend(lines, self:render_header_controls())
     elseif self.selected_server then
-        local is_installed = State:is_server_installed(self.selected_server.mcpId)
+        local is_installed = State:is_server_installed(self.selected_server.id)
         local breadcrumb = NuiLine():append("Marketplace > ", Text.highlights.muted):append(
             self.selected_server.name,
             is_installed and Text.highlights.success or Text.highlights.title
@@ -837,9 +884,9 @@ function MarketplaceView:render()
         if is_installed then
             breadcrumb:append(" ", Text.highlights.muted):append(Text.icons.install, Text.highlights.success)
         end
-        if self.selected_server.githubStars and self.selected_server.githubStars > 0 then
+        if self.selected_server.stars and self.selected_server.stars > 0 then
             breadcrumb:append(
-                " (" .. Text.icons.favorite .. " " .. tostring(self.selected_server.githubStars) .. ")",
+                " (" .. Text.icons.favorite .. " " .. tostring(self.selected_server.stars) .. ")",
                 Text.highlights.muted
             )
         end
@@ -873,36 +920,4 @@ function MarketplaceView:focus_first_interactive_line()
     end)
 end
 
-function MarketplaceView:get_available_installers()
-    local available = {}
-    for id, installer in pairs(Installers) do
-        if installer.check() then
-            table.insert(available, {
-                id = id,
-                name = installer.name,
-            })
-        end
-    end
-    return available
-end
-
-function MarketplaceView:handle_install(server, installer_id)
-    local installer = Installers[installer_id]
-    if installer then
-        self.ui:cleanup()
-        installer.install(self, server)
-    end
-end
-
--- Helper to get server state from State
-function MarketplaceView:get_server_state(mcpId)
-    if State.server_state and State.server_state.servers then
-        for _, server in ipairs(State.server_state.servers) do
-            if server.name == mcpId then
-                return server
-            end
-        end
-    end
-    return nil
-end
 return MarketplaceView

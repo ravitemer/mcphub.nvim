@@ -1,21 +1,34 @@
 ---@meta
-
 ---@class MarketplaceItem
----@field mcpId string
+---@field id string
 ---@field name string
 ---@field author string
 ---@field description string
----@field codiconIcon string
----@field logoUrl string
+---@field url string
+---@field license? string
 ---@field category string
 ---@field tags string[]
----@field requiresApiKey boolean
----@field isRecommended boolean
----@field githubStars integer
----@field githubUrl string
----@field downloadCount integer
----@field createdAt string
----@field updatedAt string
+---@field installations MarketplaceInstallation[]
+---@field featured? boolean
+---@field verified? boolean
+---@field stars? integer
+---@field lastCommit? integer
+---@field updatedAt? integer
+
+---@class MarketplaceInstallation
+---@field name string
+---@field description? string
+---@field config string
+---@field prerequisites? string[]
+---@field parameters? MarketplaceParameter[]
+---@field transports? string[]
+
+---@class MarketplaceParameter
+---@field name string
+---@field key string
+---@field description? string
+---@field placeholder? string
+---@field required? boolean
 
 ---@class CustomMCPServerConfig.CustomInstructions
 ---@field text string

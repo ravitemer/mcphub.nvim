@@ -36,7 +36,7 @@ Run `:checkhealth mcphub` in Neovim to check for common issues
 {
     level = vim.log.levels.DEBUG,
     to_file = true,
-    file_path = vim.fn.expande("~/mcphub.log"),
+    file_path = vim.fn.expand("~/mcphub.log"),
 }
 ```
 - Test tools and resources individually to isolate issues

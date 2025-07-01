@@ -8,7 +8,7 @@ local constants = require("mcphub.utils.constants")
 ---@param title string Title of the floating window
 ---@param content string Content to be displayed in the floating window
 ---@param on_save fun(new_content:string) Callback function to be called when the user saves the content
----@param opts {filetype?: string, validate?: function, show_footer?: boolean, start_insert?: boolean, on_cancel?: function} Options for the floating window
+---@param opts {filetype?: string, validate?: function, show_footer?: boolean, start_insert?: boolean, on_cancel?: function, position?: "cursor"|"center", go_to_placeholder?: boolean, virtual_lines?: Array[]} Options for the floating window
 function M.multiline_input(title, content, on_save, opts)
     opts = opts or {}
     local bufnr = vim.api.nvim_create_buf(false, true)
@@ -28,10 +28,11 @@ function M.multiline_input(title, content, on_save, opts)
     end
 
     local lines = vim.split(content or "", "\n")
+
     -- Set initial content
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
     local height = 8
-    local auto_height = #lines + 1
+    local auto_height = #lines + #(opts.virtual_lines or {}) + 1
     if auto_height > height then
         height = math.min(auto_height, vim.api.nvim_win_get_height(0) - 2)
     end
@@ -43,8 +44,6 @@ function M.multiline_input(title, content, on_save, opts)
         focusable = true,
         height = height,
         anchor = "NW",
-        -- col = math.floor((editor_width - width) / 2),
-        -- row = math.floor((editor_height - height) / 2),
         style = "minimal",
         border = "rounded",
         title = { { " " .. title .. " ", Text.highlights.title } },
@@ -59,6 +58,14 @@ function M.multiline_input(title, content, on_save, opts)
             { ": Cancel ", Text.highlights.muted },
         } or "",
     }
+
+    -- Override positioning if center is requested
+    if opts.position == "center" then
+        win_opts.relative = "editor"
+        win_opts.bufpos = nil
+        win_opts.row = 1
+        win_opts.col = math.floor((vim.o.columns - width) / 2)
+    end
 
     -- Create floating window
     local win = vim.api.nvim_open_win(bufnr, true, win_opts)
@@ -134,10 +141,39 @@ function M.multiline_input(title, content, on_save, opts)
 
     local last_col = string.len(last_line)
 
-    if opts.start_insert ~= false then
+    -- Add virtual lines if provided
+    if opts.virtual_lines and #opts.virtual_lines > 0 then
+        local virt_ns = vim.api.nvim_create_namespace("mcphub_multiline_virtual")
+        local original_line_count = #vim.split(content or "", "\n")
+        local virt_lines = {}
+
+        local divider = string.rep("-", width - 2)
+        table.insert(virt_lines, { { divider, "Comment" } })
+        for _, l in ipairs(opts.virtual_lines) do
+            table.insert(virt_lines, vim.islist(l) and { l } or { { l, "Comment" } })
+        end
+        vim.api.nvim_buf_set_extmark(bufnr, virt_ns, original_line_count - 1, 0, {
+            virt_lines = virt_lines,
+            priority = 2000,
+        })
+    end
+
+    -- Handle cursor positioning
+    if opts.go_to_placeholder then
+        -- Find first ${} placeholder and position cursor there
+        local content_lines = vim.split(content or "", "\n")
+        for i, line in ipairs(content_lines) do
+            local start_pos = line:find("%${")
+            if start_pos then
+                vim.api.nvim_win_set_cursor(win, { i, start_pos - 1 })
+                break
+            end
+        end
+    elseif opts.start_insert ~= false then
         vim.cmd("startinsert")
         vim.api.nvim_win_set_cursor(win, { last_line_nr, last_col + 1 })
     end
+
     update_virtual_text() -- Show initial hint
 end
 
