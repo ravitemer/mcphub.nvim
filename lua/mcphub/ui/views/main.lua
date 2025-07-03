@@ -129,7 +129,10 @@ function MainView:handle_custom_instructions(context)
 end
 
 function MainView:add_server()
-    utils.open_server_editor()
+    utils.open_server_editor({
+        title = "Paste Server Config",
+        start_insert = true,
+    })
 end
 
 function MainView:handle_edit()
@@ -153,60 +156,19 @@ function MainView:handle_edit()
         local text = utils.pretty_json(vim.json.encode({
             [server_name] = config,
         }) or "")
-        ui_utils.multiline_input("Edit '" .. server_name .. "' Config", text, function(input)
-            if text == input then
-                return
-            end
-            local new_name, new_config = next(vim.json.decode(input))
-            if new_name ~= server_name then
-                State.hub_instance:remove_server_config(server_name)
-                vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
-            end
-            ---@cast new_name string
-            ---@cast new_config table
-            State.hub_instance:update_server_config(new_name, new_config, { merge = false })
-            vim.notify("Server " .. new_name .. " updated", vim.log.levels.INFO)
-        end, {
-            filetype = "json",
+        utils.open_server_editor({
+            title = "Edit '" .. server_name .. "' Config",
+            is_native = is_native ~= nil,
+            old_server_name = server_name,
+            placeholder = text,
             start_insert = false,
-            show_footer = false,
-            --instead of closing the input, validate and show errors
-            validate = function(content)
-                local success, result = pcall(vim.json.decode, content)
-                if not success then
-                    vim.notify("Invalid JSON: " .. result, vim.log.levels.ERROR)
-                    return
-                end
-                -- Case 3: Single server name:config pair
-                -- {
-                --   "server_name": {}
-                -- }
-                if vim.tbl_count(result) ~= 1 then
-                    vim.notify("Config should have exactly one key i.e server name", vim.log.levels.ERROR)
-                    return false
-                end
-                local new_name, new_config = next(result)
-                ---@cast new_name string
-                ---@cast new_config table
-
-                -- For native servers, we only need to validate basic structure
-                -- since they don't require command/url fields
-                if is_native then
-                    if type(new_config) ~= "table" then
-                        vim.notify("Config must be a table", vim.log.levels.ERROR)
-                        return false
-                    end
-                    -- Native servers only need basic config validation
-                    return true
-                else
-                    local valid = validation.validate_server_config(new_name, new_config)
-                    if not valid.ok then
-                        vim.notify(valid.error.message, vim.log.levels.ERROR)
-                        return false
-                    end
-                end
-                return true
-            end,
+            virtual_lines = {
+                {
+                    Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced",
+                    "DiagnosticHint",
+                },
+                { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "DiagnosticHint" },
+            },
         })
     elseif (line_type == "customInstructions") and context then
         self:handle_custom_instructions(context)
@@ -228,19 +190,7 @@ function MainView:handle_delete()
         if is_native then
             return vim.notify("Native servers cannot be deleted, only their configuration can be edited")
         end
-
-        -- Using vim.ui.select instead of vim.fn.confirm
-        vim.ui.select({ "Yes", "No" }, {
-            prompt = "Are you sure you want to delete " .. server_name .. "?",
-            format_item = function(item)
-                return item
-            end,
-        }, function(choice)
-            if choice == "Yes" then
-                State.hub_instance:remove_server_config(server_name)
-                vim.notify("Server " .. server_name .. " deleted", vim.log.levels.INFO)
-            end
-        end)
+        utils.confirm_and_delete_server(server_name)
     end
 end
 
