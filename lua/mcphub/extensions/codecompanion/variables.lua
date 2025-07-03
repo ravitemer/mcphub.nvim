@@ -37,6 +37,7 @@ function M.register(opts)
         cc_variables[var_id] = {
             id = "mcp" .. server_name .. uri,
             description = description,
+            hide_in_help_window = true,
             callback = function(self)
                 -- Sync call - blocks UI (can't use async in variables yet)
                 local result = hub:access_resource(server_name, uri, {

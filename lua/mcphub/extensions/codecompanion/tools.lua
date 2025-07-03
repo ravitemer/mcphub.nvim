@@ -134,6 +134,7 @@ function M.create_static_tools(opts)
             mcp = {
                 id = "mcp_static:mcp",
                 description = " Call tools and resources from MCP servers with:\n\n - `use_mcp_tool`\n - `access_mcp_resource`\n",
+                hide_in_help_window = false,
                 system_prompt = function(_)
                     local hub = require("mcphub").get_hub_instance()
                     if not hub then
@@ -164,6 +165,7 @@ function M.create_static_tools(opts)
         tools[action_name] = {
             id = "mcp_static:" .. action_name,
             description = schema["function"].description,
+            hide_in_help_window = true,
             visible = false,
             ---@class MCPHub.Extensions.CodeCompanionTool: CodeCompanion.Agent.Tool
             callback = {
@@ -271,6 +273,7 @@ function M.register(opts)
                     tools[namespaced_tool_name] = {
                         id = "mcp_dynamic:" .. safe_name .. ":" .. tool_name,
                         description = tool.description,
+                        hide_in_help_window = true,
                         visible = opts.show_server_tools_in_chat == true,
                         callback = {
                             name = namespaced_tool_name,
@@ -311,6 +314,7 @@ function M.register(opts)
 
                 groups[safe_server_name] = {
                     id = "mcp_dynamic:" .. safe_server_name,
+                    hide_in_help_window = true,
                     description = string.format(
                         " All tools from `%s` MCP server: \n\n%s",
                         server_name,
