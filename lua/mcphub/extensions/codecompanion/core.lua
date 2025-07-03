@@ -44,13 +44,15 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                 caller = {
                     type = "codecompanion",
                     codecompanion = agent,
+                    auto_approve = result.approve,
                 },
                 parse_response = true,
                 callback = function(res, err)
                     if err or not res then
                         output_handler({
                             status = "error",
-                            data = err and tostring(err) or "No response from access resource",
+                            data = err and tostring(err)
+                                or "No response from accessing the resource " .. parsed_params.uri,
                         })
                     elseif res then
                         output_handler({ status = "success", data = res })
@@ -62,11 +64,12 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                 caller = {
                     type = "codecompanion",
                     codecompanion = agent,
+                    auto_approve = result.approve,
                 },
                 parse_response = true,
                 callback = function(res, err)
                     if err or not res then
-                        output_handler({ status = "error", data = tostring(err) or "No response from call tool" })
+                        output_handler({ status = "error", data = tostring(err) or "No response from tool call" })
                     elseif res.error then
                         output_handler({ status = "error", data = res.error })
                     else
