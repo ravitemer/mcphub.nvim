@@ -10,3 +10,4 @@ require("mcphub.native.neovim.terminal") -- Terminal and shell commands
 require("mcphub.native.neovim.files") -- File system operations
 require("mcphub.native.neovim.lsp")
 require("mcphub.native.neovim.prompts")
+require("mcphub.native.neovim.test")
