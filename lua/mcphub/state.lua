@@ -216,14 +216,13 @@ function State:get_errors(type)
     end
     return vim.deepcopy(self.errors.items)
 end
-
---- Check if a server is installed by comparing mcpId
---- @param mcpId string Server ID to check
+--- Check if a server is installed by comparing id
+--- @param id string Server ID to check
 --- @return boolean true if server is installed
-function State:is_server_installed(mcpId)
+function State:is_server_installed(id)
     local servers = self.server_state.servers or {}
     for _, server in ipairs(servers) do
-        if server.name == mcpId then
+        if server.name == id then
             return true
         end
     end

@@ -31,6 +31,7 @@ M.icons = {
     param = "",
     favorite = "",
     loaded = "●",
+    vertical_bar = "│",
     not_loaded = "○",
     arrowRight = "➜",
     triangleDown = "▼",

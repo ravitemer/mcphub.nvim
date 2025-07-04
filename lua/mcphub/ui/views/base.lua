@@ -9,6 +9,7 @@ local ns_id = vim.api.nvim_create_namespace("MCPHub")
 local renderer = require("mcphub.utils.renderer")
 
 local VIEW_TYPES = {
+    ---@type MCPHub.UI.ViewName[]
     SETUP_INDEPENDENT = { "logs", "help", "config" },
 }
 
@@ -234,13 +235,7 @@ end
 --- Whether the view should show setup errors
 ---@return boolean
 function View:should_show_setup_error()
-    -- Don't show setup errors in certain views
-    for _, name in ipairs(VIEW_TYPES.SETUP_INDEPENDENT) do
-        if self.name == name then
-            return false
-        end
-    end
-    return true
+    return not vim.tbl_contains(VIEW_TYPES.SETUP_INDEPENDENT, self.name)
 end
 
 --- Get window width for centering
