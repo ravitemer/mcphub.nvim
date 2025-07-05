@@ -9,6 +9,7 @@ local log = require("mcphub.utils.log")
 ---@field description string|fun():string Tool description or function returning description
 ---@field inputSchema? table|fun():table JSON Schema for input validation or function returning schema
 ---@field handler fun(req: ToolRequest, res: ToolResponse): nil | table Tool handler function
+---@field needs_confirmation_window? boolean Whether the tool requires a confirmation window before execution
 
 ---@class MCPResource
 ---@field name? string Resource identifier

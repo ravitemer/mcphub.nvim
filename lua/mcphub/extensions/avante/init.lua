@@ -126,6 +126,7 @@ function M.mcp_tool()
                         caller = {
                             type = "avante",
                             avante = sidebar,
+                            auto_approve = result.approve,
                         },
                         callback = function(result, err)
                             --result has .text and .images [{mimeType, data}]
@@ -154,6 +155,7 @@ function M.mcp_tool()
                         caller = {
                             type = "avante",
                             avante = sidebar,
+                            auto_approve = result.approve,
                         },
                         callback = function(result, err)
                             if result.error then

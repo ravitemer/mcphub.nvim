@@ -1,4 +1,6 @@
+local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
+local Text = require("mcphub.utils.text")
 local log = require("mcphub.utils.log")
 local ui_utils = require("mcphub.utils.ui")
 local validation = require("mcphub.utils.validation")
@@ -508,34 +510,154 @@ function M.parse_config_from_json(text)
     return result
 end
 
-function M.open_server_editor(placeholder)
-    ui_utils.multiline_input("Paste server's json config", placeholder or "", function(content)
+---@param opts { title?: string, placeholder?: string, old_server_name?: string, start_insert?: boolean, is_native?: boolean, on_success?: function, on_error?: function, go_to_placeholder?: boolean, virtual_lines?: Array[] }
+function M.open_server_editor(opts)
+    ui_utils.multiline_input(opts.title or "Paste server's JSON config", opts.placeholder or "", function(content)
         if not content or vim.trim(content) == "" then
+            if opts.on_error then
+                opts.on_error("No content provided")
+            end
             return
         end
         local result = M.parse_config_from_json(content)
         if result.ok then
-            State.hub_instance:update_server_config(result.name, result.config)
-            vim.notify("Server " .. result.name .. " added successfully", vim.log.levels.INFO)
+            if opts.old_server_name and opts.old_server_name ~= "" then
+                if result.name ~= opts.old_server_name then
+                    if opts.is_native then
+                        if opts.on_error then
+                            opts.on_error("Server name cannot be changed for native servers")
+                        else
+                            vim.notify("Server name cannot be changed for native servers", vim.log.levels.ERROR)
+                        end
+                        return
+                    end
+                    -- If an old server name is provided, remove the old config
+                    State.hub_instance:remove_server_config(opts.old_server_name)
+                    vim.notify("Server " .. opts.old_server_name .. " removed", vim.log.levels.INFO)
+                end
+            end
+
+            local success = State.hub_instance:update_server_config(result.name, result.config, { merge = false })
+            if success then
+                vim.notify("Server " .. result.name .. " added successfully", vim.log.levels.INFO)
+                if opts.on_success then
+                    opts.on_success(result.name, result.config)
+                end
+            else
+                local error_msg = "Failed to update server configuration"
+                if opts.on_error then
+                    opts.on_error(error_msg)
+                else
+                    vim.notify(error_msg, vim.log.levels.ERROR)
+                end
+            end
+        else
+            if opts.on_error then
+                opts.on_error(result.error)
+            else
+                vim.notify(result.error, vim.log.levels.ERROR)
+            end
         end
     end, {
         filetype = "json",
-        start_insert = true,
+        start_insert = opts.start_insert or false,
         show_footer = false,
+        position = "center", -- Always use center positioning for server editor
+        go_to_placeholder = opts.go_to_placeholder,
+        virtual_lines = opts.virtual_lines,
         validate = function(content)
             local result = M.parse_config_from_json(content)
             if not result.ok then
                 vim.notify(result.error, vim.log.levels.ERROR)
                 return false
             end
-            local valid = validation.validate_server_config(result.name, result.config)
-            if not valid.ok then
-                vim.notify(valid.error.message, vim.log.levels.ERROR)
-                return false
+
+            if opts.is_native then
+                if type(result.config) ~= "table" then
+                    vim.notify("Config must be a table", vim.log.levels.ERROR)
+                    return false
+                end
+                -- Native servers only need basic config validation
+                return true
+            else
+                local valid = validation.validate_server_config(result.name, result.config)
+                if not valid.ok then
+                    vim.notify(valid.error.message, vim.log.levels.ERROR)
+                    return false
+                end
             end
             return true
         end,
+        on_cancel = function()
+            if opts.on_error then
+                opts.on_error("User cancelled")
+            end
+        end,
     })
+end
+
+--- Confirm and delete a server configuration with a detailed preview
+--- @param server_name string The name of the server to delete
+--- @param on_delete function? Callback function to call after deletion
+function M.confirm_and_delete_server(server_name, on_delete)
+    if not server_name or server_name == "" then
+        vim.notify("Server name is required for deletion", vim.log.levels.ERROR)
+        return
+    end
+    local async = require("plenary.async")
+    async.run(function()
+        -- Get current server configuration
+        local current_config = nil
+        if State.hub_instance then
+            local config_result = State.hub_instance:load_config()
+            if config_result and config_result.mcpServers and config_result.mcpServers[server_name] then
+                current_config = config_result.mcpServers[server_name]
+            end
+        end
+
+        -- Create confirmation message with highlights
+        local message = {}
+
+        -- Header line with highlights
+        local header_line = NuiLine()
+        header_line:append("Do you want to delete ", Text.highlights.muted)
+        header_line:append("'" .. server_name .. "'", Text.highlights.error)
+        header_line:append(" server?", Text.highlights.muted)
+        table.insert(message, header_line)
+        table.insert(message, "")
+
+        -- Current configuration preview
+        if current_config then
+            vim.list_extend(message, Text.render_json(vim.json.encode(current_config)))
+        else
+            local no_config_line = NuiLine()
+            no_config_line:append("No current configuration found.", Text.highlights.muted)
+            table.insert(message, no_config_line)
+        end
+
+        -- Show confirmation dialog
+        local confirmed, cancelled = ui_utils.confirm(message, {
+            min_width = 70,
+            max_width = 90,
+        })
+
+        if confirmed and not cancelled then
+            -- Delete the server
+            if State.hub_instance then
+                local success = State.hub_instance:remove_server_config(server_name)
+                if success then
+                    vim.notify("Server '" .. server_name .. "' deleted successfully!", vim.log.levels.INFO)
+                    if on_delete then
+                        on_delete(server_name)
+                    end
+                else
+                    vim.notify("Failed to delete server '" .. server_name .. "'", vim.log.levels.ERROR)
+                end
+            else
+                vim.notify("MCP Hub not available", vim.log.levels.ERROR)
+            end
+        end
+    end, function() end)
 end
 
 return M

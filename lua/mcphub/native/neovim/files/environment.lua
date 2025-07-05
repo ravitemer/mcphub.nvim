@@ -39,28 +39,28 @@ return {
         local text = string.format(
             [[
 <environment_details>
->> System Information
+## System Information
 OS: %s (%s)
 Hostname: %s
 User: %s
 Shell: %s
 Memory: %.2f GB total, %.2f GB free
 
->> Workspace
+## Workspace
 Current Directory: %s
 Git Repository: %s
 Files: %d
 
->> Workspace Files
+## Workspace Files
 %s
 
->> Neovim Visible Files
+## Neovim Visible Files
 %s
 
->> Neovim Loaded Files
+## Neovim Loaded Files
 %s
 
->> Current Time
+## Current Time
 %s
 </environment_details>
             ]],
