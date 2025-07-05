@@ -47,7 +47,7 @@ Helpers.new_child_neovim = function()
         child.o.laststatus = 0
         -- Change initial buffer to be readonly. This not only increases execution
         -- speed, but more closely resembles manually opened Neovim.
-        child.bo.readonly = false
+        child.bo.readonly = true
     end
 
     child.set_lines = function(arr, start, finish)
