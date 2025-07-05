@@ -1,7 +1,9 @@
 local M = {}
 local NuiLine = require("mcphub.utils.nuiline")
+local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local async = require("plenary.async")
+local constants = require("mcphub.utils.constants")
 
 ---@param title string Title of the floating window
 ---@param content string Content to be displayed in the floating window
@@ -491,6 +493,235 @@ function M.get_window_position(width, height)
     }
 
     return win_opts
+end
+
+---@param server_name string Name of the server being authorized
+---@param auth_url string Authorization URL
+function M.open_auth_popup(server_name, auth_url)
+    local width = 80 -- Wider to accommodate wrapped text
+
+    -- Create content using NuiLine for proper highlighting
+    local info_lines = {
+        Text.pad_line(
+            NuiLine():append("Browser should open automatically with the authorization page.", Text.highlights.text)
+        ),
+        Text.pad_line(NuiLine():append("If not, you can use this URL:", Text.highlights.text)),
+        Text.pad_line(NuiLine():append(auth_url, Text.highlights.link)),
+        Text.empty_line(),
+        Text.pad_line(
+            NuiLine():append(
+                "If you're running mcphub on a remote machine, paste the redirect URL below",
+                Text.highlights.muted
+            )
+        ),
+        Text.pad_line(
+            NuiLine():append(
+                string.format("(looks like 'http://localhost...?code=...&server_name=%s')", server_name),
+                Text.highlights.muted
+            )
+        ),
+        Text.empty_line(),
+        Text.pad_line(
+            NuiLine():append(
+                "This popup will automatically close once authentication is successful.",
+                Text.highlights.muted
+            )
+        ),
+    }
+
+    local info_height = #info_lines + 4
+    local input_height = 1
+
+    -- Position at top center
+    local row = 1
+    local col = math.floor((vim.o.columns - width) / 2)
+
+    -- Create buffers
+    local info_buf = vim.api.nvim_create_buf(false, true)
+    local input_buf = vim.api.nvim_create_buf(false, true)
+
+    -- Create namespace for virtual text
+    local ns = vim.api.nvim_create_namespace("MCPHubAuthPopup")
+
+    -- Info window configuration
+    local info_opts = {
+        relative = "editor",
+        width = width,
+        height = info_height,
+        row = row,
+        col = col,
+        style = "minimal",
+        border = "rounded",
+        title = string.format(Text.icons.unauthorized .. " Authorize %s ", server_name),
+        title_pos = "center",
+    }
+
+    local input_title = " > Callback URL"
+    -- Input window configuration
+    local input_opts = {
+        relative = "editor",
+        width = width,
+        height = input_height,
+        row = row + info_height + 2,
+        col = col,
+        style = "minimal",
+        title = input_title,
+        border = "rounded",
+    }
+
+    -- Set info content with proper highlighting
+    vim.api.nvim_buf_set_option(info_buf, "modifiable", true)
+    for i, line in ipairs(info_lines) do
+        line:render(info_buf, ns, i)
+    end
+    vim.api.nvim_buf_set_option(info_buf, "modifiable", false)
+    vim.api.nvim_buf_set_option(info_buf, "buftype", "nofile")
+
+    -- Create windows
+    local info_win = vim.api.nvim_open_win(info_buf, true, info_opts)
+    local input_win = vim.api.nvim_open_win(input_buf, false, input_opts)
+
+    -- Set window options
+    for _, win in ipairs({ info_win, input_win }) do
+        vim.api.nvim_win_set_option(win, "wrap", true)
+        vim.api.nvim_win_set_option(win, "cursorline", false)
+    end
+
+    local function update_virtual_text(text, hl)
+        vim.api.nvim_buf_clear_namespace(input_buf, ns, 0, -1)
+        pcall(vim.api.nvim_buf_set_extmark, input_buf, ns, 0, 0, {
+            virt_text = { { text, hl } },
+            virt_text_pos = "right_align",
+        })
+    end
+    update_virtual_text("[<Cr> submit, <Tab> Cycle]", Text.highlights.muted)
+
+    -- Track current window
+    local current_win = info_win
+
+    -- Setup autocmd to close both windows
+    local function close_windows()
+        if vim.api.nvim_win_is_valid(info_win) then
+            vim.api.nvim_win_close(info_win, true)
+        end
+        if vim.api.nvim_win_is_valid(input_win) then
+            vim.api.nvim_win_close(input_win, true)
+        end
+        -- Return focus to MCPHub window
+        if State.ui_instance and State.ui_instance.window then
+            vim.api.nvim_set_current_win(State.ui_instance.window)
+        end
+    end
+
+    local function switch_window()
+        if current_win == info_win and vim.api.nvim_win_is_valid(input_win) then
+            vim.api.nvim_set_current_win(input_win)
+            current_win = input_win
+            vim.cmd("startinsert")
+        elseif current_win == input_win and vim.api.nvim_win_is_valid(info_win) then
+            vim.api.nvim_set_current_win(info_win)
+            current_win = info_win
+            vim.cmd("stopinsert")
+        end
+    end
+    -- Basic validation for the URL
+    local function validate_url(url)
+        if not url or vim.trim(url) == "" then
+            return false, "Invalid URL format"
+        end
+
+        -- Check for required parameters
+        if not url:match("code=[^&]+") then
+            return false,
+                "Missing 'code' parameter. The redirect url should look like 'http://localhost?code=...&server_name=...'."
+        end
+        if not url:match("server_name=[^&]+") then
+            return false,
+                "Missing 'server_name' parameter. The redirect url should look like 'http://localhost?code=...&server_name=...'."
+        end
+
+        return true
+    end
+
+    -- Set up auto-close on server update
+    local update_handler = "MCPHubAuthPopup" .. server_name
+    vim.api.nvim_create_augroup(update_handler, { clear = true })
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "MCPHubServersUpdated",
+        group = update_handler,
+        callback = function()
+            local server = State.hub_instance:get_server(server_name)
+            if server and server.status ~= constants.ConnectionStatus.UNAUTHORIZED then
+                close_windows()
+                return true
+            end
+        end,
+    })
+
+    -- Handle input
+    local function handle_submit()
+        local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+        local url = vim.trim(table.concat(lines, "\n"))
+
+        if url == "" then
+            vim.notify("Please enter a callback URL", vim.log.levels.WARN)
+            return
+        end
+
+        local valid, err = validate_url(url)
+        if not valid then
+            vim.notify(err, vim.log.levels.ERROR)
+            return
+        end
+
+        local function update_input_title(text, hl)
+            local ok, config = pcall(vim.api.nvim_win_get_config, input_win)
+            if ok then
+                config.title = { { " " .. text .. " ", hl } }
+                vim.api.nvim_win_set_config(input_win, config)
+            end
+        end
+
+        update_input_title(" Authorizing...", Text.highlights.info)
+        update_virtual_text("Validating callback URL...", Text.highlights.info)
+        State.hub_instance:handle_oauth_callback(url, function(response, err)
+            if err then
+                vim.notify("OAuth callback failed: " .. err, vim.log.levels.ERROR)
+            else
+                vim.notify(response.message, vim.log.levels.INFO)
+            end
+            update_input_title(input_title, Text.highlights.info)
+            update_virtual_text("Press <Cr> to submit", Text.highlights.comment)
+        end)
+    end
+
+    -- Set up keymaps
+    local function setup_keymaps(buf)
+        local keymaps = {
+            ["<CR>"] = handle_submit,
+            ["<Esc>"] = close_windows,
+            ["q"] = close_windows,
+            ["<Tab>"] = switch_window,
+        }
+
+        for key, handler in pairs(keymaps) do
+            vim.keymap.set("n", key, handler, { buffer = buf, nowait = true })
+            vim.keymap.set("i", key, handler, { buffer = buf, nowait = true })
+        end
+    end
+
+    setup_keymaps(info_buf)
+    setup_keymaps(input_buf)
+
+    -- Set up buffer cleanup
+    for _, buf in ipairs({ info_buf, input_buf }) do
+        vim.api.nvim_create_autocmd("BufWipeout", {
+            buffer = buf,
+            callback = close_windows,
+            once = true,
+        })
+    end
+    switch_window()
 end
 
 return M

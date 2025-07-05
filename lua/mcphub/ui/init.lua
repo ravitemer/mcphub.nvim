@@ -388,14 +388,14 @@ function UI:cleanup()
     -- Clean up buffer if it exists
     if self.buffer and vim.api.nvim_buf_is_valid(self.buffer) then
         vim.api.nvim_buf_delete(self.buffer, { force = true })
-        self.buffer = nil
     end
 
     -- Close window if it exists
     if self.window and vim.api.nvim_win_is_valid(self.window) then
         vim.api.nvim_win_close(self.window, true)
-        self.window = nil
     end
+    self.buffer = nil
+    self.window = nil
     self.is_shown = false
 end
 

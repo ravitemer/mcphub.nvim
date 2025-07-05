@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [5.11.0] - 2025-06-26
+
+### Added
+
+- **XDG Base Directory Specification Support**: Migrated from hardcoded ~/.mcp-hub paths to XDG-compliant directories
+  - Marketplace cache now uses XDG data directory (`~/.local/share/mcp-hub/cache`)
+  - Logs now use XDG state directory (`~/.local/state/mcp-hub/logs`)
+  - OAuth storage now uses XDG data directory (`~/.local/share/mcp-hub/oauth`)
+  - Backward compatibility maintained for existing ~/.mcp-hub installations
+  - New XDG paths utility module with automatic fallback logic
+
+### Enhanced
+
+- Updated documentation to reflect new XDG-compliant path structure
+- Improved file organization following Linux filesystem standards
+
+
+## [5.10.0] - 2025-06-24
+
+### Added
+
+- Integrated support for MCP Hub's unified endpoint feature
+  - Added documentation for the dual-interface approach (management + MCP endpoint)
+  - Added configuration examples for unified endpoint usage
+
+## [5.9.0] - 2025-06-24
+
+### Added
+
+- Improved OAuth flow for remote/headless servers
+  - New auth popup UI with clear instructions
+  - Manual callback URL support for headless environments
+  - Auto-closing popup on successful authorization
+  - Better error handling and validation
+  - Tab navigation between info and input windows
+
+### Changed
+
+- Updated mcp-hub dependency to v3.5.0 for improved OAuth support
+
 ## [5.8.0] - 2025-06-23
 
 ### Added
@@ -871,4 +912,5 @@ extensions = {
 - Comprehensive error handling
 - Detailed documentation and examples
 - Integration with lazy.nvim package manager
+
 

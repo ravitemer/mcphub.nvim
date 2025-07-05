@@ -92,7 +92,7 @@ local Installers = {
             })
             cc_chat:add_buf_message({
                 role = "user",
-                content = "@files @cmd_runner Please follow the provided instructions carefully to install this MCP server",
+                content = "@{files} @{cmd_runner} Please follow the provided instructions carefully to install this MCP server",
             })
         end,
         create_native_server = function(self)
@@ -110,7 +110,7 @@ local Installers = {
             })
             cc_chat:add_buf_message({
                 role = "user",
-                content = "@mcp I have provided you a guide to create Lua native MCP servers for mcphub.nvim plugin. My Neovim config directory is '"
+                content = "@{mcp} I have provided you a guide to create Lua native MCP servers for mcphub.nvim plugin. My Neovim config directory is '"
                     .. vim.fn.stdpath("config")
                     .. "'. Once you understood the guide thoroughly, please ask me what kind of server, tools, or resources I want to create.",
             })

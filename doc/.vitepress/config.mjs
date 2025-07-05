@@ -46,6 +46,12 @@ export default withMermaid(
         enabled: true,
         cards: [
           {
+            href: "https://vapi.ai",
+            image: "/mcphub.nvim/sponsors/vapi.png",
+            text: "Build Voice AI Agents with VAPI MCP Server",
+            alt: "Vapi"
+          },
+          {
             href: "https://www.warp.dev/mcp-hub-nvim",
             image: "/mcphub.nvim/sponsors/warp.png",
             text: "Warp, the Intelligent Terminal. Run mcphub.nvim in Warp today",
@@ -125,31 +131,6 @@ export default withMermaid(
             { text: "Troubleshooting", link: "/other/troubleshooting" },
           ],
         },
-        // {
-        //   text: "Usage",
-        //   collapsed: false,
-        //   items: [
-        //     { text: "Introduction", link: "/usage/introduction" },
-        //     { text: "Action Palette", link: "/usage/action-palette" },
-        //     {
-        //       text: "Chat Buffer",
-        //       link: "/usage/chat-buffer/",
-        //       collapsed: true,
-        //       items: [
-        //         { text: "Agents/Tools", link: "/usage/chat-buffer/agents" },
-        //         {
-        //           text: "Slash Commands",
-        //           link: "/usage/chat-buffer/slash-commands",
-        //         },
-        //         { text: "Variables", link: "/usage/chat-buffer/variables" },
-        //       ],
-        //     },
-        //     { text: "Events", link: "/usage/events" },
-        //     { text: "Inline Assistant", link: "/usage/inline-assistant" },
-        //     { text: "User Interface", link: "/usage/ui" },
-        //     { text: "Workflows", link: "/usage/workflows" },
-        //   ],
-        // },
       ],
       outline: {
         level: [2, 3],

@@ -42,11 +42,38 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
 
 - When MCP Hub's `setup()` is called typically when Neovim starts, it launches the nodejs binary, [mcp-hub](https://github.com/ravitemer/mcp-hub) with the `servers.json` file.
 - The `mcp-hub` binary reads `servers.json` file and starts the MCP servers.
-- It provides a express REST API endpoint (default: `http://localhost:37373`) for clients to interact with MCP servers
-- The plugin communicates with this endpoint to:
-  - Start/stop MCP servers
-  - Execute tools, resources, prompts etc
-  - Handle real-time server events when tools or resources are changed.
+- It provides two key interfaces:
+  1. **Management API** (default: `http://localhost:37373/api`):
+     - Used by this plugin to manage MCP servers
+     - Start/stop servers, execute tools, access resources
+     - Handle real-time server events
+  2. **Unified MCP Endpoint** (`http://localhost:37373/mcp`):
+     - A single MCP server that other MCP clients can connect to
+     - Exposes ALL capabilities from ALL managed servers
+     - Automatically namespaces capabilities to prevent conflicts
+     - Use this endpoint in Claude Desktop, Cline, or any MCP client
+
+For example, instead of configuring each MCP client with multiple servers:
+```json
+{
+    "mcpServers" : {
+        "filesystem": { ... },
+        "search": { ... },
+        "database": { ... }
+    }
+}
+```
+
+Just configure them to use MCP Hub's unified endpoint:
+```json
+{
+    "mcpServers" : {
+        "Hub": {
+            "url" : "http://localhost:37373/mcp"  
+        }
+    }
+}
+```
 
 ### Usage
 
@@ -104,6 +131,7 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
 
 - [Installation Guide](/installation) - Set up MCPHub in your Neovim
 - [Configuration Guide](/configuration) - Learn about configuring MCP Hub
+
 
 
 
