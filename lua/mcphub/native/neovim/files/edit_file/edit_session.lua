@@ -103,6 +103,7 @@ function EditSession:start(options)
 
     ---@type ParsedBlock[]
     local parsed_blocks = {}
+    --- Needed to avoid parsing error when the file content has markers
     if is_replacing_entire_file then
         table.insert(parsed_blocks, {
             block_id = "Block 1",
@@ -124,13 +125,23 @@ function EditSession:start(options)
             if #parsed_blocks > 1 then
                 return self:_handle_error(
                     string.format(
-                        "## A Block with empty search content found, but multiple blocks are present in the diff. %s will replace the entire file. If you want to write the entire file, please use a single SEARCH/REPLACE block with empty SEARCH content. If you want to replace a section of the file, please provide non-whitespace SEARCH content.",
+                        "A Block with empty search content found, but multiple blocks are present in the diff. %s will replace the entire file. If you want to write the entire file, please use a single SEARCH/REPLACE block with empty SEARCH content. If you want to replace a section of the file, please provide non-whitespace SEARCH content.",
                         block.block_id
                     )
                 )
             end
             is_replacing_entire_file = true
             break
+        else
+            -- If we are searching for something in a file that doesn't exist, we should not proceed
+            if file_content == "" then
+                return self:_handle_error(
+                    string.format(
+                        "Editing `%s` failed. The file does not exist. If you are using relative paths make sure the path is relative to the cwd or use an absolute path.",
+                        self.file_path
+                    )
+                )
+            end
         end
     end
 

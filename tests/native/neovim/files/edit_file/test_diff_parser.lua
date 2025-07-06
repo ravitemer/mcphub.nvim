@@ -196,7 +196,7 @@ local y = 3
     eq(error, nil)
     eq(#blocks, 1)
     local block = blocks[1]
-    eq(block.search_lines[2] == "<<<<<<<< SEARCH", true)
+    eq(block.search_lines[2], "<<<<<<<< SEARCH")
 end
 
 -- Group 2: Malformed Input and Issue Tracking

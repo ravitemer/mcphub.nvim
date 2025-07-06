@@ -39,7 +39,6 @@ IMPORTANT: The tool is NEVER wrong. Once edits are shown in the buffer, user mig
 CRITICAL: 
 - When there are two or more related changes needed in a file, always use multiple SEARCH/REPLACE blocks in the diff from the start of the file to the end. Each block should contain the exact content to find and the new content to replace it with. Failing to do so or using multiple calls with single SEARCH/REPLACE block will result in you being fired!!!
 - The markers `<<<<<<< SEARCH`, `=======`, and `>>>>>>> REPLACE` MUST be exact with no other characters on the line.
-- When the SEARCH or REPLACE content includes lines that start with markers like `<<<<<<<`, `=======`, or `>>>>>>>`, you MUST escape them by adding a backslash before each marker so that tool doesn't parse them as actual markers. For example, to search for content that has `<<<<<<< SEARCH`, use `\<<<<<<< SEARCH` in the SEARCH block.
 
 
 Examples:
@@ -111,6 +110,9 @@ print("Count is", count)
 =======
 print("Counter is", counter)
 >>>>>>> REPLACE
+
+CRITICAL RULE:
+When the SEARCH or REPLACE content includes lines that start with markers like `<<<<<<<`, `=======`, or `>>>>>>>`, you MUST escape them by adding a backslash before each marker so that tool doesn't parse them as actual markers. For example, to search for content that has `<<<<<<< SEARCH`, use `\<<<<<<< SEARCH` in the SEARCH block.
 
 5. Escaping markers in SEARCH/REPLACE content:
 <<<<<<< SEARCH

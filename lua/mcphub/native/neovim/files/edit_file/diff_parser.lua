@@ -295,6 +295,7 @@ end
 
 function DiffParser:unescape_markers(line)
     local newline = line:gsub("^%s*\\<<<<<", "<<<<<<"):gsub("^%s*\\=====", "====="):gsub("^%s*\\>>>>>", ">>>>>")
+    newline = newline:gsub("^%s*\\\\<<<<<", "<<<<<<"):gsub("^%s*\\\\=====", "====="):gsub("^%s*\\\\>>>>>", ">>>>>")
     return newline
 end
 
