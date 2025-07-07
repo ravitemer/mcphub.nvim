@@ -12,7 +12,7 @@ Add MCP capabilities to [CodeCompanion.nvim](https://github.com/olimorris/codeco
 - **Server Groups**: Access all tools from a specific server (e.g., `@neovim`, `@github`, `@tree_sitter`)
 - **Individual Tools**: Use specific tools with clear namespacing (e.g., `@neovim__read_file`, `@github__create_issue`)
 - **Custom Tool Groups**: Create your own tool combinations for specific workflows
-- **Resource Variables**: Utilize MCP resources as context variables using the `#` prefix (e.g., `#resource_name`)
+- **Resource Variables**: Utilize MCP resources as context variables using the `#` prefix (e.g., `#mcp:resource_name`)
 - **Slash Commands**: Execute MCP prompts directly using `/mcp:prompt_name` slash commands
 - **Rich Media Support**: Supports 🖼 images and other media types as shown in the demo
 - **Real-time Updates**: Automatic updates in CodeCompanion when MCP servers change
@@ -27,10 +27,14 @@ require("codecompanion").setup({
     mcphub = {
       callback = "mcphub.extensions.codecompanion",
       opts = {
-        make_tools = true,              -- Enable individual tools (@server__tool) and server groups (@server)
+        -- MCP Tools 
+        make_tools = true,              -- Make individual tools (@server__tool) and server groups (@server) from MCP servers
         show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
+        add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
         show_result_in_chat = true,      -- Show tool results directly in chat buffer
+        -- MCP Resources
         make_vars = true,                -- Convert MCP resources to #variables for prompts
+        -- MCP Prompts 
         make_slash_commands = true,      -- Add MCP prompts as /slash commands
       }
     }
@@ -45,27 +49,28 @@ MCP Hub provides multiple ways to access MCP tools in CodeCompanion, giving you 
 ### Tool Access
 
 #### 1. Universal MCP Access (`@mcp`)
-Adds all available MCP servers to the system prompt and provides LLM with `use_mcp_tool` and `access_mcp_resource` tools.
+Adds all available MCP servers to the system prompt and provides LLM with `@mcp` tool group which has `use_mcp_tool` and `access_mcp_resource` tools. 
 ```
-@mcp What files are in the current directory?
+@{mcp} What files are in the current directory?
 ```
 
 #### 2. Server Groups (when `make_tools = true`)
-Access all tools from a specific server. The available groups depend on your connected MCP servers:
+You can add all the enabled tools from a specific server with server groups. Unlike the `@mcp` group where all the running servers are converted and added to the system prompt, the tools added with server groups are pure function tools and hence depend on model support. The available groups depend on your connected MCP servers:
+
 ```
-@neovim Read the main.lua file    # If you have neovim server
-@github Create an issue           # If you have github server  
-@fetch Get this webpage           # If you have fetch server
+@{neovim} Read the main.lua file    # All tools from the neovim server will be added as function tools
+@{github} Create an issue           
+@{fetch} Get this webpage           
 ```
 
-Server groups are automatically created based on your connected MCP servers. Check your MCP Hub UI to see which servers you have connected.
+Server groups are automatically created based on your connected MCP servers when enabled via `make_tools`. Check your MCP Hub UI to see which servers you have connected.
 
 #### 3. Individual Tools (when `make_tools = true`)
-Pinpoint specific functionality with namespaced tools. Tool names depend on your connected servers:
+You can just provide a single tool from a server for fine-grained functionality. Tool names depend on your connected servers:
 ```
-@neovim__read_file Show me the config file
-@fetch__fetch Get this webpage content
-@github__create_issue File a bug report
+@{neovim__read_file} Show me the config file
+@{fetch__fetch} Get this webpage content
+@{github__create_issue} File a bug report
 ```
 
 Use the MCP Hub UI or CodeCompanion's tool completion to discover available tools.
