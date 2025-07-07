@@ -12,6 +12,7 @@ local M = {}
 ---@field make_vars boolean Whether to make variables or not
 ---@field make_slash_commands boolean Whether to make slash commands or not
 ---@field show_result_in_chat boolean Whether to show the result in chat or not
+---@field format_action fun(action_name: MCPHub.ActionType, tool: CodeCompanion.Agent.Tool): string|nil
 
 ---@class MCPHub.Extensions.Config
 ---@field avante MCPHub.Extensions.AvanteConfig Configuration for the Avante extension

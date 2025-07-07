@@ -87,7 +87,7 @@ function M.create_handler(action_name, has_function_calling, opts)
 end
 
 ---@param action_name MCPHub.ActionType
----@param tool table
+---@param tool CodeCompanion.Agent.Tool
 ---@param chat any
 ---@param llm_msg string
 ---@param is_error boolean
@@ -106,7 +106,10 @@ local function add_tool_output(action_name, tool, chat, llm_msg, is_error, has_f
             tool,
             text,
             (user_msg or show_result_in_chat or is_error) and (user_msg or text)
-                or string.format("**`%s` Tool**: Successfully finished", action_name)
+                or string.format(
+                    "**`%s` Tool**: Successfully finished",
+                    opts.format_action and opts.format_action(action_name, tool) or action_name
+                )
         )
         for _, image in ipairs(images) do
             helpers.add_image(chat, image)
@@ -124,7 +127,10 @@ local function add_tool_output(action_name, tool, chat, llm_msg, is_error, has_f
             })
             chat:add_buf_message({
                 role = config.constants.USER_ROLE,
-                content = string.format("I've shared the result of the `%s` tool with you.\n", action_name),
+                content = string.format(
+                    "I've shared the result of the `%s` tool with you.\n",
+                    opts.format_action and opts.format_action(action_name, tool) or action_name
+                ),
             })
         end
     end
@@ -154,7 +160,7 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
 %s
 ````
 ]],
-                action_name,
+                opts.format_action and opts.format_action(action_name, self) or action_name,
                 stderr
             )
             add_tool_output(action_name, self, agent.chat, err_msg, true, has_function_calling, opts, nil, {})
@@ -179,7 +185,7 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
 ````
 %s
 ````]],
-                    action_name,
+                    opts.format_action and opts.format_action(action_name, self) or action_name,
                     result.text
                 )
             end
@@ -204,7 +210,7 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
 ````
 %s
 ````]],
-                        action_name,
+                        opts.format_action and opts.format_action(action_name, self) or action_name,
                         string.format("%d image%s returned", #result.images, #result.images > 1 and "s" or "")
                     )
                 end
@@ -219,7 +225,10 @@ function M.create_output_handlers(action_name, has_function_calling, opts)
                     end
                 end
             end
-            local fallback_to_llm = string.format("**`%s` Tool**: Completed with no output", action_name)
+            local fallback_to_llm = string.format(
+                "**`%s` Tool**: Completed with no output",
+                opts.format_action and opts.format_action(action_name, self) or action_name
+            )
             add_tool_output(
                 action_name,
                 self,
