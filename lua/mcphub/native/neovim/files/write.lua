@@ -1,3 +1,4 @@
+local State = require("mcphub.state")
 -- Core write file logic
 local function handle_write_file(req, res)
     if not req.params.path then
@@ -13,7 +14,7 @@ local function handle_write_file(req, res)
     end
 
     local EditSession = require("mcphub.native.neovim.files.edit_file.edit_session")
-    local session = EditSession.new(path, "")
+    local session = EditSession.new(path, "", State.config.inbuilt_tools.edit_file)
     session:start({
         replace_file_content = content,
         interactive = req.caller.auto_approve ~= true,

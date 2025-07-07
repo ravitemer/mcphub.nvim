@@ -157,15 +157,10 @@ M.DIFFERENCE_TYPE = {
 ---@class ParserConfig
 ---@field track_issues boolean Track parsing issues for LLM feedback
 ---@field extract_inline_content boolean Handle content on marker lines
----@field strict_markers boolean Require exact marker formatting
----@field case_sensitive boolean Case-sensitive marker matching
 
 ---@class LocatorConfig
 ---@field fuzzy_threshold number Minimum similarity score for fuzzy matches (0.0-1.0)
 ---@field enable_fuzzy_matching boolean Allow fuzzy matching when exact fails
----@field search_strategy string "auto" | "linear" | "middle_out"
----@field max_search_iterations integer Prevent runaway searches
----@field enable_buffer_reading boolean Read from open buffers vs disk
 
 ---@class AnalyzerConfig
 ---@field diff_algorithm string "patience" | "minimal" | "histogram"
@@ -181,11 +176,6 @@ M.DIFFERENCE_TYPE = {
 ---@field reject_all string Key to reject all changes
 
 ---@class UIConfig
----@field send_diagnostics boolean Send diagnostics after saving the file
----@field wait_for_diagnostics number? Time to wait for diagnostics (ms)
----@field diagnostic_severity string Severity level for diagnostics
----@field auto_navigate boolean Auto-navigate to first block
----@field show_confidence boolean Show confidence scores
 ---@field go_to_origin_on_complete boolean Jump back to original file on completion
 ---@field keybindings UIKeybindings Custom keybindings for UI actions
 return M

@@ -11,11 +11,39 @@ local defaults = {
     mcp_request_timeout = 60000, --Timeout for MCP requests in milliseconds, useful for long running tasks
     ---@type table<string, NativeServerDef>
     native_servers = {},
-    builtin_tools = {
-        replace_in_file = {
-            keymaps = {
-                accept = "ga",
-                reject = "gr",
+    inbuilt_tools = {
+        ---@type EditSessionConfig
+        edit_file = {
+            parser = {
+                track_issues = true,
+                extract_inline_content = true,
+            },
+            locator = {
+                fuzzy_threshold = 0.8,
+                enable_fuzzy_matching = true,
+            },
+            ui = {
+                go_to_origin_on_complete = true,
+                keybindings = {
+                    accept = ".", -- Accept current change
+                    reject = ",", -- Reject current change
+                    next = "n", -- Next diff
+                    prev = "p", -- Previous diff
+                    accept_all = "ga", -- Accept all remaining changes
+                    reject_all = "gr", -- Reject all remaining changes
+                },
+            },
+            feedback = {
+                include_parser_feedback = true,
+                include_locator_feedback = true,
+                include_ui_summary = true,
+                ui = {
+                    include_session_summary = true,
+                    include_final_diff = true,
+                    send_diagnostics = true,
+                    wait_for_diagnostics = 500,
+                    diagnostic_severity = vim.diagnostic.severity.WARN, -- Only show warnings and above by default
+                },
             },
         },
     },

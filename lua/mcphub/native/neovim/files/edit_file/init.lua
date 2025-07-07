@@ -1,3 +1,4 @@
+local State = require("mcphub.state")
 ---New modular editor tool using EditSession
 ---@type MCPTool
 local edit_file_tool = {
@@ -160,7 +161,7 @@ IMPORTANT: Batch multiple related changes for a file into a single call to minim
             req.caller.hubui:cleanup()
         end
         local EditSession = require("mcphub.native.neovim.files.edit_file.edit_session")
-        local session = EditSession.new(params.path, params.diff)
+        local session = EditSession.new(params.path, params.diff, State.config.inbuilt_tools.edit_file)
         session:start({
             interactive = req.caller.auto_approve ~= true,
             on_success = function(summary)
