@@ -252,6 +252,7 @@ function EditUI:_highlight_hunk_block(hunk_block)
             if line_length < max_cols then
                 return line .. string.rep(" ", max_cols - line_length)
             end
+            return line
         end
 
         -- Add deletion indicator for pure deletions
@@ -283,7 +284,6 @@ function EditUI:_highlight_hunk_block(hunk_block)
             virt_lines_above = virt_lines_above,
             priority = self.highlights.priority,
         }
-
         -- For pure deletions, store the extmark_id for navigation
         if hunk_block.type == "deletion" then
             hunk_block.extmark_id = vim.api.nvim_buf_set_extmark(
