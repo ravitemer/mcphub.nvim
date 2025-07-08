@@ -34,6 +34,7 @@
 ---@field command? string
 ---@field args? table
 ---@field env? table<string,string>
+---@field cwd? string
 ---@field headers? table<string,string>
 ---@field url? string
 

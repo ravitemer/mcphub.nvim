@@ -151,6 +151,17 @@ function M.validate_server_config(name, config)
                 ),
             }
         end
+
+        if config.cwd and (type(config.cwd) ~= "string" or config.cwd == "") then
+            return {
+                ok = false,
+                error = Error(
+                    "VALIDATION",
+                    Error.Types.SETUP.INVALID_CONFIG,
+                    string.format("Server '%s' has invalid cwd: must be a non-empty string", name)
+                ),
+            }
+        end
     elseif has_sse then
         -- Validate SSE config
         if type(config.url) ~= "string" or config.url == "" then
