@@ -63,7 +63,8 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
                 "DB_URL": "postgresql://user:${DB_PASSWORD}@localhost/myapp",
                 "DB_PASSWORD": "password123",
                 "FALLBACK_VAR": null
-            }
+            },
+            "cwd": "/home/ubuntu/server-dir/"
         }
     }
 }
@@ -75,6 +76,7 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 ##### Optional fields: 
 - `args`: Array of command arguments (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `env`: Environment variables with placeholder resolution and system fallback
+- `cwd`: The current working directory for the MCP server process (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `dev`: Development mode configuration for auto-restart on file changes
 - `name`: Display name that will be shown in the UI
 - `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
@@ -97,6 +99,33 @@ Given `API_KEY=secret` in the environment:
 | `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is |
 
 > ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
+
+
+#### `cwd` Example:
+
+The `cwd` field is particularly useful when your MCP server needs to run in a specific directory context. Here's a practical example:
+
+```json
+{
+    "mcpServers": {
+        "project-server": {
+            "command": "npm",
+            "args": ["start"],
+            "cwd": "/home/ubuntu/my-mcp-project/",
+            "env": {
+                "NODE_ENV": "development"
+            }
+        }
+    }
+}
+```
+
+**Use cases for `cwd`:**
+- When the MCP server needs to access relative files in its project directory
+- When using npm/yarn scripts that depend on being in the project root
+
+> **Note**: The top-level `cwd` field sets the working directory for the server process itself, while `dev.cwd` (used in development mode) sets the directory for file watching. These serve different purposes and can be used together.
+
 
 ##### `dev` Development Mode
 
