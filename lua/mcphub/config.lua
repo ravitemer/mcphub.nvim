@@ -11,7 +11,7 @@ local defaults = {
     mcp_request_timeout = 60000, --Timeout for MCP requests in milliseconds, useful for long running tasks
     ---@type table<string, NativeServerDef>
     native_servers = {},
-    inbuilt_tools = {
+    builtin_tools = {
         ---@type EditSessionConfig
         edit_file = {
             parser = {

@@ -7,7 +7,8 @@ local mcphub = require("mcphub")
 ---@param name string
 ---@return string
 local function make_safe_name(name)
-    return name:gsub("[^%w_]", "_") --[[@as string]]
+    name = name:gsub("[^%w_]", "_")
+    return name
 end
 
 ---@param server_name string Name of the MCP server
