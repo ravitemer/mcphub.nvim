@@ -210,6 +210,74 @@ function MarketplaceView:before_leave()
 end
 
 function MarketplaceView:setup_active_mode()
+    local function enter_detail_mode()
+        local cursor = vim.api.nvim_win_get_cursor(0)
+        local server = self:get_server_at_line(cursor[1])
+        if server then
+            self.cursor_positions.browse_mode = cursor
+            self.selected_server = server
+            self.active_mode = "details"
+            self.active_installation_index = 1
+            self:setup_active_mode()
+            self:draw()
+            local install_line = self.interactive_lines[1]
+            vim.api.nvim_win_set_cursor(0, { install_line and install_line.line or 7, 0 })
+        end
+    end
+    local function go_to_browse_mode()
+        self.cursor_positions.details_mode = vim.api.nvim_win_get_cursor(0)
+        self.active_mode = "browse"
+        self.selected_server = nil
+        self:setup_active_mode()
+        self:draw()
+        -- Restore browse mode position
+        if self.cursor_positions.browse_mode then
+            vim.api.nvim_win_set_cursor(0, self.cursor_positions.browse_mode)
+        end
+    end
+    local function install_server()
+        local cursor = vim.api.nvim_win_get_cursor(0)
+        local type, context = self:get_line_info(cursor[1])
+
+        if type == "install_with_method" and not State:is_server_installed(self.selected_server.id) then
+            -- Open installation editor directly
+            self:handle_installation_selection(
+                context --[[@as { server: MarketplaceItem, installation: MarketplaceInstallation }]]
+            )
+        elseif type == "uninstall_server" and State:is_server_installed(self.selected_server.id) then
+            -- Show confirmation and uninstall
+            if context then
+                local server_id = context.server.id --[[@as string]]
+                utils.confirm_and_delete_server(server_id)
+            end
+        end
+    end
+    local function cycle_method(forward)
+        if self.selected_server and self.selected_server.installations then
+            local num_installations = #self.selected_server.installations
+            if num_installations >= 1 then
+                local is_installed = State:is_server_installed(self.selected_server.id)
+                local max_index = is_installed and num_installations + 1 or num_installations
+
+                if forward then
+                    self.active_installation_index = (self.active_installation_index % max_index) + 1
+                else
+                    self.active_installation_index = ((self.active_installation_index - 2) % max_index) + 1
+                end
+
+                self:draw()
+                -- Keep cursor on install/uninstall line
+                if self.interactive_lines and #self.interactive_lines > 0 then
+                    for _, line_info in ipairs(self.interactive_lines) do
+                        if line_info.type == "install_with_method" or line_info.type == "uninstall_server" then
+                            vim.api.nvim_win_set_cursor(0, { line_info.line, 0 })
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
     if self.active_mode == "browse" then
         self.keymaps = {
             ["/"] = {
@@ -308,89 +376,34 @@ function MarketplaceView:setup_active_mode()
                 desc = "Clear filters",
             },
             ["l"] = {
-                action = function()
-                    local cursor = vim.api.nvim_win_get_cursor(0)
-                    local server = self:get_server_at_line(cursor[1])
-                    if server then
-                        self.cursor_positions.browse_mode = cursor
-                        self.selected_server = server
-                        self.active_mode = "details"
-                        self.active_installation_index = 1
-                        self:setup_active_mode()
-                        self:draw()
-                        local install_line = self.interactive_lines[1]
-                        vim.api.nvim_win_set_cursor(0, { install_line and install_line.line or 7, 0 })
-                    end
-                end,
+                action = enter_detail_mode,
+                desc = "View details",
+            },
+            ["<Cr>"] = {
+                action = enter_detail_mode,
                 desc = "View details",
             },
         }
     else
         self.keymaps = {
-            ["h"] = {
-                action = function()
-                    self.cursor_positions.details_mode = vim.api.nvim_win_get_cursor(0)
-                    self.active_mode = "browse"
-                    self.selected_server = nil
-                    self:setup_active_mode()
-                    self:draw()
-                    -- Restore browse mode position
-                    if self.cursor_positions.browse_mode then
-                        vim.api.nvim_win_set_cursor(0, self.cursor_positions.browse_mode)
-                    end
-                end,
+            ["<Esc>"] = {
+                action = go_to_browse_mode,
                 desc = "Back to list",
-            },
-            ["<Tab>"] = {
-                action = function()
-                    if self.selected_server and self.selected_server.installations then
-                        local num_installations = #self.selected_server.installations
-                        if num_installations >= 1 then
-                            local is_installed = State:is_server_installed(self.selected_server.id)
-                            -- For installed servers, we have 1 extra "Current" tab
-                            self.active_installation_index = (
-                                self.active_installation_index
-                                % (is_installed and num_installations + 1 or num_installations)
-                            ) + 1
-                            self:draw()
-                            -- Keep cursor on install/uninstall line
-                            if self.interactive_lines and #self.interactive_lines > 0 then
-                                for _, line_info in ipairs(self.interactive_lines) do
-                                    if
-                                        line_info.type == "install_with_method"
-                                        or line_info.type == "uninstall_server"
-                                    then
-                                        vim.api.nvim_win_set_cursor(0, { line_info.line, 0 })
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end,
-                desc = "Switch installation method",
             },
             ["l"] = {
                 action = function()
-                    local cursor = vim.api.nvim_win_get_cursor(0)
-                    local type, context = self:get_line_info(cursor[1])
-
-                    if type == "install_with_method" and not State:is_server_installed(self.selected_server.id) then
-                        -- Open installation editor directly
-                        self:handle_installation_selection(
-                            context --[[@as { server: MarketplaceItem, installation: MarketplaceInstallation }]]
-                        )
-                    elseif type == "uninstall_server" and State:is_server_installed(self.selected_server.id) then
-                        -- Show confirmation and uninstall
-                        if context then
-                            local server_id = context.server.id --[[@as string]]
-                            utils.confirm_and_delete_server(server_id)
-                        end
-                    else
-                        -- Normal vim movement: move cursor right
-                        vim.cmd("normal! l")
-                    end
+                    cycle_method(true)
                 end,
+                desc = "Switch method",
+            },
+            ["h"] = {
+                action = function()
+                    cycle_method(false)
+                end,
+                desc = "Switch method",
+            },
+            ["<Cr>"] = {
+                action = install_server,
                 desc = "Install/Uninstall",
             },
         }
@@ -416,8 +429,8 @@ function MarketplaceView:handle_installation_selection(context)
         start_insert = false,
         go_to_placeholder = true, -- Position cursor at first ${} placeholder
         virtual_lines = {
-            { Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced", "DiagnosticHint" },
-            { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "DiagnosticHint" },
+            { Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced", "Comment" },
+            { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "Comment" },
         },
         on_success = function()
             -- Switch to main view and browse mode after successful installation
@@ -666,6 +679,10 @@ function MarketplaceView:render_browse_mode(line_offset)
         end
     end
 
+    local info_line = NuiLine()
+    info_line:append(Text.icons.bug .. " Report issues or suggest changes: ", Text.highlights.title)
+    info_line:append("https://github.com/ravitemer/mcp-registry", Text.highlights.link)
+    table.insert(lines, Text.pad_line(info_line))
     return lines
 end
 
@@ -772,13 +789,13 @@ function MarketplaceView:render_details_mode(line_offset)
             self:track_line(#lines + line_offset, "uninstall_server", {
                 type = "uninstall_server",
                 server = server,
-                hint = "[<l> Uninstall, <Tab> Switch Installation]",
+                hint = "[<Cr> Uninstall, <l> Switch Method]",
             })
 
             table.insert(lines, Text.pad_line(NuiLine()))
-            local prereq_line = NuiLine()
-            prereq_line:append("PREVIEW ", Text.highlights.muted)
-            table.insert(lines, Text.pad_line(prereq_line))
+            -- local prereq_line = NuiLine()
+            -- prereq_line:append("PREVIEW ", Text.highlights.muted)
+            -- table.insert(lines, Text.pad_line(prereq_line))
             table.insert(lines, self:divider())
 
             -- Show details based on active tab
@@ -821,7 +838,7 @@ function MarketplaceView:render_details_mode(line_offset)
                     type = "install_with_method",
                     server = server,
                     installation = active_installation,
-                    hint = "[<l> Install, <Tab> Switch Method]",
+                    hint = "[<Cr> Install, <l> Switch Method]",
                 })
 
                 table.insert(lines, Text.pad_line(NuiLine()))
@@ -834,9 +851,9 @@ function MarketplaceView:render_details_mode(line_offset)
                 --     table.insert(lines, Text.pad_line(prereq_line))
                 -- end
 
-                local prereq_line = NuiLine()
-                prereq_line:append("PREVIEW ", Text.highlights.muted)
-                table.insert(lines, Text.pad_line(prereq_line))
+                -- local prereq_line = NuiLine()
+                -- prereq_line:append("PREVIEW ", Text.highlights.muted)
+                -- table.insert(lines, Text.pad_line(prereq_line))
                 table.insert(lines, self:divider())
 
                 -- Show active installation details

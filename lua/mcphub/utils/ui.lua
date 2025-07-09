@@ -86,8 +86,8 @@ function M.multiline_input(title, content, on_save, opts)
             local cursor = vim.api.nvim_win_get_cursor(0)
             local row = cursor[1] - 1
             vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
-                virt_text = { { "Press <CR> to save", "Comment" } },
-                virt_text_pos = "eol",
+                virt_text = { { "[<i> Edit, <Cr> Save]", "Comment" } },
+                virt_text_pos = "right_align",
             })
         end
     end
