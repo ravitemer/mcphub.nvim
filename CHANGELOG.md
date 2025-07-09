@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [5.12.0] - 2025-07-09
+
+
+### Enhanced
+- **MCP Registry Migration**: Updated to support mcp-hub v4.0.0 with new MCP Registry system
+  - Improved reliability with decentralized registry system (https://github.com/ravitemer/mcp-registry)
+  - Enhanced server metadata with comprehensive installation instructions
+  - Better caching system with 1-hour TTL for frequent updates
+
+### Changed
+
+- Updated mcp-hub dependency to v4.0.0 for new registry system
+- Marketplace now uses MCP Registry instead of Cline marketplace API
+- Enhanced error handling for marketplace operations
+
+## [5.11.1] - 2025-07-08
+
+### Added
+
+- **`cwd` field support for stdio servers**: 
+  - Added `cwd` field to `MCPServerConfig` type definition
+  - Added validation for `cwd` field in server configuration
+  - Updated documentation with examples and use cases
+
 ## [5.11.0] - 2025-06-26
 
 ### Added
