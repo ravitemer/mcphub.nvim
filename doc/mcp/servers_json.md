@@ -15,13 +15,11 @@ Adding, editing, deleting and securing MCP servers in easy and intuitive with MC
 
 ![Image](https://github.com/user-attachments/assets/f5c8adfa-601e-4d03-8745-75180a9d3648)
 
-#### One click AI install with Avante and CodeCompanion
-![Image](https://github.com/user-attachments/assets/2d0a0d8b-18ca-4ac8-a207-4758d09d359d)
+#### One Click Install/Uninstall 
 
-#### Or Simple copy paste `mcpServers` json block in the README
+Choose from different install options:
 
-![Image](https://github.com/user-attachments/assets/359bc81e-d6fe-47bb-a25b-572bf280851e)
-<!-- ![Image](https://github.com/user-attachments/assets/f58fcba3-8670-4b4e-998b-cd70b9e6c7ec) -->
+![Image](https://github.com/user-attachments/assets/560bddda-e48d-488b-a9f8-7b188178914c)
 
 
 ### From Hub View

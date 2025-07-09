@@ -9,7 +9,7 @@ local utils = require("mcphub.utils")
 ---@class MCPHub.UI
 ---@field window number Window handle
 ---@field buffer number Buffer handle
----@field current_view string Current view name
+---@field current_view MCPHub.UI.ViewName Current view name
 ---@field views table Table of view instances
 ---@field is_shown boolean Whether the UI is currently visible
 ---@field cursor_states table Store cursor positions by view name
@@ -17,6 +17,15 @@ local utils = require("mcphub.utils")
 ---@field opts MCPHub.UIConfig Configuration options for UI
 local UI = {}
 UI.__index = UI
+
+---@enum MCPHub.UI.ViewName
+local ViewName = {
+    MAIN = "main",
+    LOGS = "logs",
+    HELP = "help",
+    CONFIG = "config",
+    MARKETPLACE = "marketplace",
+}
 
 -- Default window settings
 ---@class MCPHub.UIConfig
@@ -347,6 +356,9 @@ function UI:restart()
                 vim.notify("Failed to restart")
             end
         end)
+        vim.schedule(function()
+            self:switch_view("main")
+        end)
     else
         vim.notify("No hub instance available")
     end
@@ -398,7 +410,7 @@ function UI:toggle(args)
 end
 
 --- Switch to a different view
----@param view_name string Name of view to switch to
+---@param view_name MCPHub.UI.ViewName Name of view to switch to
 function UI:switch_view(view_name)
     -- Leave current view if any
     if self.current_view and self.views[self.current_view] and self.is_shown then

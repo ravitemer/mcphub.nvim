@@ -857,6 +857,7 @@ end
 ---@param server_name string Name of the server to update
 ---@param updates table|nil Key-value pairs to update in the server config or nil to remove
 ---@param opts? { callback?: function ,merge?:boolean} Optional callback(success: boolean)
+---@return boolean, string|nil Returns success status and error message if any
 function MCPHub:update_server_config(server_name, updates, opts)
     opts = opts or {}
     -- Load and validate current config
@@ -1343,54 +1344,11 @@ function MCPHub:get_marketplace_catalog(opts)
                 marketplace_state = {
                     status = "loaded",
                     catalog = {
-                        items = response.items or {},
+                        items = response.servers or {},
                         last_updated = response.timestamp,
                     },
                 },
             }, "marketplace")
-        end,
-    })
-end
-
---- Get detailed information about a marketplace server
---- @param mcpId string The server's unique identifier
---- @param opts? { callback?: function, timeout?: number }
---- @return table|nil, string|nil If no callback is provided, returns response and error
-function MCPHub:get_marketplace_server_details(mcpId, opts)
-    opts = opts or {}
-
-    -- Check if we have cached details that are still valid
-    local cached = State.marketplace_state.server_details[mcpId]
-    if cached then
-        return cached
-    end
-    -- Fetch fresh details
-    return self:api_request("POST", "marketplace/details", {
-        timeout = opts.timeout or TOOL_TIMEOUT,
-        body = { mcpId = mcpId },
-        callback = function(response, err)
-            if err then
-                local market_err = Error(
-                    "MARKETPLACE",
-                    Error.Types.MARKETPLACE.FETCH_ERROR,
-                    "Failed to fetch server details",
-                    { mcpId = mcpId, error = err }
-                )
-                State:add_error(market_err)
-            -- Keep server details as nil to indicate error state
-            else
-                -- Update state with new details
-                State:update({
-                    marketplace_state = {
-                        server_details = {
-                            [mcpId] = {
-                                data = response.server,
-                                timestamp = vim.loop.now(),
-                            },
-                        },
-                    },
-                }, "marketplace")
-            end
         end,
     })
 end
