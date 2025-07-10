@@ -7,6 +7,7 @@ local M = {}
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
+local utils = require("mcphub.utils")
 local validation = require("mcphub.utils.validation")
 
 ---@return string
@@ -90,8 +91,8 @@ local function format_tools(tools)
         result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool):gsub("\n", "\n  "))
         local inputSchema = M.get_inputSchema(tool)
         result = result
-            .. "\n\n  Input Schema:\n\n  ```lua\n  "
-            .. vim.inspect(inputSchema):gsub("\n", "\n  ")
+            .. "\n\n  Input Schema:\n\n  ```json\n  "
+            .. utils.pretty_json(vim.json.encode(inputSchema)):gsub("\n", "\n  ")
             .. "\n  ```"
     end
     return result
