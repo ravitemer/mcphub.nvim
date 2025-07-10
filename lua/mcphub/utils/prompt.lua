@@ -255,7 +255,7 @@ function M.get_active_servers_prompt(servers, add_example, enable_toggling_mcp_s
 
     prompt = prompt
         .. "\n\nWhen a server is connected, you can use the server's tools via the `use_mcp_tool` tool, "
-        .. "and access the server's resources via the `access_mcp_resource` tool.\nNote: Server names are case sensitive and you should always use the exact full name like `Firecrawl MCP` or `src/user/main/time-mcp` etc \n\n"
+        .. "and access the server's resources via the `access_mcp_resource` tool.\nNote: Server names are case sensitive and you should always use the exact full name like `Firecrawl MCP` or `src/user/main/time-mcp` etc\n\n"
     if #connected_servers == 0 then
         prompt = prompt .. "(No connected MCP servers)\n\n"
     else
