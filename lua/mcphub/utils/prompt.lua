@@ -278,7 +278,9 @@ function M.get_active_servers_prompt(servers, add_example, enable_toggling_mcp_s
             prompt = prompt .. M.server_to_text(server) .. "\n\n"
         end
     end
-    local toggle_example = [[### Toggling a MCP Server
+    local toggle_example = [[
+
+### Toggling a MCP Server
 
 When you need to start a disabled MCP Server or vice-versa, use the `toggle_mcp_server` tool on `mcphub` MCP Server using `use_mcp_tool`:
 
@@ -295,8 +297,6 @@ use_mcp_tool
 ]]
 
     local example = [[
-
-
 ## Examples
 
 ### `use_mcp_tool`
@@ -319,7 +319,6 @@ Pseudocode:
 access_mcp_resource
   server_name: string (One of the available server names)
   uri: string (uri for the resource)
-
 ]]
 
     if enable_toggling_mcp_servers then
