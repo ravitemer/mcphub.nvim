@@ -87,7 +87,7 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
 end
 
 ---@param display_name string
----@param tool table
+---@param tool CodeCompanion.Agent.Tool
 ---@param chat any
 ---@param llm_msg string
 ---@param is_error boolean
@@ -111,13 +111,14 @@ local function add_tool_output(
     local helpers = require("codecompanion.strategies.chat.helpers")
     local show_result_in_chat = opts.show_result_in_chat == true
     local text = llm_msg
+    local formatted_name = opts.format_tool and opts.format_tool(display_name, tool) or display_name
 
     if has_function_calling then
         chat:add_tool_output(
             tool,
             text,
             (user_msg or show_result_in_chat or is_error) and (user_msg or text)
-                or string.format("**`%s` Tool**: Successfully finished", display_name)
+                or string.format("**`%s` Tool**: Successfully finished", formatted_name)
         )
         for _, image in ipairs(images) do
             helpers.add_image(chat, image)
@@ -135,7 +136,7 @@ local function add_tool_output(
             })
             chat:add_buf_message({
                 role = config.constants.USER_ROLE,
-                content = string.format("I've shared the result of the `%s` tool with you.\n", display_name),
+                content = string.format("I've shared the result of the `%s` tool with you.\n", formatted_name),
             })
         end
     end
@@ -159,6 +160,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
                 ---@diagnostic disable-next-line: cast-local-type
                 stderr = vim.inspect(stderr)
             end
+            local formatted_name = opts.format_tool and opts.format_tool(display_name, self) or display_name
             local err_msg = string.format(
                 [[**`%s` Tool**: Failed with the following error:
 
@@ -166,7 +168,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
 %s
 ````
 ]],
-                display_name,
+                formatted_name,
                 stderr
             )
             add_tool_output(display_name, self, agent.chat, err_msg, true, has_function_calling, opts, nil, {})
@@ -182,6 +184,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
             local result = has_function_calling and stdout[#stdout] or cmd[#cmd]
             ---@diagnostic disable-next-line: cast-local-type
             agent = has_function_calling and agent or self
+            local formatted_name = opts.format_tool and opts.format_tool(display_name, self) or display_name
             local to_llm = nil
             local to_user = nil
             local images = {}
@@ -193,7 +196,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
 ````
 %s
 ````]],
-                    display_name,
+                    formatted_name,
                     result.text
                 )
             end
@@ -216,7 +219,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
 ````
 %s
 ````]],
-                        display_name,
+                        formatted_name,
                         string.format("%d image%s returned", #result.images, #result.images > 1 and "s" or "")
                     )
                 end
@@ -233,9 +236,9 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
                 end
             end
 
-            local fallback_to_llm = string.format("**`%s` Tool**: Completed with no output", display_name)
+            local fallback_to_llm = string.format("**`%s` Tool**: Completed with no output", formatted_name)
             if opts.show_result_in_chat == false and not to_user then
-                to_user = string.format("**`%s` Tool**: Successfully finished", display_name)
+                to_user = string.format("**`%s` Tool**: Successfully finished", formatted_name)
             end
             add_tool_output(
                 display_name,

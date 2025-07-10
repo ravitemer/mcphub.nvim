@@ -32,6 +32,26 @@ require("codecompanion").setup({
         show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
         add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
         show_result_in_chat = true,      -- Show tool results directly in chat buffer
+        format_tool = function(display_name, tool)
+          local args = vim.deepcopy(tool.args)
+          -- Replace 'use_mcp_tool' with actual tool name and params.
+          if name == 'use_mcp_tool' then
+            name = string.format('%s__%s', args.server_name, args.tool_name)
+            args = args.tool_input
+          end
+
+          if name == 'filesystem__edit_file' then
+            if type(args.edits) == 'table' then
+              args.edits = '󰩫'
+            end
+          elseif name == 'filesystem__write_file' then
+            if type(args.content) == 'string' then
+              args.content = '󰩫'
+            end
+          end
+
+          return name .. ' ' .. vim.inspect(args):gsub('%s+', ' ')
+        end,
         -- MCP Resources
         make_vars = true,                -- Convert MCP resources to #variables for prompts
         -- MCP Prompts 
