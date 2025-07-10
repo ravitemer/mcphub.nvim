@@ -28,7 +28,6 @@ function M.format_custom_instructions(server_name, header)
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
-
         return string.format(
             ((header and header ~= "") and header or "\n\n#### Instructions for `%s` server\n\n")
                 .. custom_instructions.text,

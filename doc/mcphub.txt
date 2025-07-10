@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 June 27
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 10
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -103,7 +103,7 @@ Just configure them to use MCP Hub’s unified endpoint:
     {
         "mcpServers" : {
             "Hub": {
-                "url" : "http://localhost:37373/mcp
+                "url" : "http://localhost:37373/mcp"  
             }
         }
     }
@@ -117,6 +117,17 @@ USAGE ~
 - Install servers from the Marketplace (`M`)
 - Toggle servers, tools, and resources etc
 - Test tools and resources directly in Neovim
+
+
+BUILTIN NATIVE SERVERS ~
+
+MCPHub includes two native servers that run directly within Neovim:
+
+- **Neovim Server**: Comprehensive file operations, terminal access, LSP integration, and buffer management
+- **MCPHub Server**: Plugin management utilities, server lifecycle control, and documentation access
+
+These servers provide essential functionality without external dependencies and
+offer deep Neovim integration.
 
 
 CHAT INTEGRATIONS ~
@@ -413,7 +424,7 @@ detail.
                 shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
                 use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
                 mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
-
+    
                 ---Chat-plugin related options-----------------
                 auto_approve = false, -- Auto approve mcp tool calls
                 auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
@@ -422,9 +433,32 @@ detail.
                         make_slash_commands = true, -- make /slash commands from MCP server prompts
                     }
                 },
-
+    
                 --- Plugin specific options-------------------
                 native_servers = {}, -- add your custom lua native servers here
+                builtin_tools = {
+                    edit_file = {
+                        parser = {
+                            track_issues = true,
+                            extract_inline_content = true,
+                        },
+                        locator = {
+                            fuzzy_threshold = 0.8,
+                            enable_fuzzy_matching = true,
+                        },
+                        ui = {
+                            go_to_origin_on_complete = true,
+                            keybindings = {
+                                accept = ".",
+                                reject = ",",
+                                next = "n",
+                                prev = "p",
+                                accept_all = "ga",
+                                reject_all = "gr",
+                            },
+                        },
+                    },
+                },
                 ui = {
                     window = {
                         width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
@@ -591,12 +625,12 @@ specific tool call:
             if params.server_name == "github" and params.tool_name == "get_issue" then
                 return true -- Auto approve
             end
-
+            
             -- Block access to private repos
             if params.arguments.repo == "private" then
                 return "You can't access my private repo" -- Error message
             end
-
+            
             -- Auto-approve safe file operations in current project
             if params.tool_name == "read_file" then
                 local path = params.arguments.path or ""
@@ -604,12 +638,12 @@ specific tool call:
                     return true -- Auto approve
                 end
             end
-
+            
             -- Check if tool is configured for auto-approval in servers.json
             if params.is_auto_approved_in_server then
                 return true -- Respect servers.json configuration
             end
-
+            
             return false -- Show confirmation prompt
         end,
     })
@@ -688,6 +722,24 @@ Define custom Lua native MCP servers that run directly in Neovim without
 external processes. Each server can provide tools, resources, and prompts.
 Please see native servers guide </mcp/native/index> to create MCP Servers in
 lua.
+
+
+BUILTIN_TOOLS ~
+
+Default:
+
+>lua
+    {
+        builtin_tools = {
+            edit_file = {
+            },
+        },
+    }
+<
+
+Configuration options for MCPHub’s builtin tools like `edit_file` tool. View
+complete Builtin Tools Documentation </mcp/builtin/> for all available tools
+and their configuration options.
 
 
 UI ~
@@ -788,12 +840,9 @@ FROM MARKETPLACE
 BROWSE, SORT, FILTER , SEARCH FROM AVAILABLE MCP SERVERS.
 
 
-ONE CLICK AI INSTALL WITH AVANTE AND CODECOMPANION
+ONE CLICK INSTALL/UNINSTALL
 
-
-OR SIMPLE COPY PASTE MCPSERVERS JSON BLOCK IN THE README
-
-
+Choose from different install options:
 
 
 FROM HUB VIEW
@@ -840,7 +889,8 @@ LOCAL (STDIO) SERVERS
                     "DB_URL": "postgresql://user:${DB_PASSWORD}@localhost/myapp",
                     "DB_PASSWORD": "password123",
                     "FALLBACK_VAR": null
-                }
+                },
+                "cwd": "/home/ubuntu/server-dir/"
             }
         }
     }
@@ -856,6 +906,7 @@ OPTIONAL FIELDS:
 
 - `args`: Array of command arguments (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `env`: Environment variables with placeholder resolution and system fallback
+- `cwd`: The current working directory for the MCP server process (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `dev`: Development mode configuration for auto-restart on file changes
 - `name`: Display name that will be shown in the UI
 - `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
@@ -889,6 +940,35 @@ Given `API_KEY=secret` in the environment:
 
   ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
+
+CWD EXAMPLE:
+
+The `cwd` field is particularly useful when your MCP server needs to run in a
+specific directory context. Here’s a practical example:
+
+>json
+    {
+        "mcpServers": {
+            "project-server": {
+                "command": "npm",
+                "args": ["start"],
+                "cwd": "/home/ubuntu/my-mcp-project/",
+                "env": {
+                    "NODE_ENV": "development"
+                }
+            }
+        }
+    }
+<
+
+**Use cases for cwd:** - When the MCP server needs to access relative files in
+its project directory - When using npm/yarn scripts that depend on being in the
+project root
+
+
+  **Note**: The top-level `cwd` field sets the working directory for the server
+  process itself, while `dev.cwd` (used in development mode) sets the directory
+  for file watching. These serve different purposes and can be used together.
 
 DEV DEVELOPMENT MODE
 
@@ -2181,7 +2261,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM'S PARROT PROMPT
+REAL EXAMPLE: NEOVIM’S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -2684,7 +2764,7 @@ FEATURES ~
 - **Server Groups**: Access all tools from a specific server (e.g., `@neovim`, `@github`, `@tree_sitter`)
 - **Individual Tools**: Use specific tools with clear namespacing (e.g., `@neovim__read_file`, `@github__create_issue`)
 - **Custom Tool Groups**: Create your own tool combinations for specific workflows
-- **Resource Variables**: Utilize MCP resources as context variables using the `#` prefix (e.g., `#resource_name`)
+- **Resource Variables**: Utilize MCP resources as context variables using the `#` prefix (e.g., `#mcp:resource_name`)
 - **Slash Commands**: Execute MCP prompts directly using `/mcp:prompt_name` slash commands
 - **Rich Media Support**: Supports 🖼 images and other media types as shown in the demo
 - **Real-time Updates**: Automatic updates in CodeCompanion when MCP servers change
@@ -2700,10 +2780,14 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
         mcphub = {
           callback = "mcphub.extensions.codecompanion",
           opts = {
-            make_tools = true,              -- Enable individual tools (@server__tool) and server groups (@server)
+            -- MCP Tools 
+            make_tools = true,              -- Make individual tools (@server__tool) and server groups (@server) from MCP servers
             show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
+            add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
             show_result_in_chat = true,      -- Show tool results directly in chat buffer
+            -- MCP Resources
             make_vars = true,                -- Convert MCP resources to #variables for prompts
+            -- MCP Prompts 
             make_slash_commands = true,      -- Add MCP prompts as /slash commands
           }
         }
@@ -2724,37 +2808,45 @@ TOOL ACCESS
 1. UNIVERSAL MCP ACCESS (@MCP)
 
 Adds all available MCP servers to the system prompt and provides LLM with
-`use_mcp_tool` and `access_mcp_resource` tools.
+`@mcp` tool group which has `use_mcp_tool` and `access_mcp_resource` tools.
 
 >
-    @mcp What files are in the current directory?
+    @{mcp} What files are in the current directory?
 <
 
 
 2. SERVER GROUPS (WHEN MAKE_TOOLS = TRUE)
 
-Access all tools from a specific server. The available groups depend on your
+You can add all the enabled tools from a specific server with server groups.
+Unlike the `@mcp` group where all the running servers are converted and added
+to the system prompt, the tools added with server groups are pure function
+tools and hence depend on model support. The available groups depend on your
 connected MCP servers:
 
 >
-    @neovim Read the main.lua file    # If you have neovim server
-    @github Create an issue           # If you have github server  
-    @fetch Get this webpage           # If you have fetch server
+    @{neovim} Read the main.lua file    # All tools from the neovim server will be added as function tools
+    @{github} Create an issue           
+    @{fetch} Get this webpage           
 <
 
-Server groups are automatically created based on your connected MCP servers.
-Check your MCP Hub UI to see which servers you have connected.
+Server groups are automatically created based on your connected MCP servers
+when enabled via `make_tools`. Check your MCP Hub UI to see which servers you
+have connected.
+
+MCPHub includes powerful builtin servers </mcp/builtin/> like `@neovim` (file
+operations, terminal, LSP) and `@mcphub` (server management) that are always
+available.
 
 
 3. INDIVIDUAL TOOLS (WHEN MAKE_TOOLS = TRUE)
 
-Pinpoint specific functionality with namespaced tools. Tool names depend on
-your connected servers:
+You can just provide a single tool from a server for fine-grained
+functionality. Tool names depend on your connected servers:
 
 >
-    @neovim__read_file Show me the config file
-    @fetch__fetch Get this webpage content
-    @github__create_issue File a bug report
+    @{neovim__read_file} Show me the config file
+    @{fetch__fetch} Get this webpage content
+    @{github__create_issue} File a bug report
 <
 
 Use the MCP Hub UI or CodeCompanion’s tool completion to discover available
@@ -3163,9 +3255,9 @@ CUSTOMIZATION EXAMPLES
     {
       require('mcphub.extensions.lualine'),
       colors = {
-      connecting = { fg = "#ffff00" }, -- Yellow
-      connected = { fg = "#00ff00" }, -- Green
-      error = { fg = "#ff0000" }, -- Red
+        connecting = { fg = "#ffff00" }, -- Yellow
+        connected = { fg = "#00ff00" }, -- Green
+        error = { fg = "#ff0000" }, -- Red
       },
     }
 <
@@ -3199,34 +3291,33 @@ doc/other/architecture.md doc/other/troubleshooting.md
 2. *Image*: doc/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
 3. *Image*: doc/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 4. *Image*: doc/mcp/https:/github.com/user-attachments/assets/f5c8adfa-601e-4d03-8745-75180a9d3648
-5. *Image*: doc/mcp/https:/github.com/user-attachments/assets/2d0a0d8b-18ca-4ac8-a207-4758d09d359d
-6. *Image*: doc/mcp/https:/github.com/user-attachments/assets/359bc81e-d6fe-47bb-a25b-572bf280851e
-7. *Image*: doc/mcp/https:/github.com/user-attachments/assets/1cb950da-2f7f-46e9-a623-4cc4b00cc3d0
-8. *Image*: doc/mcp/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-9. *Image*: doc/mcp/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
-11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
-12. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-13. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-15. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-16. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
-17. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
-18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
-23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
-24. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
-25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
-26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
-27. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
-28. *Image*: doc/extensions/https:/github.com/user-attachments/assets/3f4fd202-d780-441f-a8cf-58d8a8414ab1
-29. *Image*: doc/extensions/https:/github.com/user-attachments/assets/5522b929-d9b1-472c-9bf8-1c14aef36dbe
-30. *Image*: doc/extensions/https:/github.com/user-attachments/assets/9f309871-5fda-458f-967e-e7d3d8b269a5
-31. *Image*: doc/extensions/https:/github.com/user-attachments/assets/e3c16813-2210-4b7c-9f79-2737c19c6c30
-32. *Image*: doc/extensions/https:/github.com/user-attachments/assets/78aea188-59e8-4299-a375-1acc0784c7bf
+5. *Image*: doc/mcp/https:/github.com/user-attachments/assets/560bddda-e48d-488b-a9f8-7b188178914c
+6. *Image*: doc/mcp/https:/github.com/user-attachments/assets/1cb950da-2f7f-46e9-a623-4cc4b00cc3d0
+7. *Image*: doc/mcp/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+8. *Image*: doc/mcp/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+9. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
+10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
+11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+12. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+13. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+15. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
+16. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
+17. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
+22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
+23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
+24. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
+25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
+26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
+27. *Image*: doc/extensions/https:/github.com/user-attachments/assets/3f4fd202-d780-441f-a8cf-58d8a8414ab1
+28. *Image*: doc/extensions/https:/github.com/user-attachments/assets/5522b929-d9b1-472c-9bf8-1c14aef36dbe
+29. *Image*: doc/extensions/https:/github.com/user-attachments/assets/9f309871-5fda-458f-967e-e7d3d8b269a5
+30. *Image*: doc/extensions/https:/github.com/user-attachments/assets/e3c16813-2210-4b7c-9f79-2737c19c6c30
+31. *Image*: doc/extensions/https:/github.com/user-attachments/assets/78aea188-59e8-4299-a375-1acc0784c7bf
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
