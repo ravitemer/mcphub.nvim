@@ -211,7 +211,7 @@ function M.server_to_text(server)
     end
     local desc = M.get_description(server)
     -- Add description
-    text = text .. (desc == "" and "" or "\n" .. desc)
+    text = text .. (desc == "" and "" or "\n\n" .. desc)
     if is_disabled then
         return text
     end
