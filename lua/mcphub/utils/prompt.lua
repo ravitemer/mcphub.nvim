@@ -286,7 +286,7 @@ Pseudocode:
 use_mcp_tool
   server_name: "mcphub"
   tool_name: "toggle_mcp_server"
-  tool_input: 
+  tool_input:
     server_name: string (One of the available server names to start or stop)
     action: string (one of `start` or `stop`)
 ]]
@@ -534,7 +534,7 @@ Server Details:
 
 Installation Instructions:
 1. Review README instructions below
-2. Follow setup steps from README 
+2. Follow setup steps from README
 3. Ask the user to provide any env variables or details required for the server configuration.
 4. Update config at %s
 5. Ask the user to Restart MCPHub by opening the UI and pressing "R" to restart the hub with updated config and ask the user to provide you with mcp tool if not already provided.
