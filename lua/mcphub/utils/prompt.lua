@@ -297,7 +297,7 @@ use_mcp_tool
     local example = [[
 
 
-## Examples:
+## Examples
 
 ### `use_mcp_tool`
 
