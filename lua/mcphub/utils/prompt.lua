@@ -87,7 +87,7 @@ local function format_tools(tools)
 
     local result = "\n\n#### Available Tools"
     for _, tool in ipairs(tools) do
-        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool))
+        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool):gsub("\n", "\n  "))
         local inputSchema = M.get_inputSchema(tool)
         result = result
             .. "\n\n  Input Schema:\n\n  ```lua\n  "
@@ -125,7 +125,7 @@ local function format_resources(resources, templates)
                     resource.uri,
                     resource.mimeType and " (" .. resource.mimeType .. ")" or ""
                 )
-            local desc = M.get_description(resource)
+            local desc = M.get_description(resource):gsub("\n", "\n  ")
             result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
             -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
         end
