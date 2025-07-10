@@ -28,8 +28,9 @@ function M.format_custom_instructions(server_name, header)
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
+
         return string.format(
-            ((header and header ~= "") and header or "\n\n### Instructions for `%s` server\n\n")
+            ((header and header ~= "") and header or "\n\n#### Instructions for `%s` server\n\n")
                 .. custom_instructions.text,
             server_name
         )
@@ -90,11 +91,14 @@ local function format_tools(tools)
         return ""
     end
 
-    local result = "\n\n### Available Tools"
+    local result = "\n\n#### Available Tools"
     for _, tool in ipairs(tools) do
-        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool))
+        result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool):gsub("\n", "\n  "))
         local inputSchema = M.get_inputSchema(tool)
-        result = result .. "\n    Input Schema:\n    " .. vim.inspect(inputSchema):gsub("\n", "\n    ")
+        result = result
+            .. "\n\n  Input Schema:\n\n  ```lua\n  "
+            .. vim.inspect(inputSchema):gsub("\n", "\n  ")
+            .. "\n  ```"
     end
     return result
 end
@@ -119,7 +123,7 @@ end
 local function format_resources(resources, templates)
     local result = ""
     if resources and #resources > 0 then
-        result = result .. "\n\n### Available Resources"
+        result = result .. "\n\n#### Available Resources"
         for _, resource in ipairs(resources) do
             result = result
                 .. string.format(
@@ -127,13 +131,13 @@ local function format_resources(resources, templates)
                     resource.uri,
                     resource.mimeType and " (" .. resource.mimeType .. ")" or ""
                 )
-            local desc = M.get_description(resource)
+            local desc = M.get_description(resource):gsub("\n", "\n  ")
             result = result .. "\n  " .. (resource.name or "") .. (desc == "" and "" or "\n  " .. desc)
             -- result = result .. "\n\n" .. vim.inspect(remove_functions(resource))
         end
     end
     if templates and #templates > 0 then
-        result = result .. "\n\n### Available Resource Templates"
+        result = result .. "\n\n#### Available Resource Templates"
         for _, template in ipairs(templates) do
             result = result .. string.format("\n\n- %s", template.uriTemplate)
             local desc = M.get_description(template)
@@ -161,7 +165,7 @@ function M.get_use_mcp_tool_prompt(example)
 
     return string.format(
         [[
-## use_mcp_tool
+### use_mcp_tool
 
 Description: Request to use a tool provided by a connected MCP server. Each MCP server can provide multiple tools with different capabilities. Tools have defined input schemas that specify required and optional parameters.
 Parameters:
@@ -187,7 +191,7 @@ function M.get_access_mcp_resource_prompt(example)
 
     return string.format(
         [[
-## access_mcp_resource
+### access_mcp_resource
 
 Description: Request to access a resource provided by a connected MCP server. Resources represent data sources that can be used as context, such as files, API responses, or system information.
 Parameters:
@@ -206,14 +210,14 @@ end
 function M.server_to_text(server)
     local text = ""
     -- Add server section
-    text = text .. string.format("## %s", server.name)
+    text = text .. string.format("### %s", server.name)
     local is_disabled = server.status == "disabled"
     if is_disabled then
         text = text .. " (Disabled)"
     end
     local desc = M.get_description(server)
     -- Add description
-    text = text .. (desc == "" and "" or "\n" .. desc)
+    text = text .. (desc == "" and "" or "\n\n" .. desc)
     if is_disabled then
         return text
     end
@@ -256,11 +260,11 @@ function M.get_active_servers_prompt(servers, add_example, enable_toggling_mcp_s
         return s.status == "disabled"
     end, servers)
 
-    prompt = prompt .. "\n# Connected MCP Servers"
+    prompt = prompt .. "\n## Connected MCP Servers"
 
     prompt = prompt
         .. "\n\nWhen a server is connected, you can use the server's tools via the `use_mcp_tool` tool, "
-        .. "and access the server's resources via the `access_mcp_resource` tool.\nNote: Server names are case sensitive and you should always use the exact full name like `Firecrawl MCP` or `src/user/main/time-mcp` etc \n\n"
+        .. "and access the server's resources via the `access_mcp_resource` tool.\nNote: Server names are case sensitive and you should always use the exact full name like `Firecrawl MCP` or `src/user/main/time-mcp` etc\n\n"
     if #connected_servers == 0 then
         prompt = prompt .. "(No connected MCP servers)\n\n"
     else
@@ -270,7 +274,7 @@ function M.get_active_servers_prompt(servers, add_example, enable_toggling_mcp_s
     end
 
     -- instead of removing the whole disabled section, if we dont want auto toggling we set (NO disabled servers) to avoid llm hallucinating server names
-    prompt = prompt .. "# Disabled MCP Servers\n\n"
+    prompt = prompt .. "## Disabled MCP Servers\n\n"
     prompt = prompt
         .. "When a server is disabled, it will not be able to provide tools or resources. You can start one of the following disabled servers by using the `toggle_mcp_server` tool on `mcphub` MCP Server if it is connected using `use_mcp_tool`\n\n"
     if not enable_toggling_mcp_servers or #disabled_servers == 0 then
@@ -280,7 +284,9 @@ function M.get_active_servers_prompt(servers, add_example, enable_toggling_mcp_s
             prompt = prompt .. M.server_to_text(server) .. "\n\n"
         end
     end
-    local toggle_example = [[## Toggling a MCP Server
+    local toggle_example = [[
+
+### Toggling a MCP Server
 
 When you need to start a disabled MCP Server or vice-versa, use the `toggle_mcp_server` tool on `mcphub` MCP Server using `use_mcp_tool`:
 
@@ -291,17 +297,15 @@ Pseudocode:
 use_mcp_tool
   server_name: "mcphub"
   tool_name: "toggle_mcp_server"
-  tool_input: 
+  tool_input:
     server_name: string (One of the available server names to start or stop)
     action: string (one of `start` or `stop`)
 ]]
 
     local example = [[
+## Examples
 
-
-# Examples: 
-
-## `use_mcp_tool`
+### `use_mcp_tool`
 
 When you need to call a tool on an MCP Server, use the `use_mcp_tool` tool:
 
@@ -312,7 +316,7 @@ use_mcp_tool
   tool_name: string (name of the tool in the server to call)
   tool_input: object (Arguments for the tool call)
 
-## `access_mcp_resource`
+### `access_mcp_resource`
 
 When you need to access a resource from a MCP Server, use the `access_mcp_resource` tool:
 
@@ -321,7 +325,6 @@ Pseudocode:
 access_mcp_resource
   server_name: string (One of the available server names)
   uri: string (uri for the resource)
-
 ]]
 
     if enable_toggling_mcp_servers then
@@ -539,7 +542,7 @@ Server Details:
 
 Installation Instructions:
 1. Review README instructions below
-2. Follow setup steps from README 
+2. Follow setup steps from README
 3. Ask the user to provide any env variables or details required for the server configuration.
 4. Update config at %s
 5. Ask the user to Restart MCPHub by opening the UI and pressing "R" to restart the hub with updated config and ask the user to provide you with mcp tool if not already provided.
