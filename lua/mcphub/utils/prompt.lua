@@ -89,7 +89,10 @@ local function format_tools(tools)
     for _, tool in ipairs(tools) do
         result = result .. string.format("\n\n- %s: %s", tool.name, M.get_description(tool))
         local inputSchema = M.get_inputSchema(tool)
-        result = result .. "\n    Input Schema:\n    " .. vim.inspect(inputSchema):gsub("\n", "\n    ")
+        result = result
+            .. "\n\n  Input Schema:\n\n  ```lua\n  "
+            .. vim.inspect(inputSchema):gsub("\n", "\n  ")
+            .. "\n  ```"
     end
     return result
 end
