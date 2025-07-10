@@ -2,9 +2,9 @@ local lsp_utils = require("mcphub.native.neovim.utils.lsp")
 local mcphub = require("mcphub")
 
 mcphub.add_resource("neovim", {
-    name = "Diagnostics: Current File",
+    name = "Diagnostics: Buffer",
     description = "Get diagnostics for the current file",
-    uri = "neovim://diagnostics/current",
+    uri = "neovim://diagnostics/buffer",
     mimeType = "text/plain",
     handler = function(req, res)
         -- local context = utils.parse_context(req.caller)

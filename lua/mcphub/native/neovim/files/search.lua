@@ -104,7 +104,6 @@ local search_tools = {
         },
         handler = function(req, res)
             local params = req.params
-            -- local path = vim.fn.expand(params.path or ".")
             local path = Path:new(params.path or "."):absolute()
             local depth = nil
             local hidden = false
