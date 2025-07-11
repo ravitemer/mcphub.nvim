@@ -83,6 +83,15 @@ Just configure them to use MCP Hub's unified endpoint:
 - Toggle servers, tools, and resources etc
 - Test tools and resources directly in Neovim
 
+### Builtin Native Servers
+
+MCPHub includes two native servers that run directly within Neovim:
+
+- **Neovim Server**: Comprehensive file operations, terminal access, LSP integration, and buffer management
+- **MCPHub Server**: Plugin management utilities, server lifecycle control, and documentation access
+
+These servers provide essential functionality without external dependencies and offer deep Neovim integration.
+
 ### Chat Integrations
 
 - MCP Hub provides integrations with popular chat plugins like [Avante](https://github.com/yetone/avante.nvim), [CodeCompanion](https://github.com/olimorris/codecompanion.nvim), [CopilotChat](https://github.com/CopilotC-Nvim/CopilotChat.nvim).
@@ -131,8 +140,3 @@ Just configure them to use MCP Hub's unified endpoint:
 
 - [Installation Guide](/installation) - Set up MCPHub in your Neovim
 - [Configuration Guide](/configuration) - Learn about configuring MCP Hub
-
-
-
-
-

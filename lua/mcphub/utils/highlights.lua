@@ -40,6 +40,10 @@ M.groups = {
     text = "MCPHubText", -- Regular markdown text
     code = "MCPHubCode", -- Code blocks
     heading = "MCPHubHeading", -- Markdown headings
+    -- Diff visualization highlights
+    diff_add = "MCPHubDiffAdd", -- New content being added
+    diff_change = "MCPHubDiffChange", -- New content being added
+    diff_delete = "MCPHubDiffDelete", -- Content being removed
 }
 
 -- Get highlight attributes from a highlight group
@@ -192,6 +196,23 @@ function M.apply_highlights()
 
         -- Seamless border (matches float background)
         [M.groups.seamless_border] = "FloatBorder",
+
+        -- Diff visualization highlights
+        -- [M.groups.diff_add] = "DiffAdd",
+        -- [M.groups.diff_change] = "DiffChange",
+        -- [M.groups.diff_delete] = "DiffDelete",
+        -- Add shaded background for diff highlights
+        [M.groups.diff_add] = {
+            bg = "#1a2b32",
+            fg = "#1abc9c",
+            bold = true,
+        },
+        [M.groups.diff_change] = "DiffChange",
+        [M.groups.diff_delete] = {
+            bg = "#2d202a",
+            fg = "#db4b4b",
+            italic = true,
+        },
     }
 
     for group, link in pairs(highlights) do

@@ -2,6 +2,7 @@ local M = {}
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
+local native = require("mcphub.native")
 local ui_utils = require("mcphub.utils.ui")
 
 ---@class MCPHub.ParsedParams
@@ -12,6 +13,7 @@ local ui_utils = require("mcphub.utils.ui")
 ---@field arguments table Input arguments for the tool call (empty table for resources)
 ---@field uri string URI of the resource to access (nil for tools)
 ---@field is_auto_approved_in_server boolean Whether the tool autoApproved in the servers.json
+---@field needs_confirmation_window boolean Whether the tool call needs a confirmation window
 
 ---@class MCPHub.ToolCallArgs
 ---@field server_name string Name of the server to call the tool on.
@@ -26,7 +28,6 @@ local ui_utils = require("mcphub.utils.ui")
 ---@param tool_name string Name of the tool to check
 ---@return boolean Whether the tool is auto-approved in the server
 function M.is_auto_approved_in_server(server_name, tool_name)
-    local native = require("mcphub.native")
     local is_native = native.is_native_server(server_name)
     local server_config = is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
     if not server_config then
@@ -90,10 +91,26 @@ function M.parse_params(params, action_name)
         tool_name = tool_name or "nil",
         arguments = arguments or {},
         uri = uri or "nil",
+        needs_confirmation_window = M.needs_confirmation_window(server_name, tool_name),
         is_auto_approved_in_server = M.is_auto_approved_in_server(server_name, tool_name),
     }
 end
 
+--- For some built-in tools, we already show interactive diffs, before confirmation.
+---@param server_name string Name of the server
+---@param tool_name string Name of the tool to check
+function M.needs_confirmation_window(server_name, tool_name)
+    local server = native.is_native_server(server_name)
+    if not server then
+        return true
+    end
+    for _, tool in ipairs(server.capabilities.tools) do
+        if tool.name == tool_name and tool.needs_confirmation_window == false then
+            return false
+        end
+    end
+    return true
+end
 ---@param arguments MCPPromptArgument[]
 ---@param callback fun(values: string[])
 function M.collect_arguments(arguments, callback)
@@ -258,7 +275,7 @@ function M.show_mcp_tool_prompt(params)
 end
 
 ---@param parsed_params MCPHub.ParsedParams
----@return {error?:string}
+---@return {error?:string, approve:boolean}
 function M.handle_auto_approval_decision(parsed_params)
     local auto_approve = State.config.auto_approve or false
     local status = { approve = false, error = nil }
@@ -274,10 +291,7 @@ function M.handle_auto_approval_decision(parsed_params)
             status = { approve = res, error = nil }
         end
     elseif type(auto_approve) == "boolean" then
-        --- If auto_approve is a true, allow all calls, if false we need to check for auto-approval in servers.json
-        if auto_approve == true then
-            status = { approve = true, error = nil }
-        end
+        status = { approve = auto_approve, error = nil }
     end
 
     -- Check if auto-approval is enabled in servers.json
@@ -286,14 +300,14 @@ function M.handle_auto_approval_decision(parsed_params)
     end
 
     if status.error then
-        return { error = status.error or "Something went wrong with auto-approval" }
+        return { error = status.error or "Something went wrong with auto-approval", approve = false }
     end
 
-    if status.approve == false then
+    if status.approve == false and parsed_params.needs_confirmation_window then
         local confirmed, _ = M.show_mcp_tool_prompt(parsed_params)
-        return { error = not confirmed and "User cancelled the operation" }
+        return { error = not confirmed and "User cancelled the operation", approve = confirmed }
     end
-    return { error = nil }
+    return status
 end
 
 return M
