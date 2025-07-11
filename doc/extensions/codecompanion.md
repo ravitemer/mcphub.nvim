@@ -27,6 +27,25 @@ require("codecompanion").setup({
         show_result_in_chat = true,  -- Show mcp tool results in chat
         make_vars = true,            -- Convert resources to #variables
         make_slash_commands = true,  -- Add prompts as /slash commands
+        format_action = function(action_name, tool)
+            -- Replace 'use_mcp_tool' with actual tool name and params.
+            if action_name == 'use_mcp_tool' then
+                local name = string.format(
+                    '%s/%s',
+                    tool.args.server_name,
+                    tool.args.tool_name
+                )
+                local tool_input = vim.deepcopy(tool.args.tool_input)
+                -- Cut too large params.
+                if name == 'filesystem/edit_file' then
+                  tool_input.edits = '󰩫'
+                elseif name == 'filesystem/write_file' then
+                  tool_input.content = '󰩫'
+                end
+                local args = vim.inspect(tool_input):gsub('%s+', ' ')
+                return name .. ' ' .. args
+            end
+        end,
       }
     }
   }
