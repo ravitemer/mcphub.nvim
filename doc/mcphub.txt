@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 June 27
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 12
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -103,7 +103,7 @@ Just configure them to use MCP Hub’s unified endpoint:
     {
         "mcpServers" : {
             "Hub": {
-                "url" : "http://localhost:37373/mcp
+                "url" : "http://localhost:37373/mcp"  
             }
         }
     }
@@ -247,6 +247,7 @@ REQUIREMENTS                           *mcphub.nvim-installation-requirements*
 - Node.js >= 18.0.0
 - plenary.nvim <https://github.com/nvim-lua/plenary.nvim>
 - mcp-hub <https://github.com/ravitemer/mcp-hub> (automatically installed via build command)
+- jq <https://github.com/jqlang/jq> (optional, for better servers.json formatting)
 
 
 LAZY.NVIM                                 *mcphub.nvim-installation-lazy.nvim*
@@ -413,7 +414,7 @@ detail.
                 shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
                 use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
                 mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
-
+    
                 ---Chat-plugin related options-----------------
                 auto_approve = false, -- Auto approve mcp tool calls
                 auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
@@ -422,7 +423,7 @@ detail.
                         make_slash_commands = true, -- make /slash commands from MCP server prompts
                     }
                 },
-
+    
                 --- Plugin specific options-------------------
                 native_servers = {}, -- add your custom lua native servers here
                 ui = {
@@ -591,12 +592,12 @@ specific tool call:
             if params.server_name == "github" and params.tool_name == "get_issue" then
                 return true -- Auto approve
             end
-
+            
             -- Block access to private repos
             if params.arguments.repo == "private" then
                 return "You can't access my private repo" -- Error message
             end
-
+            
             -- Auto-approve safe file operations in current project
             if params.tool_name == "read_file" then
                 local path = params.arguments.path or ""
@@ -604,12 +605,12 @@ specific tool call:
                     return true -- Auto approve
                 end
             end
-
+            
             -- Check if tool is configured for auto-approval in servers.json
             if params.is_auto_approved_in_server then
                 return true -- Respect servers.json configuration
             end
-
+            
             return false -- Show confirmation prompt
         end,
     })
@@ -788,12 +789,9 @@ FROM MARKETPLACE
 BROWSE, SORT, FILTER , SEARCH FROM AVAILABLE MCP SERVERS.
 
 
-ONE CLICK AI INSTALL WITH AVANTE AND CODECOMPANION
+ONE CLICK INSTALL/UNINSTALL
 
-
-OR SIMPLE COPY PASTE MCPSERVERS JSON BLOCK IN THE README
-
-
+Choose from different install options:
 
 
 FROM HUB VIEW
@@ -840,7 +838,8 @@ LOCAL (STDIO) SERVERS
                     "DB_URL": "postgresql://user:${DB_PASSWORD}@localhost/myapp",
                     "DB_PASSWORD": "password123",
                     "FALLBACK_VAR": null
-                }
+                },
+                "cwd": "/home/ubuntu/server-dir/"
             }
         }
     }
@@ -856,6 +855,7 @@ OPTIONAL FIELDS:
 
 - `args`: Array of command arguments (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `env`: Environment variables with placeholder resolution and system fallback
+- `cwd`: The current working directory for the MCP server process (supports `${VARIABLE}` and `${cmd: command}` placeholders)
 - `dev`: Development mode configuration for auto-restart on file changes
 - `name`: Display name that will be shown in the UI
 - `description`: Short description about the server (useful when the server is disabled and `auto_toggle_mcp_servers` is `true`)
@@ -887,8 +887,37 @@ Given `API_KEY=secret` in the environment:
   "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
   -------------------------------------------------------------------------------------------------------
 
-  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
+
+CWD EXAMPLE:
+
+The `cwd` field is particularly useful when your MCP server needs to run in a
+specific directory context. Here’s a practical example:
+
+>json
+    {
+        "mcpServers": {
+            "project-server": {
+                "command": "npm",
+                "args": ["start"],
+                "cwd": "/home/ubuntu/my-mcp-project/",
+                "env": {
+                    "NODE_ENV": "development"
+                }
+            }
+        }
+    }
+<
+
+**Use cases for cwd:** - When the MCP server needs to access relative files in
+its project directory - When using npm/yarn scripts that depend on being in the
+project root
+
+
+  **Note**: The top-level `cwd` field sets the working directory for the server
+  process itself, while `dev.cwd` (used in development mode) sets the directory
+  for file watching. These serve different purposes and can be used together.
 
 DEV DEVELOPMENT MODE
 
@@ -2181,7 +2210,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM'S PARROT PROMPT
+REAL EXAMPLE: NEOVIM�S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -3047,9 +3076,9 @@ CUSTOMIZATION EXAMPLES
     {
       require('mcphub.extensions.lualine'),
       colors = {
-      connecting = { fg = "#ffff00" }, -- Yellow
-      connected = { fg = "#00ff00" }, -- Green
-      error = { fg = "#ff0000" }, -- Red
+        connecting = { fg = "#ffff00" }, -- Yellow
+        connected = { fg = "#00ff00" }, -- Green
+        error = { fg = "#ff0000" }, -- Red
       },
     }
 <
@@ -3083,34 +3112,33 @@ doc/other/architecture.md doc/other/troubleshooting.md
 2. *Image*: doc/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
 3. *Image*: doc/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 4. *Image*: doc/mcp/https:/github.com/user-attachments/assets/f5c8adfa-601e-4d03-8745-75180a9d3648
-5. *Image*: doc/mcp/https:/github.com/user-attachments/assets/2d0a0d8b-18ca-4ac8-a207-4758d09d359d
-6. *Image*: doc/mcp/https:/github.com/user-attachments/assets/359bc81e-d6fe-47bb-a25b-572bf280851e
-7. *Image*: doc/mcp/https:/github.com/user-attachments/assets/1cb950da-2f7f-46e9-a623-4cc4b00cc3d0
-8. *Image*: doc/mcp/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-9. *Image*: doc/mcp/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
-11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
-12. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-13. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-15. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-16. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
-17. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
-18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
-22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
-23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
-24. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
-25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
-26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
-27. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
-28. *Image*: doc/extensions/https:/github.com/user-attachments/assets/3f4fd202-d780-441f-a8cf-58d8a8414ab1
-29. *Image*: doc/extensions/https:/github.com/user-attachments/assets/5522b929-d9b1-472c-9bf8-1c14aef36dbe
-30. *Image*: doc/extensions/https:/github.com/user-attachments/assets/9f309871-5fda-458f-967e-e7d3d8b269a5
-31. *Image*: doc/extensions/https:/github.com/user-attachments/assets/e3c16813-2210-4b7c-9f79-2737c19c6c30
-32. *Image*: doc/extensions/https:/github.com/user-attachments/assets/78aea188-59e8-4299-a375-1acc0784c7bf
+5. *Image*: doc/mcp/https:/github.com/user-attachments/assets/560bddda-e48d-488b-a9f8-7b188178914c
+6. *Image*: doc/mcp/https:/github.com/user-attachments/assets/1cb950da-2f7f-46e9-a623-4cc4b00cc3d0
+7. *Image*: doc/mcp/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+8. *Image*: doc/mcp/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+9. *Image*: doc/extensions/https:/github.com/user-attachments/assets/47086587-d10a-4749-a5df-3a562750010e
+10. *Image*: doc/extensions/https:/github.com/user-attachments/assets/dbc0d210-2ccf-49f8-b1f5-58d868dc02c8
+11. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+12. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+13. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+14. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+15. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
+16. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
+17. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
+18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
+19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
+22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
+23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
+24. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
+25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
+26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f
+27. *Image*: doc/extensions/https:/github.com/user-attachments/assets/3f4fd202-d780-441f-a8cf-58d8a8414ab1
+28. *Image*: doc/extensions/https:/github.com/user-attachments/assets/5522b929-d9b1-472c-9bf8-1c14aef36dbe
+29. *Image*: doc/extensions/https:/github.com/user-attachments/assets/9f309871-5fda-458f-967e-e7d3d8b269a5
+30. *Image*: doc/extensions/https:/github.com/user-attachments/assets/e3c16813-2210-4b7c-9f79-2737c19c6c30
+31. *Image*: doc/extensions/https:/github.com/user-attachments/assets/78aea188-59e8-4299-a375-1acc0784c7bf
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 

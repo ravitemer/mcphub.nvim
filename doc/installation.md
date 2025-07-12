@@ -6,16 +6,17 @@ Please read the [getting started](/index) guide before reading this.
 
 - Neovim >= 0.8.0
 - Node.js >= 18.0.0
-- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) 
+- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
 - [mcp-hub](https://github.com/ravitemer/mcp-hub) (automatically installed via build command)
+- [jq](https://github.com/jqlang/jq) (optional, for better servers.json formatting)
 
 ## Lazy.nvim
 
 MCPHub.nvim requires [mcp-hub](https://github.com/ravitemer/mcp-hub) to manage MCP Servers. You can make `mcp-hub` binary available in three ways:
 
 1. [Global Installation](#default-installation) (Recommended)
-2. [Local Installation](#local-installation) 
-3. [Dev Installation](#dev-installation) 
+2. [Local Installation](#local-installation)
+3. [Dev Installation](#dev-installation)
 
 ### Default Installation
 
@@ -78,9 +79,7 @@ Ideal for development. You can provide the command that our plugin should use to
 
 See [Contributing](https://github.com/ravitemer/mcphub.nvim/blob/main/CONTRIBUTING.md) guide for detailed development setup.
 
-
 ## NixOS
-
 
 <details>
 <summary> Flake install</summary>
