@@ -175,18 +175,31 @@ end
 ---@param unescape_slashes boolean? Whether to unescape forward slashes (default: true)
 ---@return string Formatted JSON string
 function M.pretty_json(str, unescape_slashes)
-    -- Parse JSON string to table
-    local ok, parsed = pcall(vim.json.decode, str)
-    if not ok then
-        vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
-        -- If parsing fails, return the original string formatted
-        return M.format_json_string(str)
+    local function is_jq_available()
+        return vim.fn.executable("jq") == 1
     end
-    -- Sort keys recursively
-    local sorted = sort_keys_recursive(parsed)
-    -- encode doesn't preserve the order but keeps it atleast kindof sorted
-    local encoded = vim.json.encode(sorted)
-    return M.format_json_string(encoded, unescape_slashes)
+
+    if is_jq_available() then
+        local jq_cmd = { "jq", "--sort-keys", "." }
+        local formatted = vim.fn.system(jq_cmd, str)
+        if vim.v.shell_error ~= 0 or not formatted or formatted == "" then
+            return M.format_json_string(str, unescape_slashes)
+        end
+        if unescape_slashes == nil or unescape_slashes then
+            formatted = formatted:gsub("\\/", "/")
+        end
+        return formatted
+    else
+        -- Fallback to custom implementation
+        local ok, parsed = pcall(vim.json.decode, str)
+        if not ok then
+            vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
+            return M.format_json_string(str)
+        end
+        local sorted = sort_keys_recursive(parsed)
+        local encoded = vim.json.encode(sorted)
+        return M.format_json_string(encoded, unescape_slashes)
+    end
 end
 
 --- Format a JSON string with proper indentation
