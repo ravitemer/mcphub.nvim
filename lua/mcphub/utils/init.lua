@@ -194,7 +194,7 @@ function M.pretty_json(str, unescape_slashes)
         local ok, parsed = pcall(vim.json.decode, str)
         if not ok then
             vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
-            return M.format_json_string(str)
+            return M.format_json_string(str, unescape_slashes)
         end
         local sorted = sort_keys_recursive(parsed)
         local encoded = vim.json.encode(sorted)
