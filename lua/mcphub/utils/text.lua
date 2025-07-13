@@ -313,8 +313,9 @@ end
 
 --- Render JSON with syntax highlighting using the existing pretty_json formatter
 ---@param text string|table? The JSON text or table to render
+---@param opts table Optional options
 ---@return NuiLine[]
-function M.render_json(text)
+function M.render_json(text, opts)
     local utils = require("mcphub.utils")
 
     -- Convert table to JSON if needed
@@ -323,7 +324,7 @@ function M.render_json(text)
     end
 
     -- Use the existing pretty printer
-    local formatted = utils.pretty_json(text or "")
+    local formatted = utils.pretty_json(text or "", opts)
     local lines = {}
 
     -- Process each line and add highlighting

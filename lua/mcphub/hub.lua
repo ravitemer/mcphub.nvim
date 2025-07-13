@@ -880,7 +880,7 @@ function MCPHub:update_server_config(server_name, updates, opts)
     end
 
     -- Write updated config back to file
-    local json_str = utils.pretty_json(vim.json.encode(config) or "")
+    local json_str = utils.pretty_json(vim.json.encode(config) or "", { use_jq = true })
     local file = io.open(self.config, "w")
     if not file then
         return false, "Failed to open config file for writing"

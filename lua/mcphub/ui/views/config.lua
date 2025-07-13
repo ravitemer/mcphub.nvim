@@ -96,7 +96,7 @@ function ConfigView:render()
         --     lines,
         --     vim.tbl_map(Text.pad_line, Text.multiline(Text.render_json(file_validation.content), Text.highlights.muted))
         -- )
-        vim.list_extend(lines, Text.render_json(file_validation.content))
+        vim.list_extend(lines, Text.render_json(file_validation.content, { use_jq = true }))
     end
     return lines
 end

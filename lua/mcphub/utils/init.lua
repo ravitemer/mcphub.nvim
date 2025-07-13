@@ -170,22 +170,32 @@ local function sort_keys_recursive(tbl)
     return sorted
 end
 
+local _is_jq_available
+local function is_jq_available()
+    if _is_jq_available ~= nil then
+        return _is_jq_available
+    end
+    _is_jq_available = vim.fn.executable("jq") == 1
+    return _is_jq_available
+end
+
 --- Pretty print JSON string with optional unescaping of forward slashes
 ---@param str string JSON string to format
----@param unescape_slashes boolean? Whether to unescape forward slashes (default: true)
+---@param opts? { unescape_slashes?: boolean, use_jq?: boolean, sort_keys?: boolean } Optional options
 ---@return string Formatted JSON string
-function M.pretty_json(str, unescape_slashes)
-    local function is_jq_available()
-        return vim.fn.executable("jq") == 1
-    end
+function M.pretty_json(str, opts)
+    opts = opts or {}
 
-    if is_jq_available() then
-        local jq_cmd = { "jq", "--sort-keys", "." }
+    if opts.use_jq and is_jq_available() then
+        local jq_cmd = { "jq" }
+        if opts.sort_keys ~= false then
+            vim.list_extend(jq_cmd, { "--sort-keys", "." })
+        end
         local formatted = vim.fn.system(jq_cmd, str)
         if vim.v.shell_error ~= 0 or not formatted or formatted == "" then
-            return M.format_json_string(str, unescape_slashes)
+            return M.format_json_string(str, opts.unescape_slashes)
         end
-        if unescape_slashes == nil or unescape_slashes then
+        if opts.unescape_slashes == nil or opts.unescape_slashes then
             formatted = formatted:gsub("\\/", "/")
         end
         return formatted
@@ -194,11 +204,11 @@ function M.pretty_json(str, unescape_slashes)
         local ok, parsed = pcall(vim.json.decode, str)
         if not ok then
             vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
-            return M.format_json_string(str, unescape_slashes)
+            return M.format_json_string(str, opts.unescape_slashes)
         end
-        local sorted = sort_keys_recursive(parsed)
+        local sorted = opts.sort_keys ~= false and sort_keys_recursive(parsed) or parsed
         local encoded = vim.json.encode(sorted)
-        return M.format_json_string(encoded, unescape_slashes)
+        return M.format_json_string(encoded, opts.unescape_slashes)
     end
 end
 
