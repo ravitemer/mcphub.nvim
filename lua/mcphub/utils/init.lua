@@ -1,7 +1,6 @@
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
-local log = require("mcphub.utils.log")
 local ui_utils = require("mcphub.utils.ui")
 local validation = require("mcphub.utils.validation")
 
@@ -510,8 +509,9 @@ function M.parse_config_from_json(text)
     return result
 end
 
----@param opts { title?: string, placeholder?: string, old_server_name?: string, start_insert?: boolean, is_native?: boolean, on_success?: function, on_error?: function, go_to_placeholder?: boolean, virtual_lines?: Array[] }
+---@param opts { title: string?, placeholder: string?, old_server_name: string?, start_insert: boolean?, is_native: boolean?, on_success: function?, on_error: function?, go_to_placeholder: boolean?, virtual_lines: Array[]?, config_source: string?, ask_for_source: boolean? }
 function M.open_server_editor(opts)
+    opts = opts or {}
     ui_utils.multiline_input(opts.title or "Paste server's JSON config", opts.placeholder or "", function(content)
         if not content or vim.trim(content) == "" then
             if opts.on_error then
@@ -537,19 +537,42 @@ function M.open_server_editor(opts)
                 end
             end
 
-            local success = State.hub_instance:update_server_config(result.name, result.config, { merge = false })
-            if success then
-                vim.notify("Server " .. result.name .. " added successfully", vim.log.levels.INFO)
-                if opts.on_success then
-                    opts.on_success(result.name, result.config)
-                end
-            else
-                local error_msg = "Failed to update server configuration"
-                if opts.on_error then
-                    opts.on_error(error_msg)
+            local function save(config_source)
+                local success = State.hub_instance:update_server_config(
+                    result.name,
+                    result.config,
+                    { merge = false, config_source = config_source }
+                )
+                if success then
+                    vim.notify("Server " .. result.name .. " added successfully", vim.log.levels.INFO)
+                    if opts.on_success then
+                        opts.on_success(result.name, result.config)
+                    end
                 else
-                    vim.notify(error_msg, vim.log.levels.ERROR)
+                    local error_msg = "Failed to update server configuration"
+                    if opts.on_error then
+                        opts.on_error(error_msg)
+                    else
+                        vim.notify(error_msg, vim.log.levels.ERROR)
+                    end
                 end
+            end
+            local config_files = State.current_hub.config_files or {}
+            if opts.ask_for_source and #config_files > 1 then
+                vim.ui.select(config_files, {
+                    prompt = "Select config path to save the server configuration",
+                }, function(choice)
+                    if choice then
+                        save(choice)
+                    else
+                        if opts.on_error then
+                            opts.on_error("No config source selected")
+                        end
+                        return
+                    end
+                end)
+            else
+                save(opts.config_source)
             end
         else
             if opts.on_error then
@@ -606,15 +629,8 @@ function M.confirm_and_delete_server(server_name, on_delete)
     end
     local async = require("plenary.async")
     async.run(function()
-        -- Get current server configuration
-        local current_config = nil
-        if State.hub_instance then
-            local config_result = State.hub_instance:load_config()
-            if config_result and config_result.mcpServers and config_result.mcpServers[server_name] then
-                current_config = config_result.mcpServers[server_name]
-            end
-        end
-
+        local config_manager = require("mcphub.utils.config_manager")
+        local server_config = config_manager.get_server_config(server_name, true) or {}
         -- Create confirmation message with highlights
         local message = {}
 
@@ -627,8 +643,8 @@ function M.confirm_and_delete_server(server_name, on_delete)
         table.insert(message, "")
 
         -- Current configuration preview
-        if current_config then
-            vim.list_extend(message, Text.render_json(vim.json.encode(current_config)))
+        if server_config then
+            vim.list_extend(message, Text.render_json(vim.json.encode(server_config)))
         else
             local no_config_line = NuiLine()
             no_config_line:append("No current configuration found.", Text.highlights.muted)

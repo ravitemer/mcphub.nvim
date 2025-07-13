@@ -26,7 +26,7 @@ function M.validate_setup_opts(opts)
         }
     end
 
-    if not opts.config then
+    if not opts.config or type(opts.config) ~= "string" then
         return {
             ok = false,
             error = Error("SETUP", Error.Types.SETUP.INVALID_CONFIG, "Config file path is required"),
@@ -56,15 +56,7 @@ function M.validate_setup_opts(opts)
             }
         end
     end
-    -- Validate config file
-    local file_result = M.validate_config_file(opts.config)
-    if not file_result.ok then
-        return file_result
-    end
-
-    return {
-        ok = true,
-    }
+    return { ok = true }
 end
 
 ---@param custom_instructions CustomMCPServerConfig.CustomInstructions
@@ -216,7 +208,7 @@ end
 
 --- Validate MCP config file
 ---@param path string
----@return {ok : string, error?: MCPError, json?: MCPServersConfigFile, content?: string}
+---@return {ok : boolean, error?: MCPError, json?: MCPServersConfigFile, content?: string}
 function M.validate_config_file(path)
     if not path then
         return {

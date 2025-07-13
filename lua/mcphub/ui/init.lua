@@ -88,17 +88,17 @@ function UI:new(opts)
         if instance.window and vim.api.nvim_win_is_valid(instance.window) then
             -- Check if we need to update
             local should_update = false
+            local keys = {
+                "server_output",
+                "setup_state",
+                "server_state",
+                "marketplace_state",
+                "config_files_cache",
+                "logs",
+                "errors",
+            }
             for k, _ in pairs(changes) do
-                if
-                    k == "server_output"
-                    or k == "setup_state"
-                    or k == "server_state"
-                    or k == "servers_config"
-                    or k == "native_servers_config"
-                    or k == "marketplace_state"
-                    or k == "logs"
-                    or k == "errors"
-                then
+                if vim.tbl_contains(keys, k) then
                     --if connected then only update the logs view for logs updates
                     if k == "logs" and State:is_connected() then
                         if instance.current_view == "logs" then

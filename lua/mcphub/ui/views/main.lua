@@ -7,12 +7,12 @@ local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local View = require("mcphub.ui.views.base")
+local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
 local native = require("mcphub.native")
 local renderer = require("mcphub.utils.renderer")
 local ui_utils = require("mcphub.utils.ui")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.utils.validation")
 
 ---@class MainView: View
 ---@field super View
@@ -106,10 +106,7 @@ end
 
 function MainView:handle_custom_instructions(context)
     -- Get current instructions
-    local is_native = native.is_native_server(context.server_name)
-    local server_config = (
-        is_native and State.native_servers_config[context.server_name] or State.servers_config[context.server_name]
-    ) or {}
+    local server_config = config_manager.get_server_config(context.server_name) or {}
     local custom_instructions = server_config.custom_instructions or {}
     local text = custom_instructions.text or ""
 
@@ -132,6 +129,7 @@ function MainView:add_server()
     utils.open_server_editor({
         title = "Paste Server Config",
         start_insert = true,
+        ask_for_source = true,
     })
 end
 
@@ -147,19 +145,16 @@ function MainView:handle_edit()
     local server_name = context.name
     if line_type == "server" then
         local is_native = native.is_native_server(server_name)
-        local config
-        if is_native then
-            config = State.native_servers_config[server_name] or {}
-        else
-            config = State.servers_config[server_name] or {}
-        end
+        local server_config = config_manager.get_server_config(server_name) or {}
+        local config_source = config_manager.get_config_source(server_name)
         local text = utils.pretty_json(vim.json.encode({
-            [server_name] = config,
+            [server_name] = server_config,
         }) or "")
         utils.open_server_editor({
             title = "Edit '" .. server_name .. "' Config",
             is_native = is_native ~= nil,
             old_server_name = server_name,
+            config_source = config_source,
             placeholder = text,
             start_insert = false,
             virtual_lines = {
@@ -510,10 +505,7 @@ function MainView:handle_auto_approve_toggle()
 
         -- Toggle auto-approval for entire server
         local server_name = context.name
-        local is_native = native.is_native_server(server_name)
-        local server_config = (
-            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-        ) or {}
+        local server_config = config_manager.get_server_config(server_name) or {}
 
         local all_tools = get_server_tool_names(server_name)
         local status, _ = get_auto_approval_status(server_config, all_tools)
@@ -539,10 +531,7 @@ function MainView:handle_auto_approve_toggle()
         -- Toggle auto-approval for specific tool
         local server_name = context.server_name
         local tool_name = context.def.name
-        local is_native = native.is_native_server(server_name)
-        local server_config = (
-            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-        ) or {}
+        local server_config = config_manager.get_server_config(server_name) or {}
 
         local current_auto_approve = server_config.autoApprove or {}
         local new_auto_approve
@@ -612,10 +601,7 @@ function MainView:handle_server_toggle()
         and State.hub_instance
     then
         local server_name = context.server_name
-        local is_native = native.is_native_server(server_name)
-        local server_config = (
-            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-        ) or {}
+        local server_config = config_manager.get_server_config(server_name) or {}
 
         local type_config = {
             tool = { id_field = "name", config_field = "disabled_tools" },
@@ -653,10 +639,7 @@ function MainView:handle_server_toggle()
     elseif type == "customInstructions" and context then
         -- Toggle custom instructions state
         local server_name = context.server_name
-        local is_native = native.is_native_server(server_name)
-        local server_config = (
-            is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-        ) or {}
+        local server_config = config_manager.get_server_config(server_name) or {}
         local custom_instructions = server_config.custom_instructions or {}
         local is_disabled = custom_instructions.disabled
 
@@ -705,10 +688,9 @@ end
 --- Render a server section
 ---@param title? string Section title
 ---@param servers table[] List of servers
----@param config_source table Config source for the servers
 ---@param current_line number Current line number
 ---@return NuiLine[], number Lines and new current line
-function MainView:render_servers_section(title, servers, config_source, current_line, is_native)
+function MainView:render_servers_section(title, servers, current_line)
     local lines = {}
 
     if title then
@@ -732,7 +714,9 @@ function MainView:render_servers_section(title, servers, config_source, current_
     -- Sort and render servers
     local sorted = sort_servers(vim.deepcopy(servers))
     for _, server in ipairs(sorted) do
-        current_line = renderer.render_server_capabilities(server, lines, current_line, config_source, self, is_native)
+        local server_config = config_manager.get_server_config(server) or {}
+        current_line =
+            renderer.render_server_capabilities(server, lines, current_line, server_config, self, server.is_native)
     end
 
     return lines, current_line
@@ -791,43 +775,37 @@ function MainView:render_servers(line_offset)
     table.insert(lines, self:divider())
     current_line = current_line + 1
 
-    -- Render MCP servers section (without title since we already added it)
-    local mcp_lines, new_line =
-        self:render_servers_section(nil, State.server_state.servers, State.servers_config, current_line, false)
-    vim.list_extend(lines, mcp_lines)
-    current_line = new_line
-    -- Add create server option
-    -- table.insert(lines, Text.empty_line())
-    table.insert(
-        lines,
-        Text.pad_line(
-            NuiLine()
-                :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
-                :append("Add Server (A)", Text.highlights.muted)
-        )
-    )
-    -- Track line for interaction
-    self:track_line(current_line + 1, "add_server", {
-        name = "Add Server",
-        hint = "[<l> Open Editor]",
-    })
-    current_line = current_line + 1
+    current_line = renderer.render_servers_grouped(State.server_state.servers, lines, current_line, self)
+
+    -- -- Add server creation options
+    -- table.insert(
+    --     lines,
+    --     Text.pad_line(
+    --         NuiLine()
+    --             :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
+    --             :append("Add Server (A)", Text.highlights.muted)
+    --     )
+    -- )
+    -- -- Track line for interaction
+    -- self:track_line(current_line + 1, "add_server", {
+    --     name = "Add Server",
+    --     hint = "[<l> Open Editor]",
+    -- })
+    -- current_line = current_line + 1
 
     -- Add spacing between sections
     table.insert(lines, Text.empty_line())
     current_line = current_line + 1
 
     -- Native servers section header
-    table.insert(lines, Text.pad_line(NuiLine():append("Native Servers", Text.highlights.title)))
+    table.insert(lines, Text.pad_line(NuiLine():append("" .. " Native Servers", Text.highlights.title)))
     current_line = current_line + 1
 
     -- Render Native servers first
     local native_lines, native_line = self:render_servers_section(
         nil, -- No title since we added it above
         State.server_state.native_servers,
-        State.native_servers_config,
-        current_line,
-        true
+        current_line
     )
     vim.list_extend(lines, native_lines)
     current_line = native_line
@@ -934,15 +912,15 @@ function MainView:render()
     -- Servers section
     vim.list_extend(lines, self:render_servers(#lines))
     -- Recent errors section (show compact view without details)
-    table.insert(lines, Text.empty_line())
-    table.insert(lines, Text.empty_line())
-    table.insert(lines, Text.pad_line(NuiLine():append("Recent Issues", Text.highlights.title)))
-    local errors = renderer.render_hub_errors(nil, false)
-    if #errors > 0 then
-        vim.list_extend(lines, errors)
-    else
-        table.insert(lines, Text.pad_line(NuiLine():append("No recent issues", Text.highlights.muted)))
-    end
+    -- table.insert(lines, Text.empty_line())
+    -- table.insert(lines, Text.empty_line())
+    -- table.insert(lines, Text.pad_line(NuiLine():append(Text.icons.bug .. " Recent Issues", Text.highlights.title)))
+    -- local errors = renderer.render_hub_errors(nil, false)
+    -- if #errors > 0 then
+    --     vim.list_extend(lines, errors)
+    -- else
+    --     table.insert(lines, Text.pad_line(NuiLine():append("No recent issues", Text.highlights.muted)))
+    -- end
     return lines
 end
 

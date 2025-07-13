@@ -1,11 +1,105 @@
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
+local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
-local native = require("mcphub.native")
 local utils = require("mcphub.utils")
 
 local M = {}
+
+--- Get display name for a config source
+---@param config_source string Path to config file
+---@return string Display name for the source
+function M.get_source_display_name(config_source)
+    if not config_source then
+        return "Unknown"
+    end
+
+    -- Get filename
+    local filename = vim.fn.fnamemodify(config_source, ":t")
+    return filename
+end
+
+--- Render servers grouped by config source
+---@param servers table[] List of servers
+---@param lines table[] Existing lines to append to
+---@param current_line number Current line number
+---@param view MainView View instance for tracking
+---@return number New current line
+function M.render_servers_grouped(servers, lines, current_line, view)
+    local config_files = config_manager.get_active_config_files(true)
+    -- Render each group
+    for i, config_source in ipairs(config_files) do
+        local group_servers = vim.tbl_filter(function(s)
+            return s.config_source == config_source
+        end, servers)
+        current_line = M.render_server_group(config_source, group_servers, lines, current_line, view)
+        if i < #config_files then
+            table.insert(lines, Text.empty_line())
+            current_line = current_line + 1
+        end
+    end
+
+    return current_line
+end
+
+--- Render a single server group with header
+---@param config_source string Config file path
+---@param servers table[] Servers in this group
+---@param lines table[] Lines to append to
+---@param current_line number Current line number
+---@param view MainView View instance
+---@return number New current line
+function M.render_server_group(config_source, servers, lines, current_line, view)
+    -- Sort servers within group (connected > disconnected > disabled)
+    local sorted = vim.deepcopy(servers)
+    table.sort(sorted, function(a, b)
+        -- First compare status priority
+        local status_priority = {
+            connected = 1,
+            disconnected = 2,
+            disabled = 3,
+        }
+        local a_priority = status_priority[a.status] or 2
+        local b_priority = status_priority[b.status] or 2
+
+        if a_priority ~= b_priority then
+            return a_priority < b_priority
+        end
+
+        -- If same status, sort alphabetically
+        return a.name < b.name
+    end)
+
+    local is_global = config_source == State.config.config
+    local icon = is_global and Text.icons.globe or Text.icons.folder
+    local prefix = icon .. " " .. (is_global and "Global" or "Project") .. " "
+
+    -- Render group header
+    -- local display_name = M.get_source_display_name(config_source)
+    local header_line = NuiLine():append(prefix, Text.highlights.title)
+    table.insert(lines, Text.pad_line(header_line))
+    current_line = current_line + 1
+    if #sorted == 0 then
+        -- No servers in this group
+        table.insert(
+            lines,
+            Text.pad_line(
+                NuiLine():append("No servers found (Install from Marketplace)", Text.highlights.muted),
+                nil,
+                4
+            )
+        )
+        return current_line + 1
+    end
+
+    for _, server in ipairs(sorted) do
+        local server_config = config_manager.get_server_config(server) or {}
+        current_line = M.render_server_capabilities(server, lines, current_line, server_config, view, server.is_native)
+    end
+
+    return current_line
+end
 
 function M.get_hub_info(state)
     local icon = ({
@@ -83,8 +177,9 @@ end
 ---@param server_name string Server name
 ---@param line_type string Item type
 ---@param current_line number Current line number
+---@param server_config table Server configuration
 ---@return NuiLine[],number,table
-function M.render_cap_section(items, title, server_name, line_type, current_line)
+function M.render_cap_section(items, title, server_name, line_type, current_line, server_config)
     local lines = {}
     local mappings = {}
 
@@ -99,9 +194,6 @@ function M.render_cap_section(items, title, server_name, line_type, current_line
         Text.pad_line(NuiLine():append(" " .. icons[line_type] .. " " .. title .. ": ", Text.highlights.muted), nil, 4)
     )
 
-    local is_native = native.is_native_server(server_name)
-    local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
-        or {}
     local disabled_tools = server_config.disabled_tools or {}
     if line_type == "tool" then
         -- For tools, sort by name and move disabled ones to end
@@ -186,10 +278,10 @@ end
 ---@param server table Server to render
 ---@param lines table[] Lines array to append to
 ---@param current_line number Current line number
----@param config_source table Config source for the server
+---@param server_config table Config source for the server
 ---@param view MainView View instance for tracking
 ---@return number New current line
-function M.render_server_capabilities(server, lines, current_line, config_source, view, is_native)
+function M.render_server_capabilities(server, lines, current_line, server_config, view, is_native)
     local server_name_line = M.render_server_line(server, view.expanded_server == server.name)
     table.insert(lines, Text.pad_line(server_name_line, nil, 3))
     current_line = current_line + 1
@@ -227,7 +319,6 @@ function M.render_server_capabilities(server, lines, current_line, config_source
         --     current_line = current_line + 1
         -- end
 
-        local server_config = config_source[server.name] or {}
         if
             #server.capabilities.tools + #server.capabilities.resources + #server.capabilities.resourceTemplates
             == 0
@@ -262,8 +353,14 @@ function M.render_server_capabilities(server, lines, current_line, config_source
         current_line = current_line + 1
 
         if #server.capabilities.prompts > 0 then
-            local section_lines, new_line, mappings =
-                M.render_cap_section(server.capabilities.prompts, "Prompts", server.name, "prompt", current_line)
+            local section_lines, new_line, mappings = M.render_cap_section(
+                server.capabilities.prompts,
+                "Prompts",
+                server.name,
+                "prompt",
+                current_line,
+                server_config
+            )
             vim.list_extend(lines, section_lines)
             for _, m in ipairs(mappings) do
                 view:track_line(m.line, m.type, m.context)
@@ -273,8 +370,14 @@ function M.render_server_capabilities(server, lines, current_line, config_source
         end
         -- Tools section if any
         if #server.capabilities.tools > 0 then
-            local section_lines, new_line, mappings =
-                M.render_cap_section(server.capabilities.tools, "Tools", server.name, "tool", current_line)
+            local section_lines, new_line, mappings = M.render_cap_section(
+                server.capabilities.tools,
+                "Tools",
+                server.name,
+                "tool",
+                current_line,
+                server_config
+            )
             vim.list_extend(lines, section_lines)
             for _, m in ipairs(mappings) do
                 view:track_line(m.line, m.type, m.context)
@@ -285,8 +388,14 @@ function M.render_server_capabilities(server, lines, current_line, config_source
 
         -- Resources section if any
         if #server.capabilities.resources > 0 then
-            local section_lines, new_line, mappings =
-                M.render_cap_section(server.capabilities.resources, "Resources", server.name, "resource", current_line)
+            local section_lines, new_line, mappings = M.render_cap_section(
+                server.capabilities.resources,
+                "Resources",
+                server.name,
+                "resource",
+                current_line,
+                server_config
+            )
             vim.list_extend(lines, section_lines)
             for _, m in ipairs(mappings) do
                 view:track_line(m.line, m.type, m.context)
@@ -302,7 +411,8 @@ function M.render_server_capabilities(server, lines, current_line, config_source
                 "Resource Templates",
                 server.name,
                 "resourceTemplate",
-                current_line
+                current_line,
+                server_config
             )
             vim.list_extend(lines, section_lines)
             for _, m in ipairs(mappings) do
@@ -320,11 +430,9 @@ end
 ---@param server table Server data
 ---@return { line: NuiLine, mapping: table? }
 function M.render_server_line(server, active)
-    local is_native = native.is_native_server(server.name)
-    local server_config = (is_native and State.native_servers_config[server.name] or State.servers_config[server.name])
-        or {}
+    local server_config = config_manager.get_server_config(server.name) or {}
     local is_enabled = server_config.disabled ~= true
-    if is_native and not is_enabled then
+    if server.is_native and not is_enabled then
         server.status = "disabled"
     end
     local status = M.get_server_status_info(server.status, active)

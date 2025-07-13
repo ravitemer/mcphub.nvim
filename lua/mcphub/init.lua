@@ -138,15 +138,6 @@ function M.setup(opts)
     if not validation_result.ok then
         return _on_setup_failed(validation_result.error)
     end
-
-    -- Update servers config in state
-    local file_result = validation.validate_config_file(config.config)
-    if file_result.ok and file_result.json then
-        State.servers_config = file_result.json.mcpServers or {}
-        State.native_servers_config = file_result.json.nativeMCPServers or {}
-    else
-        return _on_setup_failed(file_result.error)
-    end
     local Native = require("mcphub.native")
     Native.setup()
     -- Initialize native servers if any provided in setup config

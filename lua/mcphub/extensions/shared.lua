@@ -26,12 +26,8 @@ local ui_utils = require("mcphub.utils.ui")
 ---@param tool_name string Name of the tool to check
 ---@return boolean Whether the tool is auto-approved in the server
 function M.is_auto_approved_in_server(server_name, tool_name)
-    local native = require("mcphub.native")
-    local is_native = native.is_native_server(server_name)
-    local server_config = is_native and State.native_servers_config[server_name] or State.servers_config[server_name]
-    if not server_config then
-        return false
-    end
+    local config_manager = require("mcphub.utils.config_manager")
+    local server_config = config_manager.get_server_config(server_name) or {}
     local auto_approve = server_config.autoApprove
     if not auto_approve then
         return false

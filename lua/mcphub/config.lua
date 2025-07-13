@@ -2,6 +2,11 @@ local M = {}
 
 local SHUTDOWN_DELAY = 10 * 60 * 1000 -- 10 minutes
 
+---@class MCPHub.WorkspaceConfig
+---@field enabled boolean Master switch for workspace-specific hubs
+---@field look_for string[] Files to search for (in order)
+---@field port_range { min: number, max: number } Port range for workspace hubs
+
 ---@class MCPHub.Config
 local defaults = {
     port = 37373, -- Default port for MCP Hub
@@ -45,6 +50,12 @@ local defaults = {
             enabled = true,
             make_slash_commands = true,
         },
+    },
+    ---@type MCPHub.WorkspaceConfig
+    workspace = {
+        enabled = true, -- Master switch for workspace-specific hubs
+        look_for = { ".vscode/mcp.json", ".cursor/mcp.json", "mcp.json", ".mcphub/servers.json" }, -- Files to search for (in order)
+        port_range = { min = 40000, max = 41000 }, -- Port range for workspace hubs
     },
     on_ready = function() end,
     ---@param msg string

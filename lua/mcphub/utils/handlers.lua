@@ -33,6 +33,9 @@ end
 
 -- SSE Event handlers
 M.SSEHandlers = {
+    ---@param event string Event type
+    ---@param data table Event data
+    ---@param hub MCPHub.Hub Hub instance
     handle_sse_event = function(event, data, hub)
         local is_ui_shown = State.ui_instance and State.ui_instance.is_shown or false
         if event == constants.EventTypes.HEARTBEAT then
@@ -71,15 +74,15 @@ M.SSEHandlers = {
             if is_capability_type then
                 hub:handle_capability_updates(data)
             elseif data.type == constants.SubscriptionTypes.CONFIG_CHANGED then
-                if not is_ui_shown then
-                    local has_significant_changes = data.isSignificant == true
-                    if not has_significant_changes then
-                        vim.notify("MCP Hub Config Changed: No Significant changes found", vim.log.levels.INFO, {
-                            title = "MCP Hub",
-                        })
-                    end
-                end
-                hub:refresh_config()
+                -- if not is_ui_shown then
+                --     local has_significant_changes = data.isSignificant == true
+                --     if not has_significant_changes then
+                --         vim.notify("MCP Hub Config Changed: No Significant changes found", vim.log.levels.INFO, {
+                --             title = "MCP Hub",
+                --         })
+                --     end
+                -- end
+                hub:reload_config()
             elseif data.type == constants.SubscriptionTypes.SERVERS_UPDATING then
                 if not is_ui_shown then
                     vim.notify("MCP Hub Config Changed", vim.log.levels.INFO)

@@ -56,7 +56,8 @@ M.icons = {
     unauthorized = "󱅞",
 
     file = "",
-    folder = "",
+    folder = "",
+    globe = "",
     prompt = "󰿠",
     -- Error type icons
     setup_error = "",

@@ -64,6 +64,7 @@
 ---@field uptime number
 ---@field lastStarted string
 ---@field authorizationUrl string
+---@field config_source string Include which config file this server came from
 
 ---@class LogEntry
 ---@field type string

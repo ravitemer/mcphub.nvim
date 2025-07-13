@@ -1,6 +1,7 @@
 local Error = require("mcphub.utils.errors")
 local Job = require("plenary.job")
 local State = require("mcphub.state")
+local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
 local curl = require("plenary.curl")
 
@@ -33,6 +34,7 @@ local MCP_REQUEST_TIMEOUT = 60000 -- 60s for MCP requests
 --- @field mcp_request_timeout number --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
 --- @field on_ready fun(hub)
 --- @field on_error fun(error:string)
+--- @field setup_opts table Original options used to create this hub instance
 local MCPHub = {}
 MCPHub.__index = MCPHub
 
@@ -56,7 +58,157 @@ function MCPHub:new(opts)
         mcp_request_timeout = opts.mcp_request_timeout or MCP_REQUEST_TIMEOUT,
         on_ready = opts.on_ready or function() end,
         on_error = opts.on_error or function() end,
+        setup_opts = opts,
     }, MCPHub)
+end
+
+--- Resolve context (workspace vs global) for the current directory
+--- @return table|nil Context information or nil on error
+function MCPHub:resolve_context()
+    if not State.config.workspace.enabled then
+        return self:_resolve_global_context()
+    end
+
+    return self:_resolve_workspace_context()
+end
+
+--- Resolve workspace-specific context
+--- @return table|nil Workspace context or nil to fall back to global
+function MCPHub:_resolve_workspace_context()
+    local workspace_utils = require("mcphub.utils.workspace")
+    local current_dir = vim.fn.getcwd()
+
+    -- Find workspace config
+    local workspace_info = workspace_utils.find_workspace_config(State.config.workspace.look_for, current_dir)
+
+    if not workspace_info then
+        -- No workspace config found, fall back to global mode
+        log.debug("No workspace config found, falling back to global mode")
+        return self:_resolve_global_context()
+    end
+
+    log.debug("Found workspace config" .. vim.inspect(workspace_info))
+
+    -- Check for existing hub
+    local existing_hub = workspace_utils.get_workspace_hub_info(workspace_info.root_dir)
+    local port
+
+    if existing_hub then
+        port = existing_hub.port
+        log.debug("Found existing workspace hub" .. vim.inspect({
+            workspace_root = workspace_info.root_dir,
+            port = port,
+            pid = existing_hub.pid,
+        }))
+    else
+        -- Generate new port
+        port = workspace_utils.find_available_port(
+            workspace_info.root_dir,
+            State.config.workspace.port_range,
+            100 -- max attempts
+        )
+
+        if not port then
+            vim.notify("No available ports for workspace hub", vim.log.levels.ERROR)
+            return nil
+        end
+
+        log.debug("Generated new port for workspace" .. vim.inspect({
+            workspace_root = workspace_info.root_dir,
+            port = port,
+        }))
+    end
+
+    -- Prepare config files (order matters: global first, then project)
+    local global_config = self.config -- Original global config path
+    local project_config = workspace_info.config_file
+
+    return {
+        port = port,
+        cwd = workspace_info.root_dir,
+        config_files = { global_config, project_config },
+        is_workspace_mode = true,
+        workspace_root = workspace_info.root_dir,
+    }
+end
+
+--- Resolve global context (original behavior)
+--- @return table Global context
+function MCPHub:_resolve_global_context()
+    return {
+        port = self.setup_opts.port,
+        cwd = vim.fn.getcwd(),
+        config_files = { self.config },
+        is_workspace_mode = false,
+        workspace_root = nil,
+    }
+end
+
+--- Start server with resolved context
+--- @param context table Context information from resolve_context
+function MCPHub:_start_server_with_context(context)
+    self.is_owner = true
+
+    -- Build command args with config files
+    local args = utils.clean_args({
+        self.cmdArgs,
+        "--port",
+        tostring(context.port),
+    })
+
+    -- Add all config files (global first, then project-specific)
+    for _, config_file in ipairs(context.config_files) do
+        table.insert(args, "--config")
+        table.insert(args, config_file)
+    end
+
+    -- Add other flags
+    vim.list_extend(args, {
+        "--auto-shutdown",
+        "--shutdown-delay",
+        self.shutdown_delay or 0,
+        "--watch",
+    })
+
+    log.debug("Starting server with context" .. vim.inspect({
+        port = context.port,
+        cwd = context.cwd,
+        config_files = context.config_files,
+        is_workspace_mode = context.is_workspace_mode,
+    }))
+
+    ---@diagnostic disable-next-line: missing-fields
+    self.server_job = Job:new({
+        command = self.cmd,
+        args = args,
+        cwd = context.cwd, -- Set working directory
+        hide = true,
+        on_stderr = vim.schedule_wrap(function(_, data)
+            if data then
+                log.debug("Server stderr:" .. data)
+            end
+        end),
+        on_start = vim.schedule_wrap(function()
+            self:connect_sse()
+        end),
+        on_stdout = vim.schedule_wrap(function(_, _)
+            -- if data then
+            --     log.debug("Server stdout:" .. data)
+            -- end
+        end),
+        on_exit = vim.schedule_wrap(function(j, code)
+            local stderr = table.concat(j:stderr_result() or {}, "\n")
+            if stderr:match("EADDRINUSE") then
+                -- Port was just taken, try connecting
+                log.debug("Port taken, trying to connect...")
+            else
+                local err_msg = "Server process exited with code " .. code
+                self:handle_hub_stopped(err_msg .. "\n" .. stderr, code)
+            end
+        end),
+    })
+
+    self.server_job:start()
 end
 
 --- Start the MCP Hub server
@@ -71,61 +223,40 @@ function MCPHub:start()
     self.is_restarting = false
     self.is_starting = true
 
-    -- Check if server is already running
+    -- Resolve context (workspace vs global)
+    local context = self:resolve_context()
+    if not context then
+        self:handle_hub_stopped("Failed to resolve hub context")
+        return
+    end
+
+    -- Update state with resolved context
+    State.current_hub = context
+    self.port = context.port -- Update our port for this session
+
+    -- Load config cache into state
+    local cache_loaded = config_manager.refresh_config()
+    if not cache_loaded then
+        self:handle_hub_stopped("Failed to load MCP servers configuration")
+        return
+    end
+
+    log.debug("Resolved hub context: " .. vim.inspect(context))
+
+    -- Check if server is already running on the resolved port
     self:check_server(function(is_running, is_our_server)
         if is_running then
             if not is_our_server then
                 self:handle_hub_stopped("Port in use by non-MCP Hub server")
                 return
             end
-            log.debug("MCP Hub already running")
+            log.debug("MCP Hub already running on port " .. context.port)
             self:connect_sse()
             return
         end
 
-        -- Try to start new server
-        self.is_owner = true
-        ---@diagnostic disable-next-line: missing-fields
-        self.server_job = Job:new({
-            command = self.cmd,
-            args = utils.clean_args({
-                self.cmdArgs,
-                "--port",
-                tostring(self.port),
-                "--config",
-                self.config,
-                "--auto-shutdown",
-                "--shutdown-delay",
-                self.shutdown_delay or 0,
-                "--watch",
-            }),
-            hide = true,
-            on_stderr = vim.schedule_wrap(function(_, data)
-                if data then
-                    log.debug("Server stderr:" .. data)
-                end
-            end),
-            on_start = vim.schedule_wrap(function()
-                self:connect_sse()
-            end),
-            on_stdout = vim.schedule_wrap(function(_, _)
-                -- if data then
-                --     log.debug("Server stdout:" .. data)
-                -- end
-            end),
-            on_exit = vim.schedule_wrap(function(j, code)
-                local stderr = table.concat(j:stderr_result() or {}, "\n")
-                if stderr:match("EADDRINUSE") then
-                    -- Port was just taken, try connecting
-                    log.debug("Port taken, trying to connect...")
-                else
-                    local err_msg = "Server process exited with code " .. code
-                    self:handle_hub_stopped(err_msg .. "\n" .. stderr, code)
-                end
-            end),
-        })
-
-        self.server_job:start()
+        -- Start new server with resolved context
+        self:_start_server_with_context(context)
     end)
 end
 
@@ -149,7 +280,6 @@ function MCPHub:_clean_up()
     self.is_starting = false
     self.is_restarting = false
     State:update_hub_state(constants.HubState.STOPPED)
-    self:fire_hub_update()
 end
 
 ---@param msg string
@@ -347,15 +477,6 @@ function MCPHub:stop_mcp_server(name, disable, opts)
     State:notify_subscribers({
         server_state = true,
     }, "server")
-end
-
----@param data? table
-function MCPHub:fire_hub_update(data)
-    -- Fire state change event with updated stats
-    utils.fire("MCPHubStateChange", data or {
-        state = State.server_state.state,
-        active_servers = #self:get_servers(),
-    })
 end
 
 --- Get a prompt from the server
@@ -735,68 +856,58 @@ function MCPHub:api_request(method, path, opts)
     end
 end
 
----@return MCPServersConfigFile?, string?
-function MCPHub:load_config()
-    local result = validation.validate_config_file(self.config)
-    if not result.ok then
-        if result.error then
-            State:add_error(result.error)
-        end
-        return nil, result.error.message
-    end
-
-    local config = result.json or {}
-    -- Ensure mcpServers exists
-    config.mcpServers = config.mcpServers or {}
-    config.nativeMCPServers = config.nativeMCPServers or {}
-    return config
-end
-
-function MCPHub:refresh_config()
+--- Refresh cache of config files
+---@param paths string[]|nil
+function MCPHub:reload_config(paths)
+    config_manager.refresh_config(paths)
+    -- toggling a native server in one neovim will trigger insignificant changes in other neovim instances, which should be handled by refreshing the native servers
     self:refresh_native_servers()
-    self:fire_hub_update()
 end
 
 -- make sure we update the native servers disabled status when the servers are updated through a sse event
 function MCPHub:refresh_native_servers()
-    local config = self:load_config()
-    if not config then
-        return
-    end
+    local updated = false
     for _, server in ipairs(State.server_state.native_servers) do
-        local server_config = config.nativeMCPServers[server.name] or {}
+        local server_config = config_manager.get_server_config(server) or {}
         local is_enabled = server_config.disabled ~= true
+        local was_running = server.status == "connected"
+        if is_enabled == was_running then
+            goto continue
+        end
+        updated = true
         if not is_enabled then
             server:stop()
         else
             server:start()
         end
+        ::continue::
     end
-    -- Update State
-    State:update({
-        servers_config = config.mcpServers,
-        native_servers_config = config.nativeMCPServers,
-    }, "setup")
+    if updated then
+        self:fire_servers_updated()
+    end
+end
+
+function MCPHub:fire_servers_updated()
+    -- Triggers UI update
+    State:notify_subscribers({
+        server_state = true,
+    }, "server")
+
+    -- Useful for lualine and other extensions
+    utils.fire("MCPHubServersUpdated", {
+        active_servers = #self:get_servers(),
+    })
+    State:emit("servers_updated", {
+        hub = self,
+    })
 end
 
 function MCPHub:update_servers(servers, callback)
     callback = callback or function() end
     local function update_state(_servers)
-        State:update({
-            server_state = {
-                servers = _servers or {},
-            },
-        }, "server")
-        -- Fire state change event with updated stats
-        self:fire_hub_update()
-        utils.fire("MCPHubServersUpdated")
-        -- Emit server update event with prompt
-        State:emit("servers_updated", {
-            hub = self,
-        })
+        State.server_state.servers = _servers or {}
+        self:fire_servers_updated()
     end
-    --even we change native server status we need to emit so that ui updates, so update_servers takes care of that
-    self:refresh_native_servers()
     if servers then
         update_state(servers)
     else
@@ -856,57 +967,18 @@ end
 --- Update server configuration in the MCP config file
 ---@param server_name string Name of the server to update
 ---@param updates table|nil Key-value pairs to update in the server config or nil to remove
----@param opts? { callback?: function ,merge?:boolean} Optional callback(success: boolean)
+---@param opts? { merge:boolean?, config_source: string? } Optional callback(success: boolean)
 ---@return boolean, string|nil Returns success status and error message if any
 function MCPHub:update_server_config(server_name, updates, opts)
-    opts = opts or {}
-    -- Load and validate current config
-    local config = self:load_config()
-    if not config then
-        return false
-    end
-    local is_native = native.is_native_server(server_name)
-    local current_object = is_native and config.nativeMCPServers or config.mcpServers
-    if updates then
-        if opts.merge ~= false then
-            -- Update mode: merge updates with existing config
-            current_object[server_name] = vim.tbl_deep_extend("force", current_object[server_name] or {}, updates)
-        else
-            current_object[server_name] = updates
-        end
-    else
-        -- Remove mode: delete server config
-        current_object[server_name] = nil
-    end
-
-    -- Write updated config back to file
-    local json_str = utils.pretty_json(vim.json.encode(config) or "")
-    local file = io.open(self.config, "w")
-    if not file then
-        return false, "Failed to open config file for writing"
-    end
-
-    file:write(json_str)
-    file:close()
-
-    -- update state manually to avoid deep extending
-    State.servers_config = config.mcpServers
-    State.native_servers_config = config.nativeMCPServers
-    -- Notify subscribers of state change
-    State:notify_subscribers({
-        servers_config = true,
-        native_servers_config = true,
-    }, "setup")
-    return true
+    return config_manager.update_server_config(server_name, updates, opts)
 end
 
 --- Remove server configuration
----@param mcpId string Server ID to remove
----@param opts? { callback?: function } Optional callback(success: boolean)
+---@param server_name string Server ID to remove
 ---@return boolean, string|nil Returns success status and error message if any
-function MCPHub:remove_server_config(mcpId, opts)
+function MCPHub:remove_server_config(server_name)
     -- Use update_server_config with nil updates to remove
-    return self:update_server_config(mcpId, nil, opts)
+    return self:update_server_config(server_name, nil)
 end
 
 function MCPHub:stop()
@@ -1009,6 +1081,8 @@ function MCPHub:hard_refresh(callback)
     if not self:ensure_ready() then
         return
     end
+    -- Make sure to update the cache as well
+    config_manager.refresh_config()
     self:api_request("GET", "refresh", {
         callback = function(response, err)
             if err then
@@ -1036,7 +1110,6 @@ function MCPHub:handle_hub_restarting()
             entries = {},
         },
     }, "server")
-    self:fire_hub_update()
 end
 
 function MCPHub:handle_hub_stopping()
@@ -1084,9 +1157,10 @@ function MCPHub:ensure_ready()
 end
 
 --- Get servers with their tools filtered based on server config
+--- @param server table The server object to filter
 ---@return table[] Array of connected servers with disabled tools filtered out
--- Helper to filter server capabilities based on config
-local function filter_server_capabilities(server, config)
+local function filter_server_capabilities(server)
+    local config = config_manager.get_server_config(server) or {}
     local filtered_server = vim.deepcopy(server)
 
     if filtered_server.capabilities then
@@ -1159,8 +1233,7 @@ function MCPHub:get_servers(include_disabled)
     -- Add regular MCP servers
     for _, server in ipairs(State.server_state.servers or {}) do
         if server.status == "connected" or include_disabled then
-            local server_config = State.servers_config[server.name] or {}
-            local filtered_server = filter_server_capabilities(server, server_config)
+            local filtered_server = filter_server_capabilities(server)
             table.insert(filtered_servers, filtered_server)
         end
     end
@@ -1168,8 +1241,7 @@ function MCPHub:get_servers(include_disabled)
     -- Add native servers
     for _, server in ipairs(State.server_state.native_servers or {}) do
         if server.status == "connected" or include_disabled then
-            local server_config = State.native_servers_config[server.name] or {}
-            local filtered_server = filter_server_capabilities(server, server_config)
+            local filtered_server = filter_server_capabilities(server)
             --INFO: this is for cases where chat plugins expect std MCP definations to remove mcphub specific enhancements
             local resolved_server = resolve_native_server(filtered_server)
             table.insert(filtered_servers, resolved_server)
@@ -1259,9 +1331,7 @@ end
 --- @param server MCPServer
 --- @return string
 function MCPHub:convert_server_to_text(server)
-    local is_native = native.is_native_server(server.name)
-    local server_config = is_native and State.native_servers_config[server.name] or State.servers_config[server.name]
-    local filtered_server = filter_server_capabilities(server, server_config)
+    local filtered_server = filter_server_capabilities(server)
     return prompt_utils.server_to_text(filtered_server)
 end
 

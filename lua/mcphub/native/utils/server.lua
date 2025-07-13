@@ -51,6 +51,8 @@ local log = require("mcphub.utils.log")
 ---@field capabilities MCPCapabilities Server capabilities
 ---@field uptime? number Server uptime
 ---@field lastStarted? number Last started timestamp
+---@field config_source string Include which config file this server came from
+---@field is_native boolean Flag to indicate this is a native server
 local NativeServer = {}
 NativeServer.__index = NativeServer
 
@@ -150,6 +152,9 @@ function NativeServer:new(def)
         },
         uptime = 0,
         lastStarted = os.time(),
+        -- Always save native server settings in global config file
+        config_source = State.config.config,
+        is_native = true, -- Flag to indicate this is a native server
     }
     setmetatable(instance, self)
 
@@ -171,8 +176,9 @@ function NativeServer:initialize(def)
         prompts = def.capabilities.prompts or {},
     }
 
+    local config_manager = require("mcphub.utils.config_manager")
     -- Get server config
-    local server_config = State.native_servers_config[self.name] or {}
+    local server_config = config_manager.get_server_config(self) or {}
     -- Check if server is disabled
     if server_config.disabled then
         self.status = "disabled"

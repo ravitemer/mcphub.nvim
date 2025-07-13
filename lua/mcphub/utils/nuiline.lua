@@ -78,6 +78,9 @@ function Line:render(bufnr, ns_id, linenr_start, linenr_end)
     --handle newlines
     content = content:gsub("\n", "\\n")
 
+    -- if vim.bo[bufnr].modifiable == false then
+    --     vim.api.nvim_set_option_value("modifiable", true, { buf = bufnr })
+    -- end
     -- Clear existing content
     vim.api.nvim_buf_set_lines(bufnr, row_start, row_end, false, { "" })
     -- Insert new content at column 0

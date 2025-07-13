@@ -90,6 +90,10 @@ function M:create_autocommands()
                 vim.g.mcphub_executing = false
                 vim.g.mcphub_prompt_active = false
                 vim.g.mcphub_prompt_info = nil
+            elseif args.match == "MCPHubServersUpdated" then
+                if args.data then
+                    vim.g.mcphub_active_servers = args.data.active_servers
+                end
             end
             -- Manage animation
             self:manage_spinner()

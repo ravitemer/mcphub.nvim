@@ -11,15 +11,22 @@ local State = {
     setup_state = "not_started",
     ---@type MCPHub.Config
     config = {},
-    ---@type table<string, MCPServerConfig>
-    servers_config = {},
-    ---@type table<string, NativeMCPServerConfig>
-    native_servers_config = {},
 
     ---@type MCPHub.Hub?
     hub_instance = nil,
     ---@type MCPHub.UI?
     ui_instance = nil,
+
+    -- Current hub context
+    current_hub = {
+        port = nil,
+        workspace_root = nil,
+        config_files = {}, -- Array of config files being used
+        is_workspace_mode = false,
+    },
+
+    -- Config files cache
+    config_files_cache = {}, -- Map of file_path -> {mcpServers, nativeMCPServers}
 
     -- Marketplace state
     marketplace_state = {
@@ -300,6 +307,11 @@ function State:update_hub_state(status, ...)
             unpack(... or {}),
         },
     }, "server")
+    local utils = require("mcphub.utils")
+    utils.fire("MCPHubStateChange", {
+        state = status,
+        active_servers = 0,
+    })
 end
 
 ---@param callback function

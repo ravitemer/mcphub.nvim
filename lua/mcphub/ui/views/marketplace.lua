@@ -248,7 +248,9 @@ function MarketplaceView:setup_active_mode()
             -- Show confirmation and uninstall
             if context then
                 local server_id = context.server.id --[[@as string]]
-                utils.confirm_and_delete_server(server_id)
+                utils.confirm_and_delete_server(server_id, function()
+                    self.active_installation_index = 1
+                end)
             end
         end
     end
@@ -428,6 +430,7 @@ function MarketplaceView:handle_installation_selection(context)
         placeholder = utils.pretty_json(vim.json.encode(server_config)),
         start_insert = false,
         go_to_placeholder = true, -- Position cursor at first ${} placeholder
+        ask_for_source = true,
         virtual_lines = {
             { Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced", "Comment" },
             { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "Comment" },
@@ -447,6 +450,7 @@ end
 ---@param line_offset number
 function MarketplaceView:render_installation_details(installation, line_offset)
     local lines = {}
+    installation = installation or {}
 
     -- Configuration preview (no indent)
     if installation.config then
@@ -486,19 +490,12 @@ end
 function MarketplaceView:render_current_server_config(server, line_offset)
     local lines = {}
 
-    -- Get current server configuration
-    local current_config = nil
-    if State.hub_instance then
-        -- Load the current config from servers.json
-        local config_result = State.hub_instance:load_config()
-        if config_result and config_result.mcpServers and config_result.mcpServers[server.id] then
-            current_config = config_result.mcpServers[server.id]
-        end
-    end
+    local config_manager = require("mcphub.utils.config_manager")
+    local server_config = config_manager.get_server_config(server.id, true) or {}
 
-    if current_config then
+    if server_config then
         -- Render current config as JSON
-        vim.list_extend(lines, Text.render_json(vim.json.encode(current_config)))
+        vim.list_extend(lines, Text.render_json(vim.json.encode(server_config)))
         table.insert(lines, Text.pad_line(NuiLine()))
     else
         table.insert(lines, Text.pad_line(NuiLine():append("Current configuration not found", Text.highlights.warn)))

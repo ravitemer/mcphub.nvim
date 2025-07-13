@@ -5,6 +5,7 @@
 ---@brief ]]
 local M = {}
 local State = require("mcphub.state")
+local config_manager = require("mcphub.utils.config_manager")
 local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
 local utils = require("mcphub.utils")
@@ -21,10 +22,8 @@ end
 
 ---@param server_name string
 ---@return string
-local function format_custom_instructions(server_name)
-    local is_native = native.is_native_server(server_name)
-    local server_config = (is_native and State.native_servers_config[server_name] or State.servers_config[server_name])
-        or {}
+function M.format_custom_instructions(server_name, header)
+    local server_config = config_manager.get_server_config(server_name) or {}
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
