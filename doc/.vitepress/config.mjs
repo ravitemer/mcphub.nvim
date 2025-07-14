@@ -98,6 +98,14 @@ export default withMermaid(
           items: [
             { text: "servers.json", link: "/mcp/servers_json" },
             {
+              text: "Builtin Servers",
+              collapsed: true,
+              items: [
+                { text: "Neovim Server", link: "/mcp/builtin/neovim" },
+                { text: "MCPHub Server", link: "/mcp/builtin/mcphub" },
+              ],
+            },
+            {
               text: "Lua MCP Servers",
               collapsed: true,
               items: [

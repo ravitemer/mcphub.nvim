@@ -160,9 +160,9 @@ function MainView:handle_edit()
             virtual_lines = {
                 {
                     Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced",
-                    "DiagnosticHint",
+                    Text.highlights.muted,
                 },
-                { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "DiagnosticHint" },
+                { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", Text.highlights.muted },
             },
         })
     elseif (line_type == "customInstructions") and context then

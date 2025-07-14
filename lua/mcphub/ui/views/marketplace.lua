@@ -432,8 +432,11 @@ function MarketplaceView:handle_installation_selection(context)
         go_to_placeholder = true, -- Position cursor at first ${} placeholder
         ask_for_source = true,
         virtual_lines = {
-            { Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced", "Comment" },
-            { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", "Comment" },
+            {
+                Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced",
+                Text.highlights.muted,
+            },
+            { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", Text.highlights.muted },
         },
         on_success = function()
             -- Switch to main view and browse mode after successful installation

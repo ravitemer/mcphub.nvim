@@ -134,4 +134,70 @@ function M.get_editor_info()
         buffers = valid_buffers,
     }
 end
+
+---@param file_path string The path to the file to find
+---@return BufferInfo|nil The buffer info if found, nil otherwise
+function M.find_buffer(file_path)
+    local bufs = M.get_editor_info().buffers
+    for _, buf in ipairs(bufs) do
+        if buf.filename == file_path then
+            return buf
+        end
+    end
+    return nil
+end
+
+---Open file in editor and get target window
+---@param file_path string The path to the file to open
+---@return number|nil The buffer number of the opened file, or nil if not found
+function M.open_file_in_editor(file_path)
+    local abs_path = vim.fn.fnamemodify(file_path, ":p")
+
+    local function safe_edit(file)
+        local ok = pcall(vim.cmd.edit, vim.fn.fnameescape(file))
+        if not ok then
+            vim.cmd.enew()
+            vim.cmd.file(file)
+        end
+    end
+
+    -- Try to find existing window with the file
+    for _, winid in ipairs(vim.api.nvim_list_wins()) do
+        local bufnr = vim.api.nvim_win_get_buf(winid)
+        local buf_name = vim.api.nvim_buf_get_name(bufnr)
+        if buf_name == abs_path then
+            vim.api.nvim_set_current_win(winid)
+            return vim.api.nvim_get_current_buf()
+        end
+    end
+
+    local editor_info = M.get_editor_info()
+    -- Try to use last active buffer's window if available
+    if editor_info and editor_info.last_active then
+        local last_active = editor_info.last_active
+        if last_active.winnr and vim.api.nvim_win_is_valid(last_active.winnr) then
+            vim.api.nvim_set_current_win(last_active.winnr)
+            safe_edit(abs_path)
+            return vim.api.nvim_get_current_buf()
+        end
+    end
+
+    -- Create new window for the file
+    local chat_win = vim.api.nvim_get_current_win()
+    local chat_col = vim.api.nvim_win_get_position(chat_win)[2]
+    local total_width = vim.o.columns
+
+    -- Determine where to place new window based on chat position
+    if chat_col > total_width / 2 then
+        vim.cmd("topleft vnew") -- New window on the left
+    else
+        vim.cmd("botright vnew") -- New window on the right
+    end
+
+    safe_edit(abs_path)
+    local bufnr = vim.api.nvim_get_current_buf()
+    vim.api.nvim_buf_set_option(bufnr, "buflisted", true)
+
+    return bufnr
+end
 return M

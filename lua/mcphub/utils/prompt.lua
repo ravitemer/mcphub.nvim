@@ -21,13 +21,18 @@ The Model Context Protocol (MCP) enables communication between the system and lo
 end
 
 ---@param server_name string
+---@param header? string
 ---@return string
 function M.format_custom_instructions(server_name, header)
     local server_config = config_manager.get_server_config(server_name) or {}
     local custom_instructions = server_config.custom_instructions or {}
 
     if custom_instructions.text and custom_instructions.text ~= "" and not custom_instructions.disabled then
-        return string.format("\n\n#### Instructions for `%s` server\n\n" .. custom_instructions.text, server_name)
+        return string.format(
+            ((header and header ~= "") and header or "\n\n#### Instructions for `%s` server\n\n")
+                .. custom_instructions.text,
+            server_name
+        )
     end
     return ""
 end

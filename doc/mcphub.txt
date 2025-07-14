@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 12
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 14
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -117,6 +117,17 @@ USAGE ~
 - Install servers from the Marketplace (`M`)
 - Toggle servers, tools, and resources etc
 - Test tools and resources directly in Neovim
+
+
+BUILTIN NATIVE SERVERS ~
+
+MCPHub includes two native servers that run directly within Neovim:
+
+- **Neovim Server**: Comprehensive file operations, terminal access, LSP integration, and buffer management
+- **MCPHub Server**: Plugin management utilities, server lifecycle control, and documentation access
+
+These servers provide essential functionality without external dependencies and
+offer deep Neovim integration.
 
 
 CHAT INTEGRATIONS ~
@@ -426,6 +437,29 @@ detail.
     
                 --- Plugin specific options-------------------
                 native_servers = {}, -- add your custom lua native servers here
+                builtin_tools = {
+                    edit_file = {
+                        parser = {
+                            track_issues = true,
+                            extract_inline_content = true,
+                        },
+                        locator = {
+                            fuzzy_threshold = 0.8,
+                            enable_fuzzy_matching = true,
+                        },
+                        ui = {
+                            go_to_origin_on_complete = true,
+                            keybindings = {
+                                accept = ".",
+                                reject = ",",
+                                next = "n",
+                                prev = "p",
+                                accept_all = "ga",
+                                reject_all = "gr",
+                            },
+                        },
+                    },
+                },
                 ui = {
                     window = {
                         width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
@@ -691,6 +725,24 @@ Please see native servers guide </mcp/native/index> to create MCP Servers in
 lua.
 
 
+BUILTIN_TOOLS ~
+
+Default:
+
+>lua
+    {
+        builtin_tools = {
+            edit_file = {
+            },
+        },
+    }
+<
+
+Configuration options for MCPHub’s builtin tools like `edit_file` tool. View
+complete Builtin Tools Documentation </mcp/builtin/> for all available tools
+and their configuration options.
+
+
 UI ~
 
 Default:
@@ -887,7 +939,7 @@ Given `API_KEY=secret` in the environment:
   "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
   -------------------------------------------------------------------------------------------------------
 
-  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 CWD EXAMPLE:
@@ -2210,7 +2262,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM�S PARROT PROMPT
+REAL EXAMPLE: NEOVIM’S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -2709,11 +2761,14 @@ Add MCP capabilities to CodeCompanion.nvim
 
 FEATURES ~
 
-- Access MCP tools via the `@mcp` tool in the chat buffer.
-- Utilize MCP resources as context variables using the `#` prefix (e.g., `#resource_name`).
-- Execute MCP prompts directly using `/mcp:prompt_name` slash commands.
-- Supports 🖼 images as shown in the demo.
-- Receive real-time updates in CodeCompanion when MCP servers change.
+- **Flexible Tool Access**: Multiple ways to use MCP tools - from broad `@mcp` access to granular individual tools
+- **Server Groups**: Access all tools from a specific server (e.g., `@neovim`, `@github`, `@tree_sitter`)
+- **Individual Tools**: Use specific tools with clear namespacing (e.g., `@neovim__read_file`, `@github__create_issue`)
+- **Custom Tool Groups**: Create your own tool combinations for specific workflows
+- **Resource Variables**: Utilize MCP resources as context variables using the `#` prefix (e.g., `#mcp:resource_name`)
+- **Slash Commands**: Execute MCP prompts directly using `/mcp:prompt_name` slash commands
+- **Rich Media Support**: Supports 🖼 images and other media types as shown in the demo
+- **Real-time Updates**: Automatic updates in CodeCompanion when MCP servers change
 
 
 MCP HUB EXTENSION ~
@@ -2726,9 +2781,16 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
         mcphub = {
           callback = "mcphub.extensions.codecompanion",
           opts = {
-            show_result_in_chat = true,  -- Show mcp tool results in chat
-            make_vars = true,            -- Convert resources to #variables
-            make_slash_commands = true,  -- Add prompts as /slash commands
+            -- MCP Tools 
+            make_tools = true,              -- Make individual tools (@server__tool) and server groups (@server) from MCP servers
+            show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
+            add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
+            show_result_in_chat = true,      -- Show tool results directly in chat buffer
+            format_tool = nil,               -- function(tool_name:string, tool: CodeCompanion.Agent.Tool) : string Function to format tool names to show in the chat buffer
+            -- MCP Resources
+            make_vars = true,                -- Convert MCP resources to #variables for prompts
+            -- MCP Prompts 
+            make_slash_commands = true,      -- Add MCP prompts as /slash commands
           }
         }
       }
@@ -2738,17 +2800,137 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
 
 USAGE ~
 
-Once configured, you can interact with MCP Hub within the CodeCompanion chat
-buffer:
+MCP Hub provides multiple ways to access MCP tools in CodeCompanion, giving you
+flexibility from broad access to fine-grained control:
 
-- **Tool Access:** Type `@mcp` to add available MCP servers to the system prompt, enabling the LLM to use registered MCP tools.
-- **Resources as Variables:** If `make_vars = true`, MCP resources become available as variables prefixed with `#`. You can include these in your prompts (e.g., `Summarize the issues in #mcp:lsp:get_diagnostics`):
+
+TOOL ACCESS
+
+
+1. UNIVERSAL MCP ACCESS (@MCP)
+
+Adds all available MCP servers to the system prompt and provides LLM with
+`@mcp` tool group which has `use_mcp_tool` and `access_mcp_resource` tools.
+
+>
+    @{mcp} What files are in the current directory?
+<
+
+
+2. SERVER GROUPS (WHEN MAKE_TOOLS = TRUE)
+
+You can add all the enabled tools from a specific server with server groups.
+Unlike the `@mcp` group where all the running servers are converted and added
+to the system prompt, the tools added with server groups are pure function
+tools and hence depend on model support. The available groups depend on your
+connected MCP servers:
+
+>
+    @{neovim} Read the main.lua file    # All tools from the neovim server will be added as function tools
+    @{github} Create an issue           
+    @{fetch} Get this webpage           
+<
+
+Server groups are automatically created based on your connected MCP servers
+when enabled via `make_tools`. Check your MCP Hub UI to see which servers you
+have connected.
+
+MCPHub includes powerful builtin servers </mcp/builtin/> like `@neovim` (file
+operations, terminal, LSP) and `@mcphub` (server management) that are always
+available.
+
+
+3. INDIVIDUAL TOOLS (WHEN MAKE_TOOLS = TRUE)
+
+You can just provide a single tool from a server for fine-grained
+functionality. Tool names depend on your connected servers:
+
+>
+    @{neovim__read_file} Show me the config file
+    @{fetch__fetch} Get this webpage content
+    @{github__create_issue} File a bug report
+<
+
+Use the MCP Hub UI or CodeCompanion’s tool completion to discover available
+tools.
+
+
+4. CUSTOM TOOL SETS
+
+Create your own tool combinations by mixing MCP tools with existing
+CodeCompanion tools:
+
+Example configuration for custom tool groups:
+
+>lua
+    require("codecompanion").setup({
+      strategies = {
+        chat = {
+          tools = {
+            groups = {
+              ["github_pr_workflow"] = {
+                description = "GitHub operations from issue to PR",
+                tools = {
+                  -- File operations
+                  "neovim__read_multiple_files", "neovim__write_file", "neovim__edit_file",
+                  -- GitHub operations
+                  "github__list_issues", "github__get_issue", "github__get_issue_comments",
+                  "github__create_issue", "github__create_pull_request", "github__get_file_contents",
+                  "github__create_or_update_file",  "github__search_code"             
+                },
+              },
+            },
+          },
+        },
+      },
+      extensions = {
+        mcphub = {
+          callback = "mcphub.extensions.codecompanion",
+          opts = {
+            make_tools = true,  -- Required for individual tools
+            -- ... other options
+          }
+        }
+      }
+    })
+<
+
+Then use your custom groups:
+
+>
+    @{github_pr_workflow} Fix this bug, create tests, and submit a PR with proper documentation
+<
+
+**Important Notes:** - Tool names depend on your connected MCP servers - Use
+MCP Hub UI or Codecompanion’s tool completion to see available servers and
+tools - Tool names follow the pattern `servername__toolname` - Mix MCP tools
+with CodeCompanion’s built-in tools (`cmd_runner`, `editor`, `files`, etc.) -
+Each MCP tool can be individually auto-approved for fine-grained control (see
+Auto-Approval section)
+
+
+RESOURCES AS VARIABLES
+
+If `make_vars = true`, MCP resources become available as variables prefixed
+with `#`:
+
+>
+    Fix diagnostics in the file #{mcp:neovim://diagnostics/buffer}
+    Analyze the current buffer #{mcp:neovim:buffer}
+<
 
 _Example: Accessing LSP diagnostics_:
 
-**Prompts as Slash Commands:** If `make_slash_commands = true`, MCP prompts are
-available as slash commands (e.g., `/mcp:prompt_name`). Arguments are handled
-via `vim.ui.input`.
+
+SLASH COMMANDS
+
+If `make_slash_commands = true`, MCP prompts are available as slash commands:
+
+>
+    /mcp:code_review
+    /mcp:explain_function
+    /mcp:generate_tests
+<
 
 _Example: Using an MCP prompt via slash command_:
 
@@ -2756,31 +2938,14 @@ _Example: Using an MCP prompt via slash command_:
 AUTO-APPROVAL ~
 
 By default, whenever codecompanion calls `use_mcp_tool` or
-`access_mcp_resource` tool, it shows a confirm dialog with tool name, server
-name and arguments.
-
-
-GLOBAL AUTO-APPROVAL
-
-You can set `auto_approve` to `true` to automatically approve all MCP tool
-calls without user confirmation:
-
->lua
-    require("mcphub").setup({
-        -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
-        auto_approve = true, 
-    })
-<
-
-This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
-toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
-auto approval status in the Hub UI.
+`access_mcp_resource` tool or a specific tool on some MCP server, it shows a
+confirm dialog with tool name, server name and arguments.
 
 
 FINE-GRAINED AUTO-APPROVAL
 
-For more control, configure auto-approval per server or per tool in your
-`servers.json`:
+For fine-grained control, configure auto-approval per server or per tool in
+your `servers.json`:
 
 >json
     {
@@ -2803,6 +2968,23 @@ You can also toggle auto-approval from the Hub UI: - Press `a` on a server line
 to toggle auto-approval for all tools on that server - Press `a` on an
 individual tool to toggle auto-approval for just that tool - Resources are
 always auto-approved (no configuration needed)
+
+
+GLOBAL AUTO-APPROVAL
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool
+calls without user confirmation:
+
+>lua
+    require("mcphub").setup({
+        -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
+        auto_approve = true, 
+    })
+<
+
+This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
+toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
+auto approval status in the Hub UI.
 
 
 FUNCTION-BASED AUTO-APPROVAL
@@ -3125,9 +3307,9 @@ doc/other/architecture.md doc/other/troubleshooting.md
 15. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
 16. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
 17. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
 22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
 23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
