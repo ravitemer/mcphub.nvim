@@ -224,7 +224,7 @@ function M.server_to_text(server)
         )
     then
         -- Add custom instructions if any
-        text = text .. format_custom_instructions(server.name)
+        text = text .. M.format_custom_instructions(server.name)
 
         -- Add capabilities
         text = text .. format_tools(server.capabilities.tools)
