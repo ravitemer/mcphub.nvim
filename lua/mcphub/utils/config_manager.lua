@@ -184,7 +184,7 @@ function M.update_server_config(server, config, options)
 
     -- Write back to file
     local utils = require("mcphub.utils")
-    local json_str = utils.pretty_json(vim.json.encode(file_config))
+    local json_str = utils.pretty_json(vim.json.encode(file_config), { use_jq = true })
     local file = io.open(config_source, "w")
     if not file then
         log.error("ConfigManager: Failed to open config file for writing: " .. config_source)

@@ -139,7 +139,7 @@ function ConfigView:render()
         table.insert(lines, Text.empty_line())
     else
         -- Show file content with JSON highlighting
-        vim.list_extend(lines, Text.render_json(file_content))
+        vim.list_extend(lines, Text.render_json(file_content, { use_jq = true }))
     end
 
     return lines
