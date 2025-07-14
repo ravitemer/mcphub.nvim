@@ -32,6 +32,7 @@ require("codecompanion").setup({
         show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
         add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
         show_result_in_chat = true,      -- Show tool results directly in chat buffer
+        format_tool = nil,               -- function(tool_name:string, tool: CodeCompanion.Agent.Tool) : string Function to format tool names to show in the chat buffer
         -- MCP Resources
         make_vars = true,                -- Convert MCP resources to #variables for prompts
         -- MCP Prompts 
@@ -131,8 +132,8 @@ Then use your custom groups:
 If `make_vars = true`, MCP resources become available as variables prefixed with `#`:
 
 ```
-Fix diagnostics in the file #neovim://diagnostics/current  
-Analyze the current buffer #neovim:buffer
+Fix diagnostics in the file #mcp:neovim://diagnostics/current  
+Analyze the current buffer #mcp:neovim:buffer
 ```
 
 *Example: Accessing LSP diagnostics*:

@@ -15,6 +15,7 @@ local M = {}
 ---@field make_tools boolean Whether to make individual tools and server groups or not
 ---@field show_server_tools_in_chat boolean Whether to show all tools in cmp or not
 ---@field show_result_in_chat boolean Whether to show the result in chat or not
+---@field format_tool function(tool_name: string, tool: CodeCompanion.Agent.Tool): string
 
 ---@class MCPHub.Extensions.Config
 ---@field avante MCPHub.Extensions.AvanteConfig Configuration for the Avante extension
