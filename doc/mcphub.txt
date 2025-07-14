@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 10
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 12
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -258,6 +258,7 @@ REQUIREMENTS                           *mcphub.nvim-installation-requirements*
 - Node.js >= 18.0.0
 - plenary.nvim <https://github.com/nvim-lua/plenary.nvim>
 - mcp-hub <https://github.com/ravitemer/mcp-hub> (automatically installed via build command)
+- jq <https://github.com/jqlang/jq> (optional, for better servers.json formatting)
 
 
 LAZY.NVIM                                 *mcphub.nvim-installation-lazy.nvim*
@@ -938,7 +939,7 @@ Given `API_KEY=secret` in the environment:
   "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
   -------------------------------------------------------------------------------------------------------
 
-  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 CWD EXAMPLE:
@@ -2261,7 +2262,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM’S PARROT PROMPT
+REAL EXAMPLE: NEOVIM�S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 

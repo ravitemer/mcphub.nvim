@@ -37,7 +37,7 @@ local tool_schemas = {
                 },
                 {
                     name = "tool_input",
-                    description = "Input for the tool call",
+                    description = "Input for the tool call. Must be a valid JSON object.",
                     type = "object",
                 },
             },
