@@ -95,8 +95,9 @@ require("codecompanion").setup({
               -- File operations
               "neovim__read_multiple_files", "neovim__write_file", "neovim__edit_file",
               -- GitHub operations
+              "github__list_issues", "github__get_issue", "github__get_issue_comments",
               "github__create_issue", "github__create_pull_request", "github__get_file_contents",
-              "github__create_or_update_file", "github__list_issues", "github__search_code"
+              "github__create_or_update_file",  "github__search_code"             
             },
           },
         },

@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 12
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 14
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -939,7 +939,7 @@ Given `API_KEY=secret` in the environment:
   "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
   -------------------------------------------------------------------------------------------------------
 
-  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 CWD EXAMPLE:
@@ -2262,7 +2262,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM�S PARROT PROMPT
+REAL EXAMPLE: NEOVIM’S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -2786,26 +2786,7 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
             show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
             add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
             show_result_in_chat = true,      -- Show tool results directly in chat buffer
-            format_tool = function(display_name, tool)
-              local args = vim.deepcopy(tool.args)
-              -- Replace 'use_mcp_tool' with actual tool name and params.
-              if name == 'use_mcp_tool' then
-                name = string.format('%s__%s', args.server_name, args.tool_name)
-                args = args.tool_input
-              end
-    
-              if name == 'filesystem__edit_file' then
-                if type(args.edits) == 'table' then
-                  args.edits = '󰩫'
-                end
-              elseif name == 'filesystem__write_file' then
-                if type(args.content) == 'string' then
-                  args.content = '󰩫'
-                end
-              end
-    
-              return name .. ' ' .. vim.inspect(args):gsub('%s+', ' ')
-            end,
+            format_tool = nil,               -- function(tool_name:string, tool: CodeCompanion.Agent.Tool) : string Function to format tool names to show in the chat buffer
             -- MCP Resources
             make_vars = true,                -- Convert MCP resources to #variables for prompts
             -- MCP Prompts 
@@ -2891,10 +2872,11 @@ Example configuration for custom tool groups:
                 description = "GitHub operations from issue to PR",
                 tools = {
                   -- File operations
-                  "neovim__read_files", "neovim__write_file", "neovim__replace_in_file",
+                  "neovim__read_multiple_files", "neovim__write_file", "neovim__edit_file",
                   -- GitHub operations
+                  "github__list_issues", "github__get_issue", "github__get_issue_comments",
                   "github__create_issue", "github__create_pull_request", "github__get_file_contents",
-                  "github__create_or_update_file", "github__list_issues", "github__search_code"
+                  "github__create_or_update_file",  "github__search_code"             
                 },
               },
             },
@@ -2916,7 +2898,7 @@ Example configuration for custom tool groups:
 Then use your custom groups:
 
 >
-    @github_pr_workflow Fix this bug, create tests, and submit a PR with proper documentation
+    @{github_pr_workflow} Fix this bug, create tests, and submit a PR with proper documentation
 <
 
 **Important Notes:** - Tool names depend on your connected MCP servers - Use
@@ -2933,8 +2915,8 @@ If `make_vars = true`, MCP resources become available as variables prefixed
 with `#`:
 
 >
-    Fix diagnostics in the file #neovim://diagnostics/current  
-    Analyze the current buffer #neovim:buffer
+    Fix diagnostics in the file #{mcp:neovim://diagnostics/buffer}
+    Analyze the current buffer #{mcp:neovim:buffer}
 <
 
 _Example: Accessing LSP diagnostics_:
@@ -2960,27 +2942,10 @@ By default, whenever codecompanion calls `use_mcp_tool` or
 confirm dialog with tool name, server name and arguments.
 
 
-GLOBAL AUTO-APPROVAL
-
-You can set `auto_approve` to `true` to automatically approve all MCP tool
-calls without user confirmation:
-
->lua
-    require("mcphub").setup({
-        -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
-        auto_approve = true, 
-    })
-<
-
-This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
-toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
-auto approval status in the Hub UI.
-
-
 FINE-GRAINED AUTO-APPROVAL
 
-For more control, configure auto-approval per server or per tool in your
-`servers.json`:
+For fine-grained control, configure auto-approval per server or per tool in
+your `servers.json`:
 
 >json
     {
@@ -3003,6 +2968,23 @@ You can also toggle auto-approval from the Hub UI: - Press `a` on a server line
 to toggle auto-approval for all tools on that server - Press `a` on an
 individual tool to toggle auto-approval for just that tool - Resources are
 always auto-approved (no configuration needed)
+
+
+GLOBAL AUTO-APPROVAL
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool
+calls without user confirmation:
+
+>lua
+    require("mcphub").setup({
+        -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
+        auto_approve = true, 
+    })
+<
+
+This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also
+toggle this option in the MCP Hub UI with `ga` keymap. You can see the current
+auto approval status in the Hub UI.
 
 
 FUNCTION-BASED AUTO-APPROVAL
@@ -3325,9 +3307,9 @@ doc/other/architecture.md doc/other/troubleshooting.md
 15. *image*: doc/extensions/https:/github.com/user-attachments/assets/fb04393c-a9da-4704-884b-2810ff69f59a
 16. *image*: doc/extensions/https:/github.com/user-attachments/assets/678a06a5-ada9-4bb5-8f49-6e58549c8f32
 17. *Image*: doc/extensions/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
-18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
-20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
+19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
+20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
 22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
 23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
