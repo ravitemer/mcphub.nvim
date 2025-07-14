@@ -293,7 +293,7 @@ Default:
 }
 ```
 
-Configuration options for MCPHub's builtin tools like `edit_file` tool. View complete [Builtin Tools Documentation](/mcp/builtin/) for all available tools and their configuration options.
+Configuration options for MCPHub's builtin tools like `edit_file` tool. View complete [Builtin Tools Documentation](/mcp/builtin/neovim) for all available tools and their configuration options.
 
 ### ui
 

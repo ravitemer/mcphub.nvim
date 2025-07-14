@@ -66,7 +66,7 @@ You can add all the enabled tools from a specific server with server groups. Unl
 
 Server groups are automatically created based on your connected MCP servers when enabled via `make_tools`. Check your MCP Hub UI to see which servers you have connected.
 
-MCPHub includes powerful [builtin servers](/mcp/builtin/) like `@neovim` (file operations, terminal, LSP) and `@mcphub` (server management) that are always available.
+MCPHub includes powerful [builtin servers](/mcp/builtin/neovim) like `@neovim` (file operations, terminal, LSP) and `@mcphub` (server management) that are always available.
 
 #### 3. Individual Tools (when `make_tools = true`)
 You can just provide a single tool from a server for fine-grained functionality. Tool names depend on your connected servers:
