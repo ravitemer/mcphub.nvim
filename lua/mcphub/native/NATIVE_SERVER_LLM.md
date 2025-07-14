@@ -566,4 +566,4 @@ mcphub.add_prompt("git", {
 - For the 2nd Incremental Creation setup, you should call the `mcphub.add_tool()`, `mcphub.add_resource()`, and `mcphub.add_resource_template()` functions to in another file and require the file after `mcphub.setup({})` call.
 - Ask the user for any clarification if needed. Do not assume anything about the user's setup.
 - Once you have successfully created the Native MCP Server and set it up in user's configuration, you should advise the user to reload neovim(so that the new configuration is loaded) and test the server in hub ui with `:MCPHub`
-- Unless otherwise specified by the user, you should use the builtin neovim server's tools like `write_file`, `read_file`, `list_directory`, `replace_in_file` etc to complete the setup.
+- Unless otherwise specified by the user, you should use the builtin neovim server's tools like `write_file`, `read_file`, `list_directory`, `edit_file` etc to complete the setup.

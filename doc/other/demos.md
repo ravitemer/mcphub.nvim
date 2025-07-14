@@ -1,5 +1,11 @@
 # Showcase 
 
+
+## Fixing issues with CodeCompanion + Github Server + Neovim Server
+<p>
+<video muted controls src="https://github.com/user-attachments/assets/1a10ad50-5832-4627-bcc3-be49e7941105"></video>
+</p>
+
 ## CodeCompanion +  Image-gen Server (with image support 🖼 )
 <p>
 <video muted controls src="https://github.com/user-attachments/assets/70181790-e949-4df6-a690-c5d7a212e7d1"></video>

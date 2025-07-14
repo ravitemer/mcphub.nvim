@@ -10,8 +10,12 @@ local M = {}
 ---@class MCPHub.Extensions.CodeCompanionConfig
 ---@field enabled boolean Whether the extension is enabled or not
 ---@field make_vars boolean Whether to make variables or not
+---@field add_mcp_prefix_to_tool_names boolean Whether to add MCP prefix to tool names , resources and slash commands
 ---@field make_slash_commands boolean Whether to make slash commands or not
+---@field make_tools boolean Whether to make individual tools and server groups or not
+---@field show_server_tools_in_chat boolean Whether to show all tools in cmp or not
 ---@field show_result_in_chat boolean Whether to show the result in chat or not
+---@field format_tool function(tool_name: string, tool: CodeCompanion.Agent.Tool): string
 
 ---@class MCPHub.Extensions.Config
 ---@field avante MCPHub.Extensions.AvanteConfig Configuration for the Avante extension

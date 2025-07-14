@@ -119,6 +119,6 @@ Please read the [CONTRIBUTING.md](CONTRIBUTING.md) guide.
 
 Thanks to:
 
-- [cline/mcp-marketplace](https://github.com/cline/mcp-marketplace) for providing the marketplace api
 - [nui.nvim](https://github.com/MunifTanjim/nui.nvim) for inspiring our text highlighting utilities
+- [ravitemer/mcp-registry](https://github.com/ravitemer/mcp-registry) for providing the marketplace api
 

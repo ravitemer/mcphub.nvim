@@ -5,7 +5,14 @@ local mcphub = require("mcphub")
 -- Tool to execute Lua code using nvim_exec2
 mcphub.add_tool("neovim", {
     name = "execute_lua",
-    description = [[Execute Lua code in Neovim using nvim_exec2 with lua heredoc.
+    description = [[Execute Lua code in Neovim using nvim_exec2 with lua heredoc.]],
+    inputSchema = {
+        type = "object",
+        properties = {
+            code = {
+                type = "string",
+                description = [[
+Lua code to execute:
 
 String Formatting Guide:
 1. Newlines in Code:
@@ -24,14 +31,7 @@ String Formatting Guide:
 4. String Concatenation:
    - Prefer '..' over string.format()
    - Example: print('Count: ' .. vim.api.nvim_buf_line_count(0))
-]],
-
-    inputSchema = {
-        type = "object",
-        properties = {
-            code = {
-                type = "string",
-                description = "Lua code to execute",
+          ]],
                 examples = {
                     -- Simple multiline code
                     "local bufnr = vim.api.nvim_get_current_buf()\nprint('Current buffer:', bufnr)",
@@ -101,7 +101,7 @@ Command Execution Guide:
             command = {
                 type = "string",
                 description = "Shell command to execute",
-                examples = [["ls -la"]],
+                examples = { [["ls -la"]] },
             },
             cwd = {
                 type = "string",

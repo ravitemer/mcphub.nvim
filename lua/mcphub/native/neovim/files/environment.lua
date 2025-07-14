@@ -3,9 +3,9 @@ local os_utils = require("mcphub.native.neovim.utils.os")
 
 ---@type MCPResource
 return {
-    name = "Environment",
+    name = "Workspace",
     description = "This resource gives comprehensive information about the workspace, editor and OS. Includes directory structure, visible and loaded buffers along with the OS information.",
-    uri = "neovim://workspace/info",
+    uri = "neovim://workspace",
     mimeType = "text/plain",
     handler = function(req, res)
         local editor_info = req.editor_info
@@ -38,31 +38,31 @@ return {
 
         local text = string.format(
             [[
-<environment_details>
->> System Information
+<workspace_details>
+## System Information
 OS: %s (%s)
 Hostname: %s
 User: %s
 Shell: %s
 Memory: %.2f GB total, %.2f GB free
 
->> Workspace
+## Workspace
 Current Directory: %s
 Git Repository: %s
 Files: %d
 
->> Workspace Files
+## Workspace Files
 %s
 
->> Neovim Visible Files
+## Neovim Visible Files
 %s
 
->> Neovim Loaded Files
+## Neovim Loaded Files
 %s
 
->> Current Time
+## Current Time
 %s
-</environment_details>
+</workspace_details>
             ]],
             os_info.os_name,
             os_info.arch,

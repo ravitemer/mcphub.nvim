@@ -33,6 +33,29 @@ All options are optional with sensible defaults. See below for each option in de
 
             --- Plugin specific options-------------------
             native_servers = {}, -- add your custom lua native servers here
+            builtin_tools = {
+                edit_file = {
+                    parser = {
+                        track_issues = true,
+                        extract_inline_content = true,
+                    },
+                    locator = {
+                        fuzzy_threshold = 0.8,
+                        enable_fuzzy_matching = true,
+                    },
+                    ui = {
+                        go_to_origin_on_complete = true,
+                        keybindings = {
+                            accept = ".",
+                            reject = ",",
+                            next = "n",
+                            prev = "p",
+                            accept_all = "ga",
+                            reject_all = "gr",
+                        },
+                    },
+                },
+            },
             ui = {
                 window = {
                     width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
@@ -256,6 +279,21 @@ Also see [CodeCompanion](/extensions/codecompanion), [CopilotChat](/extensions/c
 Default: `{}`
 
 Define custom Lua native MCP servers that run directly in Neovim without external processes. Each server can provide tools, resources, and prompts. Please see [native servers guide](/mcp/native/index) to create MCP Servers in lua.
+
+### builtin_tools
+
+Default:
+
+```lua
+{
+    builtin_tools = {
+        edit_file = {
+        },
+    },
+}
+```
+
+Configuration options for MCPHub's builtin tools like `edit_file` tool. View complete [Builtin Tools Documentation](/mcp/builtin/) for all available tools and their configuration options.
 
 ### ui
 
