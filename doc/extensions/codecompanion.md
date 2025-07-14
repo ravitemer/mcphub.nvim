@@ -93,7 +93,7 @@ require("codecompanion").setup({
             description = "GitHub operations from issue to PR",
             tools = {
               -- File operations
-              "neovim__read_files", "neovim__write_file", "neovim__replace_in_file",
+              "neovim__read_multiple_files", "neovim__write_file", "neovim__edit_file",
               -- GitHub operations
               "github__create_issue", "github__create_pull_request", "github__get_file_contents",
               "github__create_or_update_file", "github__list_issues", "github__search_code"
@@ -118,7 +118,7 @@ require("codecompanion").setup({
 
 Then use your custom groups:
 ```
-@github_pr_workflow Fix this bug, create tests, and submit a PR with proper documentation
+@{github_pr_workflow} Fix this bug, create tests, and submit a PR with proper documentation
 ```
 
 **Important Notes:**
@@ -132,8 +132,8 @@ Then use your custom groups:
 If `make_vars = true`, MCP resources become available as variables prefixed with `#`:
 
 ```
-Fix diagnostics in the file #mcp:neovim://diagnostics/current  
-Analyze the current buffer #mcp:neovim:buffer
+Fix diagnostics in the file #{mcp:neovim://diagnostics/buffer}
+Analyze the current buffer #{mcp:neovim:buffer}
 ```
 
 *Example: Accessing LSP diagnostics*:
@@ -161,28 +161,11 @@ By default, whenever codecompanion calls `use_mcp_tool` or `access_mcp_resource`
 
 ![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
-#### Global Auto-Approval
-
-You can set `auto_approve` to `true` to automatically approve all MCP tool calls without user confirmation:
-
-```lua
-require("mcphub").setup({
-    -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
-    auto_approve = true, 
-})
-```
-
-This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also toggle this option in the MCP Hub UI with `ga` keymap. You can see the current auto approval status in the Hub UI.
-
-![Image](https://github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6)
 
 #### Fine-Grained Auto-Approval
 
-![Image](https://github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd)
 
-![Image](https://github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5)
-
-For more control, configure auto-approval per server or per tool in your `servers.json`:
+For fine-grained control, configure auto-approval per server or per tool in your `servers.json`:
 
 ```json
 {
@@ -206,7 +189,26 @@ You can also toggle auto-approval from the Hub UI:
 - Press `a` on an individual tool to toggle auto-approval for just that tool
 - Resources are always auto-approved (no configuration needed)
 
-### Function-Based Auto-Approval
+![Image](https://github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd)
+
+![Image](https://github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5)
+
+#### Global Auto-Approval
+
+You can set `auto_approve` to `true` to automatically approve all MCP tool calls without user confirmation:
+
+```lua
+require("mcphub").setup({
+    -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
+    auto_approve = true, 
+})
+```
+
+This also sets `vim.g.mcphub_auto_approve` variable to `true`. You can also toggle this option in the MCP Hub UI with `ga` keymap. You can see the current auto approval status in the Hub UI.
+
+![Image](https://github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6)
+
+#### Function-Based Auto-Approval
 
 For maximum control, provide a function that decides approval based on the specific tool call:
 
@@ -260,13 +262,9 @@ require("mcphub").setup({
 - `string` - Deny with error message
 - `nil` - Show confirmation prompt (same as false)
 
-### Auto-Approval Priority
+#### Auto-Approval Priority
 
 The system checks auto-approval in this order:
 1. **Function**: Custom `auto_approve` function (if provided)
 2. **Server-specific**: `autoApprove` field in server config
 3. **Default**: Show confirmation dialog
-
-
-
-

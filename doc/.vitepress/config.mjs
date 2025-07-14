@@ -101,7 +101,6 @@ export default withMermaid(
               text: "Builtin Servers",
               collapsed: true,
               items: [
-                { text: "Overview", link: "/mcp/builtin/" },
                 { text: "Neovim Server", link: "/mcp/builtin/neovim" },
                 { text: "MCPHub Server", link: "/mcp/builtin/mcphub" },
               ],

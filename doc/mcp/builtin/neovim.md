@@ -4,27 +4,6 @@ The Neovim server (`neovim`) is the primary inbuilt native server that provides 
 
 ## Tools
 
-
-### `read_file`
-Read contents of a file with optional line range selection.
-
-**Parameters:**
-- `path` (string, required): Path to the file to read
-- `start_line` (number, optional): Start reading from this line (1-based, default: 1)
-- `end_line` (number, optional): Read until this line inclusive (default: -1 for end of file)
-
-### `write_file`
-Write content to a file with interactive diff preview.
-
-**Parameters:**
-- `path` (string, required): Path to the file to write
-- `content` (string, required): Content to write to the file
-
-**Features:**
-- Shows interactive diff before applying changes
-- Creates directories if they don't exist
-- Respects `auto_approve` configuration
-
 ### `edit_file` 
 Advanced interactive file editing using SEARCH/REPLACE blocks. This is the most sophisticated builtin tool for making precise file modifications.
 
@@ -88,6 +67,29 @@ require("mcphub").setup({
     },
 })
 ```
+
+For scenarios where interactive diff is not necessary , You can `autoApprove` the `edit_file` or `write_file` tool in the UI with `a` or by editing the `servers.json` file.
+
+### `write_file`
+Write content to a file with interactive diff preview.
+
+**Parameters:**
+- `path` (string, required): Path to the file to write
+- `content` (string, required): Content to write to the file
+
+**Features:**
+- Shows interactive diff before applying changes
+- Creates directories if they don't exist
+- Respects `auto_approve` configuration
+
+
+### `read_file`
+Read contents of a file with optional line range selection.
+
+**Parameters:**
+- `path` (string, required): Path to the file to read
+- `start_line` (number, optional): Start reading from this line (1-based, default: 1)
+- `end_line` (number, optional): Read until this line inclusive (default: -1 for end of file)
 
 ### `read_multiple_files`
 Read contents of multiple files in parallel for efficient batch operations.
@@ -190,7 +192,7 @@ a: line 10, col 5: local variable = value
    └─ Debug statement found
 ```
 
-#### Environment Information (`neovim://workspace/info`)
+#### Environment Information (`neovim://workspace`)
 Comprehensive workspace and system information for context-aware assistance.
 
 **Provides:**
@@ -232,7 +234,7 @@ package.json
 
 #### LSP Diagnostics
 
-#### Current File (`neovim://diagnostics/current`)
+#### Current File Diagnostics (`neovim://diagnostics/buffer`)
 LSP diagnostics for the currently active buffer.
 
 **Provides:**
@@ -241,7 +243,7 @@ LSP diagnostics for the currently active buffer.
 - Source information (ESLint, typescript, etc.)
 - Diagnostic codes and messages
 
-#### Workspace (`neovim://diagnostics/workspace`)
+#### Workspace Diagnostics (`neovim://diagnostics/workspace`)
 LSP diagnostics across all open buffers.
 
 **Provides:**

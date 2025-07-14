@@ -154,7 +154,7 @@ function EditSession:start(options)
     if #failed_blocks > 0 then
         return self:_handle_error(
             string.format(
-                "## Editing `%s` failed. Couldn't find %d of %d block(s)",
+                "## Editing `%s` failed. No changes were made to the file. Couldn't find %d of %d block(s). Please see the <BESTMATCH/> content provided in the SEARCHING feedback.",
                 self.file_path,
                 #failed_blocks,
                 #located_blocks
