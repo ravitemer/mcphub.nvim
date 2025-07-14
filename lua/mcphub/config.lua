@@ -56,6 +56,8 @@ local defaults = {
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
+    ---@type table | fun(context: MCPHub.JobContext): table Global environment variables available to all MCP servers
+    global_env = {}, -- Environment variables that will be available to all MCP servers
     ---@type string?
     cmd = nil, -- will be set based on system if not provided
     ---@type table?

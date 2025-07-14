@@ -96,3 +96,10 @@
 ---@field timeout? number
 ---@field resetTimeoutOnProgress? boolean
 ---@field maxTotalTimeout? number
+
+---@class MCPHub.JobContext
+---@field cwd string -- Current working directory for the job
+---@field port number -- Port to connect to the MCP server
+---@field config_files string[] -- List of configuration files used to start the Hub including the project config and global
+---@field is_workspace_mode boolean -- Whether the job is running in workspace mode
+---@field workspace_root string? -- Root directory of the workspace if in workspace mode

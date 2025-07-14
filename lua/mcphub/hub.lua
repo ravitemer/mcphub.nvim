@@ -1,6 +1,7 @@
 local Error = require("mcphub.utils.errors")
 local Job = require("plenary.job")
 local State = require("mcphub.state")
+local config = require("mcphub.config")
 local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
 local curl = require("plenary.curl")
@@ -63,7 +64,7 @@ function MCPHub:new(opts)
 end
 
 --- Resolve context (workspace vs global) for the current directory
---- @return table|nil Context information or nil on error
+--- @return MCPHub.JobContext|nil Context information or nil on error
 function MCPHub:resolve_context()
     if not State.config.workspace.enabled then
         return self:_resolve_global_context()
@@ -73,7 +74,7 @@ function MCPHub:resolve_context()
 end
 
 --- Resolve workspace-specific context
---- @return table|nil Workspace context or nil to fall back to global
+--- @return MCPHub.JobContext|nil Workspace context or nil to fall back to global
 function MCPHub:_resolve_workspace_context()
     local workspace_utils = require("mcphub.utils.workspace")
     local current_dir = vim.fn.getcwd()
@@ -133,7 +134,7 @@ function MCPHub:_resolve_workspace_context()
 end
 
 --- Resolve global context (original behavior)
---- @return table Global context
+--- @return MCPHub.JobContext Global context
 function MCPHub:_resolve_global_context()
     return {
         port = self.setup_opts.port,
@@ -144,10 +145,60 @@ function MCPHub:_resolve_global_context()
     }
 end
 
+--- Resolve global environment variables
+--- @param context MCPHub.JobContext Hub context (workspace info, port, etc.)
+--- @return table Resolved global environment variables
+function MCPHub:_resolve_global_env(context)
+    local global_env_config = config.global_env
+    local resolved_global_env = {}
+
+    -- Handle function type
+    if type(global_env_config) == "function" then
+        local success, result = pcall(global_env_config, context)
+        if not success then
+            vim.notify("global_env function failed: " .. result, vim.log.levels.WARN)
+            return {}
+        end
+        if type(result) ~= "table" then
+            vim.notify("global_env function must return a table", vim.log.levels.WARN)
+            return {}
+        end
+        global_env_config = result
+    elseif type(global_env_config) ~= "table" then
+        if global_env_config ~= nil then
+            vim.notify("global_env must be table or function", vim.log.levels.WARN)
+        end
+        return {}
+    end
+
+    -- Process mixed array/hash format
+    for key, value in pairs(global_env_config) do
+        if type(key) == "number" then
+            -- Array-style entry: just the env var name
+            if type(value) == "string" then
+                local env_value = os.getenv(value)
+                if env_value then
+                    resolved_global_env[value] = env_value
+                end
+            end
+        else
+            -- Hash-style entry: key = value
+            if type(value) == "string" then
+                resolved_global_env[key] = value
+            end
+        end
+    end
+
+    return resolved_global_env
+end
+
 --- Start server with resolved context
---- @param context table Context information from resolve_context
+--- @param context MCPHub.JobContext Context information from resolve_context
 function MCPHub:_start_server_with_context(context)
     self.is_owner = true
+
+    -- Resolve global environment variables
+    local resolved_global_env = self:_resolve_global_env(context)
 
     -- Build command args with config files
     local args = utils.clean_args({
@@ -170,6 +221,23 @@ function MCPHub:_start_server_with_context(context)
         "--watch",
     })
 
+    -- Prepare job environment with global env
+    local job_env = {}
+    if next(resolved_global_env) then
+        -- Serialize global env for mcp-hub
+        local success, json_env = pcall(vim.fn.json_encode, resolved_global_env)
+        if success then
+            job_env.MCP_HUB_ENV = json_env
+            log.debug("Passing global environment variables to mcp-hub: " .. vim.inspect({
+                count = vim.tbl_count(resolved_global_env),
+                keys = vim.tbl_keys(resolved_global_env),
+            }))
+        else
+            vim.notify("Failed to serialize global_env: " .. json_env, vim.log.levels.WARN)
+        end
+    end
+    job_env = vim.tbl_extend("force", vim.fn.environ(), job_env or {})
+
     log.debug("Starting server with context" .. vim.inspect({
         port = context.port,
         cwd = context.cwd,
@@ -182,6 +250,7 @@ function MCPHub:_start_server_with_context(context)
         command = self.cmd,
         args = args,
         cwd = context.cwd, -- Set working directory
+        env = job_env, -- Pass environment variables
         hide = true,
         on_stderr = vim.schedule_wrap(function(_, data)
             if data then

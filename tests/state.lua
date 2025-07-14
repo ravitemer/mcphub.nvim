@@ -43,9 +43,9 @@ return {
         ---@type number?
         started_at = nil, -- When server was started
         ---@type MCPServer[]
-        servers = require("tests.stubs.servers"), -- Regular MCP servers
+        servers = {}, -- Regular MCP servers
         ---@type NativeServer[]
-        native_servers = require("tests.stubs.native_servers"), -- Native MCP servers
+        native_servers = {}, -- Native MCP servers
     },
 
     -- Error management
