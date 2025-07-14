@@ -6,8 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [5.12.0] - 2025-07-09
+## [5.13.0] - 2025-07-14
 
+### Added
+
+- **Granular Tool Access for CodeCompanion**: Individual MCP servers and tools now available as separate CodeCompanion function tools
+  - Server groups (e.g., `@github`, `@neovim`) and individual tools (e.g., `@github__create_issue`)
+  - Per-tool auto-approval control from Hub UI
+  - Custom tool combinations through CodeCompanion groups
+  - Eliminates system prompt pollution for better model performance
+
+- **Advanced `edit_file` Tool**: Interactive SEARCH/REPLACE block system with real-time diff preview
+  - Intelligent fuzzy matching and comprehensive feedback for LLM learning
+  - Configurable keybindings and behavior through `builtin_tools.edit_file` config
+  - Extensive test suite with 3000+ test cases
+
+### Enhanced
+
+- **JSON Formatting**: Added `jq` support for prettier configuration file formatting
+- **MCP Tool Prompts**: Improved markdown formatting and structure for better LLM consumption
+
+### Fixed
+
+- **Avante Integration**: Fixed tool input formatting for Gemini model compatibility with `use_ReAct_prompt`
+
+## [5.12.0] - 2025-07-09
 
 ### Enhanced
 - **MCP Registry Migration**: Updated to support mcp-hub v4.0.0 with new MCP Registry system
