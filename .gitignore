@@ -6,4 +6,4 @@ wiki/
 .r*
 deps/
 /result
-tags
+doc/tags
