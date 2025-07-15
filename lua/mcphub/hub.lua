@@ -329,6 +329,52 @@ function MCPHub:start()
     end)
 end
 
+--- Handle directory changes - reconnect to appropriate workspace hub
+function MCPHub:handle_directory_change()
+    if not State.config.workspace.enabled then
+        return
+    end
+
+    log.debug("Directory changed, checking if workspace hub should change")
+
+    -- Resolve new context for current directory
+    local new_context = self:resolve_context()
+    if not new_context then
+        log.warn("Failed to resolve context after directory change")
+        return
+    end
+
+    -- Compare with current context
+    local current_context = State.current_hub
+    if not current_context then
+        log.debug("No current hub context, starting new hub")
+        self:start()
+        return
+    end
+
+    vim.notify("Dir changed")
+
+    -- Check if we need to switch hubs
+    local needs_switch = false
+    local reason = ""
+
+    if new_context.port ~= current_context.port then
+        needs_switch = true
+        reason = string.format("port change (%d -> %d)", current_context.port, new_context.port)
+    end
+
+    if needs_switch then
+        log.debug("Switching hub due to: " .. reason)
+        -- self:restart(nil, reason)
+        self:stop_sse()
+        vim.schedule(function()
+            self:start()
+        end)
+    else
+        log.debug("No hub switch needed - context unchanged")
+    end
+end
+
 function MCPHub:handle_hub_ready()
     self.ready = true
     self.is_restarting = false
@@ -1150,8 +1196,6 @@ function MCPHub:hard_refresh(callback)
     if not self:ensure_ready() then
         return
     end
-    -- Make sure to update the cache as well
-    config_manager.refresh_config()
     self:api_request("GET", "refresh", {
         callback = function(response, err)
             if err then
@@ -1189,7 +1233,10 @@ function MCPHub:handle_hub_stopping()
     end
 end
 
-function MCPHub:restart(callback)
+--- Restart the MCP Hub server
+--- @param callback function|nil Optional callback to execute after restart
+--- @param reason string|nil Optional reason for the restart
+function MCPHub:restart(callback, reason)
     if not self:ensure_ready() then
         return self:start()
     end

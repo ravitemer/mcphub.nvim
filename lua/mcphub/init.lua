@@ -151,7 +151,7 @@ function M.setup(opts)
         end
     end
 
-    -- Setup cleanup
+    -- Setup cleanup and directory change handling
     local group = vim.api.nvim_create_augroup("mcphub_cleanup", {
         clear = true,
     })
@@ -164,6 +164,21 @@ function M.setup(opts)
             -- UI cleanup is handled by its own autocmd
         end,
     })
+
+    -- Handle directory changes for workspace-aware mode
+    if config.workspace.enabled then
+        vim.api.nvim_create_autocmd("DirChanged", {
+            group = group,
+            callback = vim.schedule_wrap(function()
+                if State.hub_instance then
+                    -- Small delay to ensure directory change is complete
+                    vim.defer_fn(function()
+                        State.hub_instance:handle_directory_change()
+                    end, 100)
+                end
+            end),
+        })
+    end
 
     -- Start version check
     local ok, job = pcall(function()

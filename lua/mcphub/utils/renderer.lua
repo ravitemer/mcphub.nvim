@@ -39,6 +39,25 @@ function M.render_servers_grouped(servers, lines, current_line, view)
             current_line = current_line + 1
         end
     end
+    -- Show empty project group if no marker files are found
+    if #config_files == 1 and State.config.workspace.enabled then
+        table.insert(lines, Text.empty_line())
+        current_line = current_line + 1
+        local is_global = false
+        local icon = is_global and Text.icons.globe or Text.icons.folder
+        local prefix = icon .. " " .. (is_global and "Global" or "Project") .. " "
+        local header_line = NuiLine():append(prefix, Text.highlights.title)
+        table.insert(lines, Text.pad_line(header_line))
+        current_line = current_line + 1
+        local line = NuiLine()
+        local look_for = table.concat(State.config.workspace.look_for or {}, ", ")
+        line:append(
+            string.format("Could not find any local config files [%s] in the path", look_for),
+            Text.highlights.muted
+        )
+        table.insert(lines, Text.pad_line(line, nil, 4))
+        current_line = current_line + 1
+    end
 
     return current_line
 end
@@ -85,7 +104,10 @@ function M.render_server_group(config_source, servers, lines, current_line, view
         table.insert(
             lines,
             Text.pad_line(
-                NuiLine():append("No servers found (Install from Marketplace)", Text.highlights.muted),
+                NuiLine():append(
+                    string.format("No servers found in `%s` (Install from Marketplace)", config_source),
+                    Text.highlights.muted
+                ),
                 nil,
                 4
             )

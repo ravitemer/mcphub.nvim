@@ -1,6 +1,6 @@
 local M = {}
 
-local SHUTDOWN_DELAY = 10 * 60 * 1000 -- 10 minutes
+local SHUTDOWN_DELAY = 60 * 1000 -- 1 minute
 
 ---@class MCPHub.WorkspaceConfig
 ---@field enabled boolean Master switch for workspace-specific hubs

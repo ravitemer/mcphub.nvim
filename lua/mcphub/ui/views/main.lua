@@ -777,21 +777,21 @@ function MainView:render_servers(line_offset)
 
     current_line = renderer.render_servers_grouped(State.server_state.servers, lines, current_line, self)
 
-    -- -- Add server creation options
-    -- table.insert(
-    --     lines,
-    --     Text.pad_line(
-    --         NuiLine()
-    --             :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
-    --             :append("Add Server (A)", Text.highlights.muted)
-    --     )
-    -- )
-    -- -- Track line for interaction
-    -- self:track_line(current_line + 1, "add_server", {
-    --     name = "Add Server",
-    --     hint = "[<l> Open Editor]",
-    -- })
-    -- current_line = current_line + 1
+    -- Add server creation options
+    table.insert(
+        lines,
+        Text.pad_line(
+            NuiLine()
+                :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
+                :append("Add Server (A)", Text.highlights.muted)
+        )
+    )
+    -- Track line for interaction
+    self:track_line(current_line + 1, "add_server", {
+        name = "Add Server",
+        hint = "[<l> Open Editor]",
+    })
+    current_line = current_line + 1
 
     -- Add spacing between sections
     table.insert(lines, Text.empty_line())
