@@ -4,6 +4,9 @@ MCPHub.nvim like other MCP clients uses a JSON configuration file to manage MCP 
 
 > [!NOTE]
 > You can use a single config file for any MCP client like VSCode, Cursor, Cline, Zed etc as long as the config file follows the below structure. With MCPHub.nvim, `config` file can be safely added to source control as it supports **universal `${}` placeholder syntax** for environment variables and command execution across all configuration fields.
+>
+> [!TIP]
+> Use the `global_env` option to inject environment variables into all MCP servers, instead of duplicating them in every server's `env` field.
 
 ## Manage Servers
 

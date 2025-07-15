@@ -81,6 +81,10 @@ All options are optional with sensible defaults. See below for each option in de
                 file_path = nil,
                 prefix = "MCPHub",
             },
+
+            -- Global environment variables available to all MCP servers
+            -- Can be a table or a function(context) -> table
+            global_env = {},
         })
     end
 }
@@ -153,6 +157,53 @@ require("mcphub").setup({
 ```
 
 See [Contributing](https://github.com/ravitemer/mcphub.nvim/blob/main/CONTRIBUTING.md) guide for detailed development setup.
+
+
+### global_env
+
+Default: `{}`
+
+The `global_env` option lets you inject environment variables into all MCP servers started by MCPHub. This is useful for secrets, tokens, or session variables (like `DBUS_SESSION_BUS_ADDRESS`) that should be available to every server process.
+
+You can use either a table or a function that returns a table. The function receives the job context (workspace info, port, config files, etc).
+
+#### Table Example
+
+```lua
+require("mcphub").setup({
+    global_env = {
+        -- Array-style: uses os.getenv("VAR")
+        "DBUS_SESSION_BUS_ADDRESS",
+        -- Hash-style: explicit value
+        PROJECT_ROOT = vim.fn.getcwd(),
+        CUSTOM_VAR = "custom_value",
+    }
+})
+```
+
+#### Function Example
+
+```lua
+require("mcphub").setup({
+    global_env = function(context)
+        local env = {
+            "DBUS_SESSION_BUS_ADDRESS",
+        }
+        -- Add context-aware variables
+        if context.is_workspace_mode then
+            env.WORKSPACE_ROOT = context.workspace_root
+            env.WORKSPACE_PORT = tostring(context.port)
+        end
+        env.CONFIG_FILES = table.concat(context.config_files, ":")
+        return env
+    end
+})
+```
+
+**Notes:**
+- Array-style entries (`"VAR"`) will use the value from `os.getenv("VAR")`.
+- Hash-style entries (`KEY = "value"`) use the explicit value.
+- The function receives a context table with fields like `port`, `cwd`, `config_files`, `is_workspace_mode`, and `workspace_root`.
 
 ## Chat-Plugin Related Options
 
@@ -270,6 +321,7 @@ Default:
 - Please visit [Avante](/extensions/avante) for full integration documentation
 
 Also see [CodeCompanion](/extensions/codecompanion), [CopilotChat](/extensions/copilotchat) pages for detailed setup guides.
+
 
 
 ## Plugin Options
