@@ -98,7 +98,10 @@ function M.mcp_tool()
     local shared = require("mcphub.extensions.shared")
     for action_name, schema in pairs(tool_schemas) do
         ---@type AvanteLLMToolFunc<MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs>
-        schema.func = function(args, on_log, on_complete)
+        schema.func = function(args, opts)
+            opts = opts or {}
+            local on_complete = opts.on_complete or function() end
+            local on_log = opts.on_log or function() end
             ---@diagnostic disable-next-line: missing-parameter
             async.run(function()
                 local hub = require("mcphub").get_hub_instance()
@@ -116,7 +119,7 @@ function M.mcp_tool()
                 end
                 local sidebar = require("avante").get()
                 if params.action == "access_mcp_resource" then
-                    if on_log then
+                    if on_log and type(on_log) == "function" then
                         on_log(
                             string.format("Accessing `%s` resource from server `%s`", params.uri, params.server_name)
                         )
@@ -134,7 +137,7 @@ function M.mcp_tool()
                         end,
                     })
                 elseif params.action == "use_mcp_tool" then
-                    if on_log then
+                    if on_log and type(on_log) == "function" then
                         on_log(
                             string.format(
                                 "Calling tool `%s` on server `%s` with arguments: %s",
