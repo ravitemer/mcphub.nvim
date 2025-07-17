@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${PWD}"
+      ],
+      "command": "npx"
+    },
+    "graph_memory": {
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "command": "npx",
+      "env": {
+        "MEMORY_FILE_PATH": "${MCPHUB_MEMORY_FILE_PATH}"
+      }
+    },
+    "lsp": {
+      "args": [
+        "--workspace",
+        "${PWD}",
+        "--lsp",
+        "lua-language-server",
+        "--",
+        "--stdio"
+      ],
+      "command": "mcp-language-server",
+      "comments": "`mcp-language-server` installation instructions at https://github.com/isaacphi/mcp-language-server. Make sure `~/go/bin` is in the $PATH. `lua-language-server` installed via `brew install lua-language-server`",
+      "custom_instructions": {
+        "text": "* When using the `rename_symbol` tool, you MUST always use the absolute path to the file."
+      }
+    }
+  }
+}

@@ -86,7 +86,7 @@ local defaults = {
     ---@type MCPHub.WorkspaceConfig
     workspace = {
         enabled = true, -- Enables workspace-specific hubs
-        look_for = { ".vscode/mcp.json", ".cursor/mcp.json", ".mcphub/servers.json" }, -- Files to search for (in order)
+        look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to search for (in order)
         reload_on_dir_changed = true, -- Whether to listen to DirChanged events to reload workspace config
         port_range = { min = 40000, max = 41000 }, -- Port range for workspace hubs
         -- function that determines that returns the port
