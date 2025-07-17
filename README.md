@@ -24,7 +24,7 @@
 
 MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) servers into your editing workflow. It provides an intuitive interface for managing, testing, and using MCP servers with your favorite chat plugins.
 
-![Image](https://github.com/user-attachments/assets/21fe7703-9bc3-4c01-93ce-3230521bd5bf)
+![Image](https://github.com/user-attachments/assets/7c299fbd-4820-4065-8b07-50db66179d3d)
 
 ## 💜 Sponsors
 
@@ -68,6 +68,8 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 | | Installation | ✅ | Manual and auto install with AI |
 | **Configuration** ||||
 | | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
+| **Workspace Management** ||||
+| | Project-Local Configs | ✅ | Automatic detection and merging with global config |
 | **Advanced** ||||
 | | Smart File-watching | ✅ | Smart updates with config file watching |
 | | Multi-instance | ✅ | All neovim instances stay in sync |
@@ -78,11 +80,20 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 ## 🎥 Demos
 
 <div align="center">
+<h4>MCP Hub + <a href="https://github.com/olimorris/codecompanion.nvim">CodeCompanion</a> + Github </h4>
+<p>
+<video muted controls src="https://github.com/user-attachments/assets/1a10ad50-5832-4627-bcc3-be49e7941105"></video>
+</p>
+</div>
+
+
+<div align="center">
 <p>
 <h4>MCP Hub + <a href="https://github.com/yetone/avante.nvim">Avante</a> + Figma </h4>
 <video controls muted src="https://github.com/user-attachments/assets/e33fb5c3-7dbd-40b2-bec5-471a465c7f4d"></video>
 </p>
 </div>
+
 
 
 ## 🚀 Getting Started

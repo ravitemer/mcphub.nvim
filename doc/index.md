@@ -9,7 +9,7 @@ link: '/installation'
 
 MCPHub.nvim is a MCP client for neovim that seamlessly integrates [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) servers into your editing workflow. It provides an intuitive interface for managing, testing, and using MCP servers with your favorite chat plugins.
 
-![Image](https://github.com/user-attachments/assets/21fe7703-9bc3-4c01-93ce-3230521bd5bf)
+![Image](https://github.com/user-attachments/assets/7c299fbd-4820-4065-8b07-50db66179d3d)
 
 > [!IMPORTANT]
 > It is recommended to read this page before going through the rest of the documentation.
@@ -31,8 +31,11 @@ Like any MCP client, MCP Hub requires a configuration file to define the MCP ser
         "mcp-server-fetch"
       ]
     },
-    "remote-server": {
-      "url": "https://api.example.com/mcp"
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
     }
   }
 }
@@ -92,6 +95,16 @@ MCPHub includes two native servers that run directly within Neovim:
 
 These servers provide essential functionality without external dependencies and offer deep Neovim integration.
 
+### Workspace-Aware Configuration
+
+MCP Hub automatically detects project-local configuration files (`.mcphub/servers.json`, `.vscode/mcp.json`, `.cursor/mcp.json`) and creates isolated hub instances for each workspace. This enables:
+
+- **Project-specific servers**: `mcp-server-filesystem` with project paths, `mcp-language-server` with project-specific LSP configurations
+- **Isolated environments**: Each project gets its own hub instance and server processes  
+- **Configuration merging**: Project configs override global settings while preserving global servers
+
+Users can view all active workspace hubs and switch between them seamlessly through the UI.
+
 ### Chat Integrations
 
 - MCP Hub provides integrations with popular chat plugins like [Avante](https://github.com/yetone/avante.nvim), [CodeCompanion](https://github.com/olimorris/codecompanion.nvim), [CopilotChat](https://github.com/CopilotC-Nvim/CopilotChat.nvim).
@@ -129,6 +142,8 @@ These servers provide essential functionality without external dependencies and 
 | | Installation | ✅ | Manual and auto install with AI |
 | **Configuration** ||||
 | | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
+| **Workspace Management** ||||
+| | Project-Local Configs | ✅ | Automatic detection and merging with global config |
 | **Advanced** ||||
 | | Smart File-watching | ✅ | Smart updates with config file watching |
 | | Multi-instance | ✅ | All neovim instances stay in sync |

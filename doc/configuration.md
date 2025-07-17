@@ -21,6 +21,14 @@ All options are optional with sensible defaults. See below for each option in de
             shutdown_delay = 5 * 60 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 5 minutes)
             use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
             mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
+            global_env = {}, -- Global environment variables available to all MCP servers (can be a table or a function returning a table)
+            workspace = {
+                enabled = true, -- Enable project-local configuration files
+                look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries
+                reload_on_dir_changed = true, -- Automatically switch hubs on DirChanged event
+                port_range = { min = 40000, max = 41000 }, -- Port range for generating unique workspace ports
+                get_port = nil, -- Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
+            },
 
             ---Chat-plugin related options-----------------
             auto_approve = false, -- Auto approve mcp tool calls
@@ -204,6 +212,47 @@ require("mcphub").setup({
 - Array-style entries (`"VAR"`) will use the value from `os.getenv("VAR")`.
 - Hash-style entries (`KEY = "value"`) use the explicit value.
 - The function receives a context table with fields like `port`, `cwd`, `config_files`, `is_workspace_mode`, and `workspace_root`.
+
+### workspace
+
+Default:
+```lua
+{
+    workspace = {
+        enabled = true,
+        look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" },
+        reload_on_dir_changed = true,
+        port_range = { min = 40000, max = 41000 },
+        get_port = nil,
+    }
+}
+```
+
+Enables project-local configuration files. When enabled, MCP Hub automatically detects project boundaries and creates isolated hub instances with merged configurations (project overrides global).
+
+- **`enabled`**: Master switch for workspace functionality
+- **`look_for`**: Files to search for when detecting project boundaries  
+- **`reload_on_dir_changed`**: Auto-switch hubs on directory change
+- **`port_range`**: Port range for generating unique workspace ports
+- **`get_port`**: Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
+
+#### Custom Port Example
+
+```lua
+require("mcphub").setup({
+    workspace = {
+        get_port = function()
+            local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+            if project_name == "critical-project" then
+                return 45000 -- Use fixed port for specific project
+            end
+            return nil -- Use default hash-based port generation
+        end
+    }
+})
+```
+
+See [Workspace Guide](/workspace) for detailed usage examples.
 
 ## Chat-Plugin Related Options
 

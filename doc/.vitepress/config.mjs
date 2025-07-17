@@ -90,6 +90,7 @@ export default withMermaid(
           items: [
             { text: "Installation", link: "/installation" },
             { text: "Configuration", link: "/configuration" },
+            { text: "Workspaces", link: "/workspace" },
           ]
         },
         {
