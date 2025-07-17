@@ -61,6 +61,9 @@ local State = {
         servers = {}, -- Regular MCP servers
         ---@type NativeServer[]
         native_servers = {}, -- Native MCP servers
+
+        ---@type MCPHub.Workspaces
+        workspaces = {},
     },
 
     -- Error management
@@ -205,6 +208,14 @@ function State:clear_errors(type)
     self:notify_subscribers({
         errors = true,
     }, "errors")
+end
+
+function State:clear_logs()
+    self.server_output.entries = {}
+    self.errors.items = {}
+    self:notify_subscribers({
+        logs = true,
+    }, "logs")
 end
 
 --- Get all errors of a specific type

@@ -5,13 +5,14 @@ local config = require("mcphub.config")
 local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
 local curl = require("plenary.curl")
+local version = require("mcphub.utils.version")
+local workspace_utils = require("mcphub.utils.workspace")
 
 local handlers = require("mcphub.utils.handlers")
 local log = require("mcphub.utils.log")
 local native = require("mcphub.native")
 local prompt_utils = require("mcphub.utils.prompt")
 local utils = require("mcphub.utils")
-local validation = require("mcphub.utils.validation")
 
 -- Default timeouts
 local CONNECT_TIMEOUT = 1000 -- 1s for curl to connect to localhost
@@ -76,7 +77,6 @@ end
 --- Resolve workspace-specific context
 --- @return MCPHub.JobContext|nil Workspace context or nil to fall back to global
 function MCPHub:_resolve_workspace_context()
-    local workspace_utils = require("mcphub.utils.workspace")
     local current_dir = vim.fn.getcwd()
 
     -- Find workspace config
@@ -90,10 +90,15 @@ function MCPHub:_resolve_workspace_context()
 
     log.debug("Found workspace config" .. vim.inspect(workspace_info))
 
-    -- Check for existing hub
-    local existing_hub = workspace_utils.get_workspace_hub_info(workspace_info.root_dir)
     local port
 
+    -- Prepare config files (order matters: global first, then project)
+    local global_config = self.config -- Original global config path
+    local project_config = workspace_info.config_file
+    local config_files = { global_config, project_config }
+
+    -- Check for existing hub
+    local existing_hub = workspace_utils.find_matching_workspace_hub(workspace_info.root_dir, config_files)
     if existing_hub then
         port = existing_hub.port
         log.debug("Found existing workspace hub" .. vim.inspect({
@@ -102,12 +107,22 @@ function MCPHub:_resolve_workspace_context()
             pid = existing_hub.pid,
         }))
     else
-        -- Generate new port
-        port = workspace_utils.find_available_port(
-            workspace_info.root_dir,
-            State.config.workspace.port_range,
-            100 -- max attempts
-        )
+        if State.config.workspace.get_port and type(State.config.workspace.get_port) == "function" then
+            -- Use custom port function if provided
+            port = State.config.workspace.get_port()
+            if not port or type(port) ~= "number" then
+                vim.notify("Invalid port returned by workspace.get_port function", vim.log.levels.ERROR)
+                return nil
+            end
+            log.debug("Using custom port from workspace.get_port: " .. port)
+        else
+            -- Generate new port
+            port = workspace_utils.find_available_port(
+                workspace_info.root_dir,
+                State.config.workspace.port_range,
+                100 -- max attempts
+            )
+        end
 
         if not port then
             vim.notify("No available ports for workspace hub", vim.log.levels.ERROR)
@@ -120,28 +135,28 @@ function MCPHub:_resolve_workspace_context()
         }))
     end
 
-    -- Prepare config files (order matters: global first, then project)
-    local global_config = self.config -- Original global config path
-    local project_config = workspace_info.config_file
-
     return {
         port = port,
         cwd = workspace_info.root_dir,
-        config_files = { global_config, project_config },
+        config_files = config_files,
         is_workspace_mode = true,
         workspace_root = workspace_info.root_dir,
+        existing_hub = existing_hub, -- Include hub info from cache
     }
 end
 
 --- Resolve global context (original behavior)
 --- @return MCPHub.JobContext Global context
 function MCPHub:_resolve_global_context()
+    local cwd = vim.fn.getcwd()
+    local existing_hub = workspace_utils.get_workspace_hub_info(cwd)
     return {
         port = self.setup_opts.port,
-        cwd = vim.fn.getcwd(),
+        cwd = cwd,
         config_files = { self.config },
         is_workspace_mode = false,
         workspace_root = nil,
+        existing_hub = existing_hub,
     }
 end
 
@@ -196,6 +211,9 @@ end
 --- @param context MCPHub.JobContext Context information from resolve_context
 function MCPHub:_start_server_with_context(context)
     self.is_owner = true
+    if self.server_job then
+        self.server_job = nil
+    end
 
     -- Resolve global environment variables
     local resolved_global_env = self:_resolve_global_env(context)
@@ -267,12 +285,15 @@ function MCPHub:_start_server_with_context(context)
         end),
         on_exit = vim.schedule_wrap(function(j, code)
             local stderr = table.concat(j:stderr_result() or {}, "\n")
+            log.debug("Server process exited with code " .. code .. " and stderr: " .. stderr)
             if stderr:match("EADDRINUSE") then
-                -- Port was just taken, try connecting
+                -- The on_start's self:connect_sse() will handle this case
                 log.debug("Port taken, trying to connect...")
             else
-                local err_msg = "Server process exited with code " .. code
-                self:handle_hub_stopped(err_msg .. "\n" .. stderr, code)
+                -- This is causing issues when switching workspaces frequently even when we check for server_job
+                -- sse_job's on_exit will anyway takes care of showing stopped status in case the mcp-hub was stopped externally
+                -- local err_msg = "Server process exited with code " .. code
+                -- self:handle_hub_stopped(err_msg .. "\n" .. stderr, code, j)
             end
         end),
     })
@@ -287,6 +308,7 @@ function MCPHub:start()
         return
     end
     log.debug("Starting hub")
+    State:clear_logs()
     -- Update state
     State:update_hub_state(constants.HubState.STARTING)
     self.is_restarting = false
@@ -312,19 +334,41 @@ function MCPHub:start()
 
     log.debug("Resolved hub context: " .. vim.inspect(context))
 
-    -- Check if server is already running on the resolved port
-    self:check_server(function(is_running, is_our_server)
+    -- Step 3: Check if server is already running on the resolved port and is of same version in cases of plugin updated
+    self:check_server(function(is_running, is_our_server, is_same_version)
         if is_running then
             if not is_our_server then
                 self:handle_hub_stopped("Port in use by non-MCP Hub server")
                 return
             end
-            log.debug("MCP Hub already running on port " .. context.port)
-            self:connect_sse()
+            if not is_same_version then
+                log.debug("Existing server is not of same version, restarting")
+                vim.notify("mcp-hub version mismatch. Restarting hub...", vim.log.levels.INFO)
+                self:handle_same_port_different_config(context)
+                return
+            end
+
+            -- Check config compatibility using cached hub info
+            if context.existing_hub and context.existing_hub.config_files then
+                local config_matches = vim.deep_equal(context.existing_hub.config_files, context.config_files)
+
+                if config_matches then
+                    log.debug("Config files match, connecting to existing server")
+                    self:connect_sse()
+                else
+                    log.debug("Config files changed, restarting server")
+                    vim.notify("Config files changed. Restarting hub...", vim.log.levels.INFO)
+                    self:handle_same_port_different_config(context)
+                end
+            else
+                -- No config info available (backwards compatibility)
+                log.debug("No config info in cache, connecting to existing server")
+                self:connect_sse()
+            end
             return
         end
 
-        -- Start new server with resolved context
+        -- Step 4: Start new server with resolved context
         self:_start_server_with_context(context)
     end)
 end
@@ -351,8 +395,6 @@ function MCPHub:handle_directory_change()
         self:start()
         return
     end
-
-    vim.notify("Dir changed")
 
     -- Check if we need to switch hubs
     local needs_switch = false
@@ -387,9 +429,6 @@ function MCPHub:handle_hub_ready()
 end
 
 function MCPHub:_clean_up()
-    if self.server_job then
-        self.server_job = nil
-    end
     self.is_owner = false
     self.ready = false
     self.is_starting = false
@@ -399,7 +438,16 @@ end
 
 ---@param msg string
 ---@param code number|nil
-function MCPHub:handle_hub_stopped(msg, code)
+function MCPHub:handle_hub_stopped(msg, code, server_job)
+    if server_job then
+        -- While changing directories, we might have to start a new job for that directory
+        -- Once in the new directory, if the old directory's job stops for any reason for e.g (shutdown_delay reached)
+        -- handle_hub_stopped will be called which causes the hub UI to show as stopped.
+        -- Therefore, we need to check if the server_job is the same as the one that called this function
+        if self.server_job ~= server_job then
+            return
+        end
+    end
     code = code ~= nil and code or 1
     -- if self.is_shutting_down then
     --     return -- Skip error handling during shutdown
@@ -414,11 +462,11 @@ function MCPHub:handle_hub_stopped(msg, code)
 end
 
 --- Check if server is running and handle connection
---- @param callback fun(is_running:boolean, is_our_server:boolean)
+--- @param callback fun(is_running:boolean, is_our_server:boolean, is_same_version:boolean) Callback function to handle the result
 function MCPHub:check_server(callback)
     log.debug("Checking Server")
     if self:is_ready() then
-        return callback(true, true)
+        return callback(true, true, true)
     end
     -- Quick health check
     local opts = {
@@ -429,11 +477,18 @@ function MCPHub:check_server(callback)
     opts.callback = function(response, err)
         if err then
             log.debug("Error while get health in check_server")
-            callback(false, false)
+            callback(false, false, false)
         else
             local is_hub_server = response and response.server_id == "mcp-hub" and response.status == "ok"
-            log.debug("Got health response in check_server, is_hub_server? " .. tostring(is_hub_server))
-            callback(true, is_hub_server) -- Running but may not be our server
+            local is_same_version = response and response.version == version.REQUIRED_NODE_VERSION.string
+            log.debug(
+                string.format(
+                    "Got health response in check_server, is_hub_server (%s), is_same_version (%s) ",
+                    tostring(is_hub_server),
+                    tostring(is_same_version)
+                )
+            )
+            callback(true, is_hub_server, is_same_version) -- Running but may not be our server
         end
     end
     return self:get_health(opts)
@@ -1017,14 +1072,21 @@ function MCPHub:fire_servers_updated()
     })
 end
 
-function MCPHub:update_servers(servers, callback)
+function MCPHub:update_servers(response, callback)
     callback = callback or function() end
-    local function update_state(_servers)
-        State.server_state.servers = _servers or {}
+    local servers = response and response.servers or nil
+    local workspaces = response and response.workspaces or nil
+    local function update_state(_servers, workspaces)
+        if _servers then
+            State.server_state.servers = _servers or {}
+        end
+        if workspaces then
+            State.server_state.workspaces = workspaces or {}
+        end
         self:fire_servers_updated()
     end
-    if servers then
-        update_state(servers)
+    if servers or workspaces then
+        update_state(servers, workspaces)
     else
         self:get_health({
             callback = function(response, err)
@@ -1035,7 +1097,7 @@ function MCPHub:update_servers(servers, callback)
                     State:add_error(health_err)
                     callback(false)
                 else
-                    update_state(response.servers or {})
+                    update_state(response.servers or {}, response.workspaces or {})
                     callback(true)
                 end
             end,
@@ -1205,7 +1267,7 @@ function MCPHub:hard_refresh(callback)
                 State:add_error(health_err)
                 callback(false)
             else
-                self:update_servers(response.servers or {})
+                self:update_servers(response)
                 callback(true)
             end
         end,
@@ -1231,6 +1293,28 @@ function MCPHub:handle_hub_stopping()
             self:start()
         end, 1000)
     end
+end
+
+--- Handles already running mcp-hub on same port with different config files
+---@param context table Context containing port and config details
+function MCPHub:handle_same_port_different_config(context)
+    self:api_request("POST", "hard-restart", {
+        callback = function(_, err)
+            if err then
+                local restart_err = Error("SERVER", Error.Types.SERVER.RESTART, "Hard restart failed", {
+                    error = err,
+                })
+                State:add_error(restart_err)
+                vim.notify(
+                    "Failed to restart MCP Hub while trying to stop mcp-hub running on port " .. context.port,
+                    vim.log.levels.ERROR
+                )
+                return
+            end
+            self:_start_server_with_context(context)
+        end,
+        skip_ready_check = true,
+    })
 end
 
 --- Restart the MCP Hub server

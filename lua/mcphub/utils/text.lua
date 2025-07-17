@@ -15,6 +15,9 @@ M.highlights = hl.groups
 
 M.icons = {
 
+    hourglass = "",
+    person = "",
+    clock = "",
     server = "󰒋",
     antenna = "󰖩",
     antenna_off = "󰖪",
@@ -55,7 +58,7 @@ M.icons = {
     instructions = "",
     unauthorized = "󱅞",
 
-    file = "",
+    file = "",
     folder = "",
     globe = "",
     prompt = "󰿠",

@@ -683,4 +683,295 @@ function M.render_error(err, detailed)
     return lines
 end
 
+--- Get workspace state highlight based on current state
+---@param workspace_details table Workspace details from cache
+---@return string Highlight group name
+local function get_workspace_highlight(workspace_details)
+    if workspace_details.state == "shutting_down" then
+        return Text.highlights.warn
+    elseif workspace_details.state == "active" then
+        return Text.highlights.success
+    else
+        return Text.highlights.error
+    end
+end
+
+--- Get workspace time display (uptime or countdown)
+---@param workspace_details table Workspace details
+---@return string, string Time text and icon
+local function get_workspace_time_info(workspace_details)
+    if not workspace_details then
+        return "unknown", Text.icons.clock
+    end
+    if
+        workspace_details.state == "shutting_down"
+        and workspace_details.shutdownStartedAt
+        and workspace_details.shutdownDelay
+    then
+        -- Calculate remaining time
+        local start_time = workspace_details.shutdownStartedAt
+        local delay_ms = workspace_details.shutdownDelay
+        local current_time = os.time() * 1000 -- Convert to milliseconds
+
+        -- Parse ISO time to milliseconds
+        local start_ms = 0
+        if start_time then
+            local year, month, day, hour, min, sec = start_time:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+            if year then
+                local ok, secs = pcall(os.time, {
+                    ---@diagnostic disable-next-line: assign-type-mismatch
+                    year = tonumber(year),
+                    ---@diagnostic disable-next-line: assign-type-mismatch
+                    month = tonumber(month),
+                    ---@diagnostic disable-next-line: assign-type-mismatch
+                    day = tonumber(day),
+                    hour = tonumber(hour),
+                    min = tonumber(min),
+                    sec = tonumber(sec),
+                })
+                if ok then
+                    start_ms = secs * 1000 -- Convert to milliseconds
+                else
+                    -- Fallback to current time if parsing fails
+                    start_ms = current_time
+                end
+            end
+        end
+
+        local elapsed = current_time - start_ms
+        local remaining = math.max(0, delay_ms - elapsed)
+
+        if remaining > 0 then
+            local remaining_seconds = math.floor(remaining / 1000)
+            local minutes = math.floor(remaining_seconds / 60)
+            local seconds = remaining_seconds % 60
+            return string.format("shutdown in %dm %ds", minutes, seconds), Text.icons.hourglass
+        else
+            return "closing...", Text.icons.hourglass
+        end
+    else
+        -- Show uptime
+        if workspace_details.startTime then
+            local uptime = utils.iso_to_relative_time(workspace_details.startTime) .. " ago"
+            return uptime, Text.icons.clock
+        end
+        return "unknown", Text.icons.clock
+    end
+end
+
+--- Render workspace line (collapsed view)
+---@param workspace_details MCPHub.WorkspaceDetails Workspace details from cache
+---@param port_str string Port as string (cache key)
+---@param is_current boolean Whether this is the current workspace
+---@param is_expanded boolean Whether this workspace is expanded
+---@return NuiLine
+function M.render_workspace_line(workspace_details, port_str, is_current, is_expanded)
+    local line = NuiLine()
+    local hl = get_workspace_highlight(workspace_details)
+
+    -- Expansion indicator
+    local expand_icon = is_expanded and Text.icons.triangleDown or Text.icons.triangleRight
+    line:append(expand_icon .. " ", hl)
+
+    -- Folder icon and name
+    local workspace_name = vim.fn.fnamemodify(workspace_details.cwd, ":t") -- Get directory name
+    if tostring(workspace_details.port) == tostring(State.config.port) then
+        workspace_name = "Global"
+    end
+    line:append(Text.icons.folder .. " " .. workspace_name, hl)
+
+    -- Current indicator
+    if is_current then
+        line:append(" (current)", Text.highlights.success)
+    end
+
+    -- Port
+    line:append(" | " .. Text.icons.tower .. " " .. port_str, Text.highlights.muted)
+
+    -- Client count
+    local client_count = workspace_details.activeConnections or 0
+    if client_count > 0 then
+        line:append(" | " .. Text.icons.person .. " " .. tostring(client_count), Text.highlights.muted)
+    end
+
+    -- Time info
+    local time_text, time_icon = get_workspace_time_info(workspace_details)
+    line:append(" | " .. time_icon .. " " .. time_text, Text.highlights.muted)
+
+    return line
+end
+
+--- Render workspace details (expanded view)
+---@param workspace_details MCPHub.WorkspaceDetails Workspace details from cache
+---@param current_line number Current line number
+---@return NuiLine[], number, table[] Lines new current line and line mappings
+function M.render_workspace_details(workspace_details, current_line)
+    local lines = {}
+    local mappings = {}
+
+    -- Config files section
+    if workspace_details.config_files and #workspace_details.config_files > 0 then
+        table.insert(lines, Text.empty_line())
+        current_line = current_line + 1
+
+        table.insert(lines, Text.pad_line(NuiLine():append("Config Files Used:", Text.highlights.muted), nil, 5))
+        current_line = current_line + 1
+
+        for _, config_file in ipairs(workspace_details.config_files) do
+            local config_line = NuiLine()
+            config_line:append(Text.icons.file .. " ", Text.highlights.muted)
+
+            config_line:append(config_file .. " ", Text.highlights.info)
+
+            table.insert(lines, Text.pad_line(config_line, nil, 6))
+            current_line = current_line + 1
+        end
+    end
+
+    -- Empty line for spacing
+    table.insert(lines, Text.empty_line())
+    current_line = current_line + 1
+
+    -- Details section
+    table.insert(lines, Text.pad_line(NuiLine():append("Details:", Text.highlights.muted), nil, 5))
+    current_line = current_line + 1
+
+    -- Time info
+    local time_text = get_workspace_time_info(workspace_details)
+    -- State information
+    local state_line = NuiLine()
+    state_line:append("State: ", Text.highlights.muted)
+    local state_text = workspace_details.state == "shutting_down" and ("Hub will " .. time_text) or "Active"
+    local state_hl = workspace_details.state == "shutting_down" and Text.highlights.warn or Text.highlights.success
+    state_line:append(state_text, state_hl)
+    table.insert(lines, Text.pad_line(state_line, nil, 6))
+    current_line = current_line + 1
+
+    -- Clients connected
+    if workspace_details.activeConnections then
+        local clients_line = NuiLine()
+        clients_line:append("Connected Clients: ", Text.highlights.muted)
+        clients_line:append(tostring(workspace_details.activeConnections), Text.highlights.info)
+        table.insert(lines, Text.pad_line(clients_line, nil, 6))
+        current_line = current_line + 1
+    end
+    -- Path
+    local path_line = NuiLine()
+    path_line:append("CWD: ", Text.highlights.muted)
+    path_line:append(workspace_details.cwd, Text.highlights.info)
+    table.insert(lines, Text.pad_line(path_line, nil, 6))
+    current_line = current_line + 1
+
+    -- Process ID
+    local pid_line = NuiLine()
+    pid_line:append("Process ID: ", Text.highlights.muted)
+    pid_line:append(tostring(workspace_details.pid), Text.highlights.info)
+    table.insert(lines, Text.pad_line(pid_line, nil, 6))
+    current_line = current_line + 1
+
+    -- Started time
+    if workspace_details.startTime then
+        local started_line = NuiLine()
+        started_line:append("Started: ", Text.highlights.muted)
+        -- Format the ISO time nicely
+        local start_time = workspace_details.startTime
+        local formatted_time = utils.iso_to_relative_time(start_time) .. " ago"
+        started_line:append(formatted_time, Text.highlights.info)
+        table.insert(lines, Text.pad_line(started_line, nil, 6))
+        current_line = current_line + 1
+    end
+
+    if workspace_details.shutdownDelay then
+        local shutdown_line = NuiLine()
+        shutdown_line:append("shutdown-delay: ", Text.highlights.muted)
+        local formatted_time = utils.ms_to_relative_time(workspace_details.shutdownDelay)
+        shutdown_line:append(formatted_time, Text.highlights.info)
+        shutdown_line:append(
+            string.format(
+                " (When 0 clients connected, will wait for %s for any new connections before shutting down)",
+                formatted_time
+            ),
+            Text.highlights.muted
+        )
+        table.insert(lines, Text.pad_line(shutdown_line, nil, 6))
+        current_line = current_line + 1
+    end
+    table.insert(lines, Text.empty_line())
+    current_line = current_line + 1
+
+    return lines, current_line, mappings
+end
+
+--- Render all workspaces section
+---@param line_offset number Current line number
+---@param view MainView View instance for tracking interactions
+---@return NuiLine[] Lines for workspaces section
+function M.render_workspaces_section(line_offset, view)
+    local lines = {}
+    local current_line = line_offset
+
+    -- Section header
+    table.insert(lines, Text.pad_line(NuiLine():append(Text.icons.server .. " Active Hubs", Text.highlights.title)))
+    current_line = current_line + 1
+
+    local workspaces = State.server_state.workspaces
+    if not workspaces or not workspaces.allActive or vim.tbl_isempty(workspaces.allActive) then
+        table.insert(lines, Text.pad_line(NuiLine():append("No active workspaces", Text.highlights.muted)))
+        current_line = current_line + 1
+        return lines
+    end
+
+    local current_port = workspaces.current
+
+    -- Sort workspaces: current first, then by port number
+    local ports = vim.tbl_keys(workspaces.allActive)
+    table.sort(ports, function(a, b)
+        if a == current_port then
+            return true
+        elseif b == current_port then
+            return false
+        else
+            return tonumber(a) < tonumber(b)
+        end
+    end)
+
+    for _, port_str in ipairs(ports) do
+        local workspace_details = workspaces.allActive[port_str]
+        local is_current = port_str == current_port
+        local is_expanded = view.expanded_workspace == port_str
+
+        -- Render workspace line
+        local workspace_line = M.render_workspace_line(workspace_details, port_str, is_current, is_expanded)
+        table.insert(lines, Text.pad_line(workspace_line, nil, 3))
+        current_line = current_line + 1
+
+        -- Track line for interaction
+        local base_hint = is_expanded and "[<h> Collapse" or "[<l> Expand"
+        local action_hint = ", <d> Kill"
+        local change_dir_hint = is_current and "" or ", <gc> Change Dir"
+        local full_hint = base_hint .. action_hint .. change_dir_hint .. "]"
+
+        view:track_line(current_line, "workspace", {
+            port = port_str,
+            workspace_details = workspace_details,
+            is_current = is_current,
+            hint = full_hint,
+        })
+
+        -- Render expanded details if this workspace is expanded
+        if is_expanded then
+            local detail_lines, new_line, mappings = M.render_workspace_details(workspace_details, current_line)
+            vim.list_extend(lines, detail_lines)
+            current_line = new_line
+
+            -- Track any interactive lines from details (for future actions)
+            for _, mapping in ipairs(mappings) do
+                view:track_line(mapping.line, mapping.type, mapping.context)
+            end
+        end
+    end
+
+    return lines
+end
+
 return M

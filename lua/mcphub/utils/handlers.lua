@@ -96,6 +96,8 @@ M.SSEHandlers = {
                     )
                 end
                 hub:refresh()
+            elseif data.type == constants.SubscriptionTypes.WORKSPACES_UPDATED then
+                hub:refresh()
             end
         elseif event == constants.EventTypes.LOG then
             -- Use message timestamp if valid ISO string, otherwise system time
@@ -362,7 +364,14 @@ M.ResponseHandlers = {
             return nil, Error("SERVER", Error.Types.SERVER.API_ERROR, "Empty response from server", context)
         end
 
-        local ok, decoded = pcall(vim.fn.json_decode, response)
+        local ok, decoded = pcall(
+            vim.json.decode,
+            response,
+            { luanil = {
+                object = true,
+                array = true,
+            } }
+        )
         if not ok then
             return nil,
                 Error(

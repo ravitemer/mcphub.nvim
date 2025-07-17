@@ -699,4 +699,78 @@ function M.confirm_and_delete_server(server_name, on_delete)
     end, function() end)
 end
 
+--- Convert ISO 8601 timestamp to relative time format (e.g., "23s", "1d", "1hr", "2m")
+---@param iso_string string ISO 8601 timestamp string
+---@return string Relative time string
+function M.iso_to_relative_time(iso_string)
+    if not iso_string or iso_string == "" then
+        return "unknown"
+    end
+
+    -- Parse ISO string to Unix timestamp
+    local pattern = "(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)"
+    local year, month, day, hour, min, sec = iso_string:match(pattern)
+
+    if not year then
+        return "invalid"
+    end
+
+    -- Convert to Unix timestamp
+    local timestamp = os.time({
+        year = tonumber(year),
+        month = tonumber(month),
+        day = tonumber(day),
+        hour = tonumber(hour),
+        min = tonumber(min),
+        sec = tonumber(sec),
+    })
+
+    -- Get current time
+    local now = os.time()
+    local diff = now - timestamp
+
+    -- Handle future dates
+    if diff < 0 then
+        diff = math.abs(diff)
+        local future_result = M._format_time_diff(diff)
+        return "in " .. future_result
+    end
+
+    return M._format_time_diff(diff)
+end
+
+--- Convert ms to relative time format (e.g., "23s", "1d", "1hr", "2m")
+--- @param ms number Time in milliseconds
+--- @return string Relative time string
+function M.ms_to_relative_time(ms)
+    if type(ms) ~= "number" then
+        ms = tonumber(ms)
+    end
+    if not ms or ms < 0 then
+        return "unknown"
+    end
+
+    local seconds = math.floor(ms / 1000)
+    return M._format_time_diff(seconds)
+end
+
+--- Internal helper to format time difference
+---@param diff number Time difference in seconds
+---@return string Formatted time string
+function M._format_time_diff(diff)
+    if diff < 60 then
+        return string.format("%ds", diff)
+    elseif diff < 3600 then -- Less than 1 hour
+        return string.format("%dm", math.floor(diff / 60))
+    elseif diff < 86400 then -- Less than 1 day
+        return string.format("%dh", math.floor(diff / 3600))
+    elseif diff < 2592000 then -- Less than 30 days
+        return string.format("%dd", math.floor(diff / 86400))
+    elseif diff < 31536000 then -- Less than 1 year
+        return string.format("%dmo", math.floor(diff / 2592000))
+    else
+        return string.format("%dy", math.floor(diff / 31536000))
+    end
+end
+
 return M

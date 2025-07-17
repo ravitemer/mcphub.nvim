@@ -114,7 +114,7 @@ function M.read_workspace_cache()
         return {}
     end
 
-    local success, cache = pcall(vim.json.decode, content)
+    local success, cache = pcall(vim.json.decode, content, { luanil = { object = true, array = true } })
     if not success then
         vim.notify("Failed to parse workspace cache: " .. cache_path, vim.log.levels.WARN)
         return {}
@@ -141,7 +141,7 @@ end
 
 ---Get active hub info for a workspace
 ---@param workspace_path string Absolute workspace root path
----@return table|nil {port, pid, startTime} or nil if no active hub
+---@return table|nil {port, pid, startTime, config_files} or nil if no active hub
 function M.get_workspace_hub_info(workspace_path)
     local cache = M.read_workspace_cache()
     local entry = cache[workspace_path]
@@ -159,7 +159,35 @@ function M.get_workspace_hub_info(workspace_path)
         port = entry.port,
         pid = entry.pid,
         startTime = entry.startTime,
+        config_files = entry.config_files or {}, -- Include config files if available
     }
+end
+
+-- Enhanced function to find matching hub by workspace + config
+function M.find_matching_workspace_hub(workspace_path, config_files)
+    local cache = M.read_workspace_cache()
+
+    -- Search through ALL cache entries (keyed by port now)
+    for port_str, entry in pairs(cache) do
+        -- Check if workspace matches
+        if entry.cwd == workspace_path then
+            -- Check if config files match
+            if vim.deep_equal(entry.config_files or {}, config_files) then
+                -- Check if process is still running
+                if M.is_process_running(entry.pid) then
+                    return {
+                        port = port_str,
+                        pid = entry.pid,
+                        startTime = entry.startTime,
+                        config_files = entry.config_files,
+                        workspace_path = entry.cwd,
+                    }
+                end
+            end
+        end
+    end
+
+    return nil
 end
 
 ---Check if workspace mode is enabled

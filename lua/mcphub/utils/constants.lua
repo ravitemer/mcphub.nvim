@@ -27,6 +27,8 @@ M.SubscriptionTypes = {
     CONFIG_CHANGED = "config_changed",
     SERVERS_UPDATING = "servers_updating",
     SERVERS_UPDATED = "servers_updated",
+
+    WORKSPACES_UPDATED = "workspaces_updated",
 }
 
 ---@enum MCPHub.Constants.HubState

@@ -603,7 +603,7 @@ end
 function M.get_plugin_docs()
     local source_path = debug.getinfo(1, "S").source:sub(2)
     local base_path = vim.fn.fnamemodify(source_path, ":h:h:h:h")
-    local guide_path = base_path .. "/README.md"
+    local guide_path = base_path .. "/doc/mcphub.txt"
     local f = io.open(guide_path)
     if not f then
         return nil

@@ -17,6 +17,7 @@ local utils = require("mcphub.utils")
 ---@class MainView: View
 ---@field super View
 ---@field expanded_server string|nil Currently expanded server name
+---@field expanded_workspace string|nil Currently expanded workspace port
 ---@field active_capability CapabilityHandler|nil Currently active capability
 ---@field cursor_positions {browse_mode: number[]|nil, capability_line: number[]|nil} Cursor positions for different modes
 local MainView = setmetatable({}, {
@@ -29,6 +30,7 @@ function MainView:new(ui)
     instance = setmetatable(instance, MainView)
     -- Initialize state
     instance.expanded_server = nil
+    instance.expanded_workspace = nil
     instance.active_capability = nil
     instance.cursor_positions = {
         browse_mode = nil, -- Will store [line, col]
@@ -72,6 +74,17 @@ function MainView:handle_collapse()
         end
     end
 
+    -- If we're on a workspace line, handle directly
+    if type == "workspace" and context then
+        if self.expanded_workspace == context.port then
+            local workspace_line = line
+            self.expanded_workspace = nil -- collapse
+            self:draw()
+            vim.api.nvim_win_set_cursor(0, { workspace_line, 3 })
+            return
+        end
+    end
+
     -- If we have an expanded server, determine if we're in its scope
     if self.expanded_server then
         local expanded_server_line
@@ -100,6 +113,38 @@ function MainView:handle_collapse()
             self.expanded_server = nil
             self:draw()
             vim.api.nvim_win_set_cursor(0, { expanded_server_line, 3 })
+            return
+        end
+    end
+
+    -- If we have an expanded workspace, determine if we're in its scope
+    if self.expanded_workspace then
+        local expanded_workspace_line
+        local next_workspace_line
+
+        -- Find the expanded workspace's line and next workspace's line
+        for _, tracked in ipairs(self.interactive_lines) do
+            if tracked.type == "workspace" then
+                if tracked.context.port == self.expanded_workspace then
+                    expanded_workspace_line = tracked.line
+                elseif expanded_workspace_line and not next_workspace_line then
+                    -- This is the next workspace after our expanded one
+                    next_workspace_line = tracked.line
+                    break
+                end
+            end
+        end
+
+        -- Check if current line is within expanded workspace's section:
+        -- After expanded workspace line and before next workspace (or end if no next workspace)
+        if
+            expanded_workspace_line
+            and line > expanded_workspace_line
+            and (not next_workspace_line or line < next_workspace_line)
+        then
+            self.expanded_workspace = nil
+            self:draw()
+            vim.api.nvim_win_set_cursor(0, { expanded_workspace_line, 3 })
         end
     end
 end
@@ -159,7 +204,8 @@ function MainView:handle_edit()
             start_insert = false,
             virtual_lines = {
                 {
-                    Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced",
+                    Text.icons.hint
+                        .. " ${VARIABLES} will be resolved from config.global_env or environment if not replaced",
                     Text.highlights.muted,
                 },
                 { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", Text.highlights.muted },
@@ -167,6 +213,119 @@ function MainView:handle_edit()
         })
     elseif (line_type == "customInstructions") and context then
         self:handle_custom_instructions(context)
+    end
+end
+
+--- Handle killing a workspace process
+---@param context table Workspace context containing workspace details
+function MainView:handle_workspace_kill(context)
+    if not context or not context.workspace_details then
+        return
+    end
+
+    local workspace_details = context.workspace_details
+    local workspace_name = vim.fn.fnamemodify(workspace_details.cwd, ":t")
+    local is_current = context.is_current
+
+    -- -- Prevent killing current workspace
+    -- if is_current then
+    --     vim.notify("Cannot kill the current workspace. Switch to a different workspace first.", vim.log.levels.WARN)
+    --     return
+    -- end
+
+    -- Prepare confirmation message with proper highlights
+    local ui_utils = require("mcphub.utils.ui")
+    local confirm_lines = {}
+
+    -- Header line with highlights
+    local header_line = NuiLine()
+    header_line:append("Kill MCP Hub process for workspace ", Text.highlights.text)
+    header_line:append("'" .. workspace_name .. "'", Text.highlights.warn)
+    header_line:append("?", Text.highlights.text)
+    table.insert(confirm_lines, header_line)
+    table.insert(confirm_lines, "")
+
+    -- Workspace details with highlights
+    local port_line = NuiLine()
+    port_line:append("Port: ", Text.highlights.muted)
+    port_line:append(tostring(workspace_details.port), Text.highlights.info)
+    table.insert(confirm_lines, port_line)
+
+    local pid_line = NuiLine()
+    pid_line:append("PID: ", Text.highlights.muted)
+    pid_line:append(tostring(workspace_details.pid), Text.highlights.info)
+    table.insert(confirm_lines, pid_line)
+
+    local path_line = NuiLine()
+    path_line:append("Path: ", Text.highlights.muted)
+    path_line:append(workspace_details.cwd, Text.highlights.info)
+    table.insert(confirm_lines, path_line)
+
+    table.insert(confirm_lines, "")
+
+    -- Warning with highlights
+    local warning_line = NuiLine()
+    warning_line:append("This will terminate the hub process.", Text.highlights.error)
+    table.insert(confirm_lines, warning_line)
+    local async = require("plenary.async")
+
+    async.run(function()
+        local confirmed, cancelled = ui_utils.confirm(confirm_lines, {
+            min_width = 60,
+            max_width = 80,
+        })
+
+        if confirmed and not cancelled then
+            -- Kill the process
+            local success = pcall(function()
+                local uv = vim.loop or vim.uv
+                uv.kill(workspace_details.pid, "sigterm")
+            end)
+
+            if success then
+                vim.notify(
+                    string.format("Sent SIGTERM to workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
+                    vim.log.levels.INFO
+                )
+            else
+                vim.notify(
+                    string.format("Failed to kill workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
+                    vim.log.levels.ERROR
+                )
+            end
+        end
+    end, function() end)
+end
+
+--- Handle changing directory to a workspace
+function MainView:handle_workspace_change_directory()
+    -- Get current line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+
+    local type, context = self:get_line_info(line)
+    if not type or not context or type ~= "workspace" then
+        return
+    end
+
+    local workspace_details = context.workspace_details
+    local target_dir = workspace_details.cwd
+    local workspace_name = vim.fn.fnamemodify(target_dir, ":t")
+
+    -- Change directory
+    local success, err = pcall(vim.cmd.cd, target_dir)
+    if success then
+        if State.config.workspace.enabled then
+            vim.notify(string.format("Changed directory to '%s' (%s)", workspace_name, target_dir), vim.log.levels.INFO)
+            -- Trigger directory change handler to potentially switch hubs
+            if State.hub_instance and State.hub_instance.handle_directory_change then
+                State.hub_instance:handle_directory_change()
+            end
+        else
+            vim.notify("Workspace feature is disabled, directory change won't trigger hub switch", vim.log.levels.WARN)
+        end
+    else
+        vim.notify(string.format("Failed to change directory: %s", err), vim.log.levels.ERROR)
     end
 end
 
@@ -186,6 +345,8 @@ function MainView:handle_delete()
             return vim.notify("Native servers cannot be deleted, only their configuration can be edited")
         end
         utils.confirm_and_delete_server(server_name)
+    elseif type == "workspace" and context then
+        self:handle_workspace_kill(context)
     end
 end
 
@@ -297,6 +458,23 @@ function MainView:handle_action(line_override, context_override)
         self:handle_custom_instructions(context)
     elseif type == "add_server" then
         self:add_server()
+    elseif type == "workspace" and context then
+        -- Toggle expand/collapse for workspace
+        if self.expanded_workspace == context.port then
+            self.expanded_workspace = nil -- collapse
+            self:draw()
+        else
+            self.expanded_workspace = context.port -- expand
+            self:draw()
+
+            -- Find workspace line in new view and position cursor
+            for _, tracked in ipairs(self.interactive_lines) do
+                if tracked.type == "workspace" and tracked.context.port == context.port then
+                    vim.api.nvim_win_set_cursor(0, { tracked.line, 3 })
+                    break
+                end
+            end
+        end
     end
 end
 
@@ -428,6 +606,12 @@ function MainView:setup_active_mode()
                     self:show_prompts_view()
                 end,
                 desc = "Preview",
+            },
+            ["gc"] = {
+                action = function()
+                    self:handle_workspace_change_directory()
+                end,
+                desc = "Change Directory",
             },
         }
     end
@@ -764,11 +948,16 @@ function MainView:render_servers(line_offset)
     local is_auto_approve_enabled = vim.g.mcphub_auto_approve == true
     local right_section = NuiLine()
         :append(Text.icons.auto, is_auto_approve_enabled and Text.highlights.success or Text.highlights.muted)
-        :append(" Auto Approve: ", Text.highlights.muted)
+        :append(" AutoApprove: ", Text.highlights.muted)
         :append(
             is_auto_approve_enabled and "ON" or "OFF",
             is_auto_approve_enabled and Text.highlights.success or Text.highlights.muted
         )
+    right_section
+        :append(" | ", Text.highlights.muted)
+        :append(Text.icons.tower, Text.highlights.success)
+        :append(" Port: ", Text.highlights.success)
+        :append(tostring(State.current_hub.port or "N/A"), Text.highlights.success)
 
     -- Calculate padding needed between sections
     local total_content_width = left_section:width() + right_section:width()
@@ -788,21 +977,21 @@ function MainView:render_servers(line_offset)
 
     current_line = renderer.render_servers_grouped(State.server_state.servers, lines, current_line, self)
 
-    -- Add server creation options
-    table.insert(
-        lines,
-        Text.pad_line(
-            NuiLine()
-                :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
-                :append("Add Server (A)", Text.highlights.muted)
-        )
-    )
-    -- Track line for interaction
-    self:track_line(current_line + 1, "add_server", {
-        name = "Add Server",
-        hint = "[<l> Open Editor]",
-    })
-    current_line = current_line + 1
+    -- -- Add server creation options
+    -- table.insert(
+    --     lines,
+    --     Text.pad_line(
+    --         NuiLine()
+    --             :append(" " .. Text.icons.plus .. " ", Text.highlights.muted)
+    --             :append("Add Server (A)", Text.highlights.muted)
+    --     )
+    -- )
+    -- -- Track line for interaction
+    -- self:track_line(current_line + 1, "add_server", {
+    --     name = "Add Server",
+    --     hint = "[<l> Open Editor]",
+    -- })
+    -- current_line = current_line + 1
 
     -- Add spacing between sections
     table.insert(lines, Text.empty_line())
@@ -922,17 +1111,21 @@ function MainView:render()
 
     -- Servers section
     vim.list_extend(lines, self:render_servers(#lines))
-    -- Recent errors section (show compact view without details)
-    -- table.insert(lines, Text.empty_line())
-    -- table.insert(lines, Text.empty_line())
-    -- table.insert(lines, Text.pad_line(NuiLine():append(Text.icons.bug .. " Recent Issues", Text.highlights.title)))
-    -- local errors = renderer.render_hub_errors(nil, false)
-    -- if #errors > 0 then
-    --     vim.list_extend(lines, errors)
-    -- else
-    --     table.insert(lines, Text.pad_line(NuiLine():append("No recent issues", Text.highlights.muted)))
-    -- end
+
+    -- Add spacing before workspaces section
+    table.insert(lines, Text.empty_line())
+    table.insert(lines, Text.empty_line())
+
+    -- Workspaces section
+    vim.list_extend(lines, self:render_workspaces(#lines))
+
     return lines
 end
 
+--- Render workspaces section using renderer
+---@param line_offset number Current line number
+---@return NuiLine[] Lines for workspaces section
+function MainView:render_workspaces(line_offset)
+    return renderer.render_workspaces_section(line_offset, self)
+end
 return MainView

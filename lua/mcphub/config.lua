@@ -1,11 +1,13 @@
 local M = {}
 
-local SHUTDOWN_DELAY = 60 * 1000 -- 1 minute
+local SHUTDOWN_DELAY = 5 * 60 * 1000 -- 5 minutes
 
 ---@class MCPHub.WorkspaceConfig
 ---@field enabled boolean Master switch for workspace-specific hubs
 ---@field look_for string[] Files to search for (in order)
 ---@field port_range { min: number, max: number } Port range for workspace hubs
+---@field reload_on_dir_changed boolean Whether to listen to DirChanged events to reload workspace config
+---@field get_port fun(): number | nil Function that determines that returns the port
 
 ---@class MCPHub.Config
 local defaults = {
@@ -83,9 +85,13 @@ local defaults = {
     },
     ---@type MCPHub.WorkspaceConfig
     workspace = {
-        enabled = true, -- Master switch for workspace-specific hubs
-        look_for = { ".vscode/mcp.json", ".cursor/mcp.json", "mcp.json", ".mcphub/servers.json" }, -- Files to search for (in order)
+        enabled = true, -- Enables workspace-specific hubs
+        look_for = { ".vscode/mcp.json", ".cursor/mcp.json", ".mcphub/servers.json" }, -- Files to search for (in order)
+        reload_on_dir_changed = true, -- Whether to listen to DirChanged events to reload workspace config
         port_range = { min = 40000, max = 41000 }, -- Port range for workspace hubs
+        -- function that determines that returns the port
+        --- @type fun(): number | nil
+        get_port = nil,
     },
     on_ready = function() end,
     ---@param msg string

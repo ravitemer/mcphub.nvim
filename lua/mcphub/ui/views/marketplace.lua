@@ -443,7 +443,8 @@ function MarketplaceView:handle_installation_selection(context)
         ask_for_source = true,
         virtual_lines = {
             {
-                Text.icons.hint .. " ${VARIABLES} will be resolved from environment if not replaced",
+                Text.icons.hint
+                    .. " ${VARIABLES} will be resolved from config.global_env or environment if not replaced",
                 Text.highlights.muted,
             },
             { Text.icons.hint .. " ${cmd: echo 'secret'} will run command and replace ${}", Text.highlights.muted },

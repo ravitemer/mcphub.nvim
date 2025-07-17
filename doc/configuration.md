@@ -18,7 +18,7 @@ All options are optional with sensible defaults. See below for each option in de
             --- `mcp-hub` binary related options-------------------
             config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Absolute path to MCP Servers config file (will create if not exists)
             port = 37373, -- The port `mcp-hub` server listens to
-            shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
+            shutdown_delay = 5 * 60 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 5 minutes)
             use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
             mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
 
@@ -122,7 +122,7 @@ By default, we send curl requests to `http://localhost:37373/` to manage MCP ser
 
 ### shutdown_delay
 
-Default: `600000` (10 minutes)
+Default: `5 * 60 * 000` (5 minutes)
 
 Time in milliseconds to wait before shutting down the `mcp-hub` server when the last Neovim instance closes. The `mcp-hub` server stays up for 10 minutes after exiting neovim. On entering, MCPHub.nvim checks for the running server and connects to it. This makes the MCP servers readily available. You can set it to a longer time to keep `mcp-hub` running. 
 

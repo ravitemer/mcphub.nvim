@@ -166,7 +166,7 @@ function M.setup(opts)
     })
 
     -- Handle directory changes for workspace-aware mode
-    if config.workspace.enabled then
+    if config.workspace.enabled and config.workspace.reload_on_dir_changed then
         vim.api.nvim_create_autocmd("DirChanged", {
             group = group,
             callback = vim.schedule_wrap(function()

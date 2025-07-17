@@ -103,3 +103,17 @@
 ---@field config_files string[] -- List of configuration files used to start the Hub including the project config and global
 ---@field is_workspace_mode boolean -- Whether the job is running in workspace mode
 ---@field workspace_root string? -- Root directory of the workspace if in workspace mode
+
+---@class MCPHub.Workspaces
+---@field current string? -- Name of the current workspace
+---@field allActive table<string, MCPHub.WorkspaceDetails>? -- Map of workspace names to their details
+
+---@class MCPHub.WorkspaceDetails
+---@field pid number -- Process ID of the mcp-hub server
+---@field port number -- Port the mcp-hub server is running on
+---@field config_files string[] -- List of configuration files used to start the Hub including the project config and global
+---@field startTime string -- ISO 8601 formatted start time of the workspace
+---@field cwd string -- Current working directory of the mcp-hub
+---@field shutdownDelay number? -- Optional delay before the workspace is shut down after inactivity
+---@field state "active" | "shutting_down" -- Current state of the workspace
+---@field activeConnections number -- Number of active connections to the workspace
