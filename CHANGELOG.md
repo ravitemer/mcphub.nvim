@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0] - 2025-07-18
+
+### Added
+
+- ** Workspace-Aware MCP Hub**: project-local configuration support (#148, #183, #196, #200)
+  - **Smart Project Detection**: Automatically detects project boundaries using `.mcphub/servers.json`, `.vscode/mcp.json`, `.cursor/mcp.json`
+  - **Isolated Hub Instances**: Each workspace gets its own mcp-hub process with unique ports (40000-41000 range)
+  - **Configuration Merging**: Project configs automatically override global settings while preserving global servers
+  - **Automatic Switching**: Seamlessly switches between workspace hubs on directory changes (`DirChanged` events)
+  - **Dynamic Port Allocation**: Hash-based port generation with conflict resolution and custom port assignment support
+
+- ** Global Environment Variables**: Universal environment injection for all MCP servers (#183)
+  - **Flexible Configuration**: Support for both table and function-based global_env configuration
+  - **Context-Aware Variables**: Function receives workspace context (port, config files, workspace mode) 
+  - **Mixed Format Support**: Array-style (`"VAR"`) and hash-style (`KEY = "value"`) entries
+  - **Automatic Resolution**: Environment variables resolved when hub starts with project context
+
+- **🎨 Enhanced UI Experience**: Complete workspace management interface
+  - **Active Hubs Section**: View and manage all running workspace hub instances
+  - **Grouped Server Display**: Servers organized by config source (Global vs Project) with visual indicators
+  - **Multi-Config Editor**: Tab-based interface for editing different config files (global and project)
+  - **Workspace Actions**: Expand/collapse details, kill processes, change directories, view configuration files
+
+### Enhanced
+
+- **Directory Change Handling**: Proper hub switching when changing directories in Neovim
+- **Config File Watching**: Enhanced file watching to handle multiple configuration sources
+- Some common expected keymaps like `<Cr>`, `o` and `<Esc>` work along with the `l` and `k` keys
+
+### Fixed
+
+- **Multi-Project Isolation**: Solves the fundamental issue of MCP servers working in wrong project directories
+- **Environment Variable Access**: Addresses user session variables (like `DBUS_SESSION_BUS_ADDRESS`) not being available to MCP servers
+
+### Migration Guide
+
+Existing configurations work without changes. To enable workspace features:
+
+```lua
+require("mcphub").setup({
+  workspace = {
+    enabled = true, -- Default: true
+    look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" },
+    reload_on_dir_changed = true,
+    port_range = { min = 40000, max = 41000 },
+    get_port = nil, -- Optional custom port function
+  },
+  global_env = {
+    "DBUS_SESSION_BUS_ADDRESS", -- Array-style: uses os.getenv()
+    API_KEY = os.getenv("API_KEY"), -- Hash-style: explicit value
+  }
+})
+```
+
 
 ## [5.13.0] - 2025-07-14
 

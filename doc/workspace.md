@@ -1,6 +1,10 @@
-# Workspace Management
+# Workspaces
 
 MCP Hub supports project-local configuration files that enable isolated MCP server setups per project. This solves the key problem of needing different server configurations for different projects.
+
+<p>
+<video muted controls src="https://github.com/user-attachments/assets/dd83f591-ffb2-43ad-8ef6-16de34c54997"></video>
+</p>
 
 ## Why Workspaces?
 
