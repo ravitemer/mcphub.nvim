@@ -30,7 +30,39 @@ require("avante").setup({
 
 ## Configure Avante Integration
 
-By default, MCP server prompts will be available as `/mcp:server_name:prompt_name` in avante chat.
+By default, MCP server prompts will be available as `/mcp:server_name:prompt_name` in avante chat. If you are using `blink.cmp` then you also need to configure [`Kaiser-Yang/blink-cmp-avante`](https://github.com/Kaiser-Yang/blink-cmp-avante)
+
+<details>
+<summary> Example blink.cmp configuration </summary>
+
+```lua
+return {
+  "saghen/blink.cmp",
+  dependencies = {
+    "Kaiser-Yang/blink-cmp-avante",
+  },
+  ---@module 'blink.cmp'
+  ---@type blink.cmp.Config
+  opts = {
+    sources = {
+      default = { "lsp", "avante", "path", "snippets", "buffer" },
+      providers = {
+        avante = {
+          module = "blink-cmp-avante",
+          name = "Avante",
+          opts = {
+            -- options for blink-cmp-avante
+          },
+        },
+      },
+    },
+  }
+}
+```
+
+</details>
+
+
 
 ```lua
 require("mcphub").setup({
