@@ -97,7 +97,7 @@ function MCPHub:_resolve_workspace_context()
     local project_config = workspace_info.config_file
     local config_files = { global_config, project_config }
 
-    -- Check for existing hub
+    -- Check for existing hub using root and config_file because using hashed port might not be reliable when we found next available port if a port is occupied
     local existing_hub = workspace_utils.find_matching_workspace_hub(workspace_info.root_dir, config_files)
     if existing_hub then
         port = existing_hub.port
@@ -149,9 +149,11 @@ end
 --- @return MCPHub.JobContext Global context
 function MCPHub:_resolve_global_context()
     local cwd = vim.fn.getcwd()
-    local existing_hub = workspace_utils.get_workspace_hub_info(cwd)
+    local port = self.setup_opts.port
+    -- For global mode, port will always be the one provided in setup_opts, so we can get the existing hub using that
+    local existing_hub = workspace_utils.get_workspace_hub_info(port)
     return {
-        port = self.setup_opts.port,
+        port = port,
         cwd = cwd,
         config_files = { self.config },
         is_workspace_mode = false,
@@ -347,11 +349,17 @@ function MCPHub:start()
                 self:handle_same_port_different_config(context)
                 return
             end
+            if not context.existing_hub then
+                log.debug(
+                    "Port available but no existing hub info, might be due to changed config files, starting new server"
+                )
+                self:handle_same_port_different_config(context)
+                return
+            end
 
             -- Check config compatibility using cached hub info
             if context.existing_hub and context.existing_hub.config_files then
                 local config_matches = vim.deep_equal(context.existing_hub.config_files, context.config_files)
-
                 if config_matches then
                     log.debug("Config files match, connecting to existing server")
                     self:connect_sse()

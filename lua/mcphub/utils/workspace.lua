@@ -140,11 +140,12 @@ function M.is_process_running(pid)
 end
 
 ---Get active hub info for a workspace
----@param workspace_path string Absolute workspace root path
+---@param port string current port of the hub
 ---@return table|nil {port, pid, startTime, config_files} or nil if no active hub
-function M.get_workspace_hub_info(workspace_path)
+function M.get_workspace_hub_info(port)
+    port = tostring(port) -- Ensure port is a string
     local cache = M.read_workspace_cache()
-    local entry = cache[workspace_path]
+    local entry = cache[port]
 
     if not entry then
         return nil
@@ -155,12 +156,7 @@ function M.get_workspace_hub_info(workspace_path)
         return nil
     end
 
-    return {
-        port = entry.port,
-        pid = entry.pid,
-        startTime = entry.startTime,
-        config_files = entry.config_files or {}, -- Include config files if available
-    }
+    return entry
 end
 
 -- Enhanced function to find matching hub by workspace + config

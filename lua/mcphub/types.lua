@@ -103,6 +103,7 @@
 ---@field config_files string[] -- List of configuration files used to start the Hub including the project config and global
 ---@field is_workspace_mode boolean -- Whether the job is running in workspace mode
 ---@field workspace_root string? -- Root directory of the workspace if in workspace mode
+---@field existing_hub MCPHub.WorkspaceDetails? -- Details of an existing hub if applicable
 
 ---@class MCPHub.Workspaces
 ---@field current string? -- Name of the current workspace
