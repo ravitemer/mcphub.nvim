@@ -93,8 +93,30 @@ end
 ---Get the path to the global workspace cache file
 ---@return string Absolute path to workspace cache file
 function M.get_workspace_cache_path()
-    -- Use XDG-compliant state directory
-    local state_home = os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")
+    -- Get home directory using Neovim's cross-platform approach
+    local home = vim.fn.expand("~")
+
+    if not home or home == "~" then
+        -- Fallback to environment variables if expand fails
+        home = os.getenv("HOME")
+            or os.getenv("USERPROFILE")
+            or (os.getenv("HOMEDRIVE") and os.getenv("HOMEPATH") and (os.getenv("HOMEDRIVE") .. os.getenv("HOMEPATH")))
+    end
+
+    if not home then
+        error("Unable to determine user home directory")
+    end
+
+    -- Check for legacy path first (same logic as backend)
+    local legacy_path = vim.fs.joinpath(home, ".mcp-hub", "workspaces.json")
+
+    -- Use legacy path if it exists (matching backend behavior)
+    if vim.fn.filereadable(legacy_path) == 1 then
+        return legacy_path
+    end
+
+    -- Otherwise use XDG-compliant path
+    local state_home = os.getenv("XDG_STATE_HOME") or vim.fs.joinpath(home, ".local", "state")
     local cache_dir = vim.fs.joinpath(state_home, "mcp-hub")
     return vim.fs.joinpath(cache_dir, "workspaces.json")
 end
