@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 14
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 18
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -64,8 +64,11 @@ additional benefits. It looks something like:
             "mcp-server-fetch"
           ]
         },
-        "remote-server": {
-          "url": "https://api.example.com/mcp"
+        "github": {
+          "url": "https://api.githubcopilot.com/mcp/",
+          "headers": {
+            "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+          }
         }
       }
     }
@@ -128,6 +131,20 @@ MCPHub includes two native servers that run directly within Neovim:
 
 These servers provide essential functionality without external dependencies and
 offer deep Neovim integration.
+
+
+WORKSPACE-AWARE CONFIGURATION ~
+
+MCP Hub automatically detects project-local configuration files
+(`.mcphub/servers.json`, `.vscode/mcp.json`, `.cursor/mcp.json`) and creates
+isolated hub instances for each workspace. This enables:
+
+- **Project-specific servers**: `mcp-server-filesystem` with project paths, `mcp-language-server` with project-specific LSP configurations
+- **Isolated environments**: Each project gets its own hub instance and server processes
+- **Configuration merging**: Project configs override global settings while preserving global servers
+
+Users can view all active workspace hubs and switch between them seamlessly
+through the UI.
 
 
 CHAT INTEGRATIONS ~
@@ -213,6 +230,12 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                                                                variables and
                                                                command execution
                                                                across all fields
+
+  Workspace Management                                         
+
+                       Project-Local        ✅                 Automatic detection
+                       Configs                                 and merging with
+                                                               global config
 
   Advanced                                                     
 
@@ -422,9 +445,17 @@ detail.
                 --- `mcp-hub` binary related options-------------------
                 config = vim.fn.expand("~/.config/mcphub/servers.json"), -- Absolute path to MCP Servers config file (will create if not exists)
                 port = 37373, -- The port `mcp-hub` server listens to
-                shutdown_delay = 60 * 10 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 10 minutes)
+                shutdown_delay = 5 * 60 * 000, -- Delay in ms before shutting down the server when last instance closes (default: 5 minutes)
                 use_bundled_binary = false, -- Use local `mcp-hub` binary (set this to true when using build = "bundled_build.lua")
                 mcp_request_timeout = 60000, --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
+                global_env = {}, -- Global environment variables available to all MCP servers (can be a table or a function returning a table)
+                workspace = {
+                    enabled = true, -- Enable project-local configuration files
+                    look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries
+                    reload_on_dir_changed = true, -- Automatically switch hubs on DirChanged event
+                    port_range = { min = 40000, max = 41000 }, -- Port range for generating unique workspace ports
+                    get_port = nil, -- Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
+                },
     
                 ---Chat-plugin related options-----------------
                 auto_approve = false, -- Auto approve mcp tool calls
@@ -485,6 +516,10 @@ detail.
                     file_path = nil,
                     prefix = "MCPHub",
                 },
+    
+                -- Global environment variables available to all MCP servers
+                -- Can be a table or a function(context) -> table
+                global_env = {},
             })
         end
     }
@@ -537,7 +572,7 @@ to the server URL e.g `http://mydomain.com:customport` or
 
 SHUTDOWN_DELAY ~
 
-Default: `600000` (10 minutes)
+Default: `5 * 60 * 000` (5 minutes)
 
 Time in milliseconds to wait before shutting down the `mcp-hub` server when the
 last Neovim instance closes. The `mcp-hub` server stays up for 10 minutes after
@@ -585,6 +620,105 @@ below:
 See Contributing
 <https://github.com/ravitemer/mcphub.nvim/blob/main/CONTRIBUTING.md> guide for
 detailed development setup.
+
+
+GLOBAL_ENV ~
+
+Default: `{}`
+
+The `global_env` option lets you inject environment variables into all MCP
+servers started by MCPHub. This is useful for secrets, tokens, or session
+variables (like `DBUS_SESSION_BUS_ADDRESS`) that should be available to every
+server process.
+
+You can use either a table or a function that returns a table. The function
+receives the job context (workspace info, port, config files, etc).
+
+
+TABLE EXAMPLE
+
+>lua
+    require("mcphub").setup({
+        global_env = {
+            -- Array-style: uses os.getenv("VAR")
+            "DBUS_SESSION_BUS_ADDRESS",
+            -- Hash-style: explicit value
+            PROJECT_ROOT = vim.fn.getcwd(),
+            CUSTOM_VAR = "custom_value",
+        }
+    })
+<
+
+
+FUNCTION EXAMPLE
+
+>lua
+    require("mcphub").setup({
+        global_env = function(context)
+            local env = {
+                "DBUS_SESSION_BUS_ADDRESS",
+            }
+            -- Add context-aware variables
+            if context.is_workspace_mode then
+                env.WORKSPACE_ROOT = context.workspace_root
+                env.WORKSPACE_PORT = tostring(context.port)
+            end
+            env.CONFIG_FILES = table.concat(context.config_files, ":")
+            return env
+        end
+    })
+<
+
+**Notes:** - Array-style entries (`"VAR"`) will use the value from
+`os.getenv("VAR")`. - Hash-style entries (`KEY = "value"`) use the explicit
+value. - The function receives a context table with fields like `port`, `cwd`,
+`config_files`, `is_workspace_mode`, and `workspace_root`.
+
+
+WORKSPACE ~
+
+Default:
+
+>lua
+    {
+        workspace = {
+            enabled = true,
+            look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" },
+            reload_on_dir_changed = true,
+            port_range = { min = 40000, max = 41000 },
+            get_port = nil,
+        }
+    }
+<
+
+Enables project-local configuration files. When enabled, MCP Hub automatically
+detects project boundaries and creates isolated hub instances with merged
+configurations (project overrides global).
+
+- **enabled**: Master switch for workspace functionality
+- **look_for**: Files to search for when detecting project boundaries
+- **reload_on_dir_changed**: Auto-switch hubs on directory change
+- **port_range**: Port range for generating unique workspace ports
+- **get_port**: Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
+
+
+CUSTOM PORT EXAMPLE
+
+>lua
+    require("mcphub").setup({
+        workspace = {
+            get_port = function()
+                local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+                if project_name == "critical-project" then
+                    return 45000 -- Use fixed port for specific project
+                end
+                return nil -- Use default hash-based port generation
+            end
+        }
+    })
+<
+
+See Workspace Guide </workspace> for detailed usage examples.
 
 
 CHAT-PLUGIN RELATED OPTIONS*mcphub.nvim-configuration-chat-plugin-related-options*
@@ -739,8 +873,8 @@ Default:
 <
 
 Configuration options for MCPHub’s builtin tools like `edit_file` tool. View
-complete Builtin Tools Documentation </mcp/builtin/> for all available tools
-and their configuration options.
+complete Builtin Tools Documentation </mcp/builtin/neovim> for all available
+tools and their configuration options.
 
 
 UI ~
@@ -827,6 +961,9 @@ default and supports real-time updates across all Neovim instances. You can set
   With MCPHub.nvim, `config` file can be safely added to source control as it
   supports **universal ${} placeholder syntax** for environment variables and
   command execution across all configuration fields.
+
+  [!TIP] Use the `global_env` option to inject environment variables into all MCP
+  servers, instead of duplicating them in every server’s `env` field.
 
 MANAGE SERVERS ~
 
@@ -2599,7 +2736,36 @@ ADD TOOLS TO AVANTE ~
 CONFIGURE AVANTE INTEGRATION ~
 
 By default, MCP server prompts will be available as
-`/mcp:server_name:prompt_name` in avante chat.
+`/mcp:server_name:prompt_name` in avante chat. If you are using `blink.cmp`
+then you also need to configure `Kaiser-Yang/blink-cmp-avante`
+<https://github.com/Kaiser-Yang/blink-cmp-avante>
+
+Example blink.cmp configuration ~
+
+>lua
+    return {
+      "saghen/blink.cmp",
+      dependencies = {
+        "Kaiser-Yang/blink-cmp-avante",
+      },
+      ---@module 'blink.cmp'
+      ---@type blink.cmp.Config
+      opts = {
+        sources = {
+          default = { "lsp", "avante", "path", "snippets", "buffer" },
+          providers = {
+            avante = {
+              module = "blink-cmp-avante",
+              name = "Avante",
+              opts = {
+                -- options for blink-cmp-avante
+              },
+            },
+          },
+        },
+      }
+    }
+<
 
 >lua
     require("mcphub").setup({
@@ -2835,9 +3001,9 @@ Server groups are automatically created based on your connected MCP servers
 when enabled via `make_tools`. Check your MCP Hub UI to see which servers you
 have connected.
 
-MCPHub includes powerful builtin servers </mcp/builtin/> like `@neovim` (file
-operations, terminal, LSP) and `@mcphub` (server management) that are always
-available.
+MCPHub includes powerful builtin servers </mcp/builtin/neovim> like `@neovim`
+(file operations, terminal, LSP) and `@mcphub` (server management) that are
+always available.
 
 
 3. INDIVIDUAL TOOLS (WHEN MAKE_TOOLS = TRUE)
@@ -3290,7 +3456,7 @@ doc/other/architecture.md doc/other/troubleshooting.md
 ==============================================================================
 7. Links                                                   *mcphub.nvim-links*
 
-1. *Image*: doc/https:/github.com/user-attachments/assets/21fe7703-9bc3-4c01-93ce-3230521bd5bf
+1. *Image*: doc/https:/github.com/user-attachments/assets/7c299fbd-4820-4065-8b07-50db66179d3d
 2. *Image*: doc/https:/github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467
 3. *Image*: doc/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
 4. *Image*: doc/mcp/https:/github.com/user-attachments/assets/f5c8adfa-601e-4d03-8745-75180a9d3648
