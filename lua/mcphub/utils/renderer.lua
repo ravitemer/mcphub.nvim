@@ -51,10 +51,7 @@ function M.render_servers_grouped(servers, lines, current_line, view)
         current_line = current_line + 1
         local line = NuiLine()
         local look_for = table.concat(State.config.workspace.look_for or {}, ", ")
-        line:append(
-            string.format("Could not find any local config files [%s] in the path", look_for),
-            Text.highlights.muted
-        )
+        line:append(string.format("%s not in path", look_for), Text.highlights.muted)
         table.insert(lines, Text.pad_line(line, nil, 4))
         current_line = current_line + 1
     end
