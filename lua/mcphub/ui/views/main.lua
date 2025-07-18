@@ -438,6 +438,17 @@ function MainView:setup_active_mode()
         end,
         desc = "Toggle AutoApprove",
     }
+
+    -- Add silent keymap aliases for common expand/action keys
+    if self.active_capability then
+        self:add_keymap_alias("<CR>", "l")
+        self:add_keymap_alias("<Esc>", "h")
+    else
+        -- In browse mode, add silent aliases for expand action
+        self:add_keymap_alias("<CR>", "l") -- Enter key as alias for expand
+        self:add_keymap_alias("o", "l") -- 'o' key as alias for expand
+    end
+
     self:apply_keymaps()
 end
 

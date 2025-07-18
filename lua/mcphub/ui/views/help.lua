@@ -36,6 +36,16 @@ function HelpView:cycle_tab()
     end
 end
 
+function HelpView:cycle_tab_reverse()
+    for i, tab in ipairs(self.tabs) do
+        if tab.id == self.active_tab then
+            -- Move to previous tab or wrap around to last
+            self.active_tab = (self.tabs[i - 1] or self.tabs[#self.tabs]).id
+            break
+        end
+    end
+end
+
 function HelpView:render_tabs()
     local tabs = vim.tbl_map(function(tab)
         return {
@@ -62,7 +72,14 @@ function HelpView:before_enter()
                 self:cycle_tab()
                 self:draw()
             end,
-            desc = "Switch tab",
+            desc = "Next tab",
+        },
+        ["<S-Tab>"] = {
+            action = function()
+                self:cycle_tab_reverse()
+                self:draw()
+            end,
+            desc = "Previous tab",
         },
     }
 end

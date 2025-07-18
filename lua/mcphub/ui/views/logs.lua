@@ -45,7 +45,15 @@ function LogsView:before_enter()
                 self.active_tab = self.active_tab == "logs" and "issues" or "logs"
                 self:draw()
             end,
-            desc = "Switch tab",
+            desc = "Next tab",
+        },
+        ["<S-Tab>"] = {
+            action = function()
+                -- Since we only have 2 tabs, reverse is the same as forward
+                self.active_tab = self.active_tab == "logs" and "issues" or "logs"
+                self:draw()
+            end,
+            desc = "Previous tab",
         },
         ["x"] = {
             action = function()

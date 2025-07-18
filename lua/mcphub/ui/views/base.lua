@@ -82,11 +82,27 @@ end
 ---@param key string Key to map
 ---@param action function Action to perform
 ---@param desc string Description for which-key
-function View:add_keymap(key, action, desc)
+---@param silent? boolean Whether to hide from footer (default: false)
+function View:add_keymap(key, action, desc, silent)
     self.keymaps[key] = {
         action = action,
         desc = desc,
+        silent = silent or false,
     }
+end
+
+--- Add a silent keymap alias that shares the same action as an existing keymap
+---@param alias_key string New key to map
+---@param existing_key string Existing key to copy action from
+function View:add_keymap_alias(alias_key, existing_key)
+    local existing = self.keymaps[existing_key]
+    if existing then
+        self.keymaps[alias_key] = {
+            action = existing.action,
+            desc = existing.desc,
+            silent = true,
+        }
+    end
 end
 
 --- Apply all registered keymaps
@@ -379,12 +395,14 @@ function View:render_footer()
     -- Get all keymaps
     local key_items = {}
 
-    -- Add view-specific keymaps first
+    -- Add view-specific keymaps first (only non-silent ones)
     for key, map in pairs(self.keymaps or {}) do
-        table.insert(key_items, {
-            key = key,
-            desc = map.desc,
-        })
+        if not map.silent then
+            table.insert(key_items, {
+                key = key,
+                desc = map.desc,
+            })
+        end
     end
 
     table.insert(key_items, {

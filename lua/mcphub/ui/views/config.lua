@@ -67,13 +67,13 @@ function ConfigView:before_enter()
             end,
             desc = "Next tab",
         }
-        -- self.keymaps["<S-Tab>"] = {
-        --     action = function()
-        --         self.current_tab_index = ((self.current_tab_index - 2) % #self.config_files) + 1
-        --         self:draw()
-        --     end,
-        --     desc = "Previous tab",
-        -- }
+        self.keymaps["<S-Tab>"] = {
+            action = function()
+                self.current_tab_index = ((self.current_tab_index - 2) % #self.config_files) + 1
+                self:draw()
+            end,
+            desc = "Previous tab",
+        }
     end
 end
 

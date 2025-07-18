@@ -3,12 +3,17 @@
 > [!IMPORTANT]
 > Join our [discord](https://discord.gg/NTqfxXsNuN) channel for quick help.
 
+
+## Quick Fix
+
+Try restarting MCPHub by pressing `R` key in the `:MCPHub` interface. This resolves most common issues. 
+
+
 ## Checkhealth
 
 Run `:checkhealth mcphub` in Neovim to check for common issues
 
 ![Image](https://github.com/user-attachments/assets/5588b76e-53e3-49d6-8ae5-9a5d3ed2c7fb)
-
 
 ## Environment Requirements
 

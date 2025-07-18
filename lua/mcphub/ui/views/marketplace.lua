@@ -410,6 +410,16 @@ function MarketplaceView:setup_active_mode()
             },
         }
     end
+
+    -- Add silent keymap aliases for common navigation keys
+    if self.active_mode == "browse" then
+        -- In browse mode, add silent alias for viewing details
+        self:add_keymap_alias("o", "l") -- 'o' as alias for view details
+    elseif self.active_mode == "details" then
+        -- In details mode, add silent aliases for method cycling
+        self:add_keymap_alias("<Tab>", "l") -- Tab as alias for next method
+        self:add_keymap_alias("<S-Tab>", "h") -- Shift+Tab as alias for previous method
+    end
     self:apply_keymaps()
 end
 
