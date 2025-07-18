@@ -4,7 +4,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "${PWD}"
+        "${CWD}"
       ],
       "command": "npx"
     },
@@ -21,7 +21,7 @@
     "lsp": {
       "args": [
         "--workspace",
-        "${PWD}",
+        "${CWD}",
         "--lsp",
         "lua-language-server",
         "--",

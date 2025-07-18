@@ -77,10 +77,10 @@ end
 --- Resolve workspace-specific context
 --- @return MCPHub.JobContext|nil Workspace context or nil to fall back to global
 function MCPHub:_resolve_workspace_context()
-    local current_dir = vim.fn.getcwd()
+    local cwd = vim.fn.getcwd()
 
     -- Find workspace config
-    local workspace_info = workspace_utils.find_workspace_config(State.config.workspace.look_for, current_dir)
+    local workspace_info = workspace_utils.find_workspace_config(State.config.workspace.look_for, cwd)
 
     if not workspace_info then
         -- No workspace config found, fall back to global mode
@@ -137,10 +137,10 @@ function MCPHub:_resolve_workspace_context()
 
     return {
         port = port,
-        cwd = workspace_info.root_dir,
+        cwd = workspace_info.root_dir or cwd,
         config_files = config_files,
         is_workspace_mode = true,
-        workspace_root = workspace_info.root_dir,
+        workspace_root = workspace_info.root_dir or cwd,
         existing_hub = existing_hub, -- Include hub info from cache
     }
 end
@@ -157,7 +157,7 @@ function MCPHub:_resolve_global_context()
         cwd = cwd,
         config_files = { self.config },
         is_workspace_mode = false,
-        workspace_root = nil,
+        workspace_root = cwd,
         existing_hub = existing_hub,
     }
 end
@@ -256,7 +256,7 @@ function MCPHub:_start_server_with_context(context)
             vim.notify("Failed to serialize global_env: " .. json_env, vim.log.levels.WARN)
         end
     end
-    job_env = vim.tbl_extend("force", vim.fn.environ(), job_env or {})
+    job_env = vim.tbl_extend("force", vim.fn.environ(), { CWD = context.cwd }, job_env or {})
 
     log.debug("Starting server with context" .. vim.inspect({
         port = context.port,

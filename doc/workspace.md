@@ -16,7 +16,7 @@ Consider these common scenarios:
   "mcpServers": {
     "filesystem": {
       "command": "uvx",
-      "args": ["mcp-server-filesystem", "${PWD}"]
+      "args": ["mcp-server-filesystem", "${CWD}"]
     }
   }
 }
@@ -29,7 +29,7 @@ Consider these common scenarios:
     "lsp": {
       "command": "mcp-language-server", 
       "args": [
-        "--workspace", "${PWD}",
+        "--workspace", "${CWD}",
         "--lsp", "typescript-language-server",
         "--", "--stdio"
       ]
@@ -39,6 +39,7 @@ Consider these common scenarios:
 ```
 
 Without workspaces, you'd need to manually edit the global config for every project. With workspaces, each project gets its own configuration automatically.
+
 
 ## How It Works
 
@@ -102,12 +103,12 @@ require("mcphub").setup({
   "mcpServers": {
     "filesystem": {
       "command": "uvx", 
-      "args": ["mcp-server-filesystem", "${PWD}"]
+      "args": ["mcp-server-filesystem", "${CWD}"]
     },
     "lsp": {
       "command": "mcp-language-server",
       "args": [
-        "--workspace", "${PWD}",
+        "--workspace", "${CWD}",
         "--lsp", "lua-language-server", 
         "--", "--stdio"
       ]
@@ -118,7 +119,7 @@ require("mcphub").setup({
 
 #### Environment Variables
 
-Variables like `${PWD}` are automatically available since the hub starts with the project directory as its working directory. Basic environment variables (`HOME`, `USER`, `TERM`, `SHELL`, etc.) are always available.
+`CWD` will be set to the working directory of the current running `mcp-hub`. Basic environment variables (`HOME`, `USER`, `TERM`, `SHELL`, etc.) are always available.
 
 Additional variables can be set via:
 1. **global_env** configuration in MCP Hub setup
@@ -126,10 +127,11 @@ Additional variables can be set via:
 
 ```lua
 require("mcphub").setup({
-  global_env = {
-    "CUSTOM_VAR", -- Uses $CUSTOM_VAR from the environment
-    "DBUS_SESSION_BUS_ADDRESS" = os.getenv("DBUS_SESSION_BUS_ADDRESS") -- Uses os.getenv 
-  }
+    global_env = function(context)
+        return {
+            DBUS_SESSION_BUS_ADDRESS = os.getenv("DBUS_SESSION_BUS_ADDRESS") or "",
+        }
+    end
 })
 ```
 
