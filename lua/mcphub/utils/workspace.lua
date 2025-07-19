@@ -194,7 +194,7 @@ function M.find_matching_workspace_hub(workspace_path, config_files)
                 -- Check if process is still running
                 if M.is_process_running(entry.pid) then
                     return {
-                        port = port_str,
+                        port = entry.port,
                         pid = entry.pid,
                         startTime = entry.startTime,
                         config_files = entry.config_files,

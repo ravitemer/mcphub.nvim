@@ -333,9 +333,9 @@ function MCPHub:start()
     self.port = context.port -- Update our port for this session
 
     -- Load config cache into state
-    local cache_loaded = config_manager.refresh_config()
+    local cache_loaded, refresh_err = config_manager.refresh_config()
     if not cache_loaded then
-        self:handle_hub_stopped("Failed to load MCP servers configuration")
+        self:handle_hub_stopped("Failed to load MCP servers configuration:" .. (refresh_err or ""))
         return
     end
     log.debug("Resolved hub context: " .. vim.inspect(context))
@@ -415,9 +415,9 @@ function MCPHub:handle_directory_change()
     local needs_switch = false
     local reason = ""
 
-    if new_context.port ~= current_context.port then
+    if tostring(new_context.port) ~= tostring(current_context.port) then
         needs_switch = true
-        reason = string.format("port change (%d -> %d)", current_context.port, new_context.port)
+        reason = string.format("port change (%s -> %s)", current_context.port, new_context.port)
     end
 
     if needs_switch then
@@ -449,6 +449,7 @@ function MCPHub:_clean_up()
     self.ready = false
     self.is_starting = false
     self.is_restarting = false
+    self:stop_sse()
     State:update_hub_state(constants.HubState.STOPPED)
     self:_update_global_state()
 end
@@ -1046,7 +1047,11 @@ end
 --- Refresh cache of config files
 ---@param paths string[]|nil
 function MCPHub:reload_config(paths)
-    config_manager.refresh_config(paths)
+    local success, err = config_manager.refresh_config(paths)
+    if not success then
+        self:handle_hub_stopped("Failed to reload MCP servers configuration: " .. (err or ""))
+        return
+    end
     -- toggling a native server in one neovim will trigger insignificant changes in other neovim instances, which should be handled by refreshing the native servers
     self:refresh_native_servers()
 end
@@ -1250,8 +1255,8 @@ function MCPHub:connect_sse()
         end),
         on_exit = vim.schedule_wrap(function(_, code)
             log.debug("SSE JOB exited with " .. tostring(code))
-            self:handle_hub_stopped("SSE connection failed with code " .. tostring(code), code)
             self.sse_job = nil
+            self:handle_hub_stopped("SSE connection failed with code " .. tostring(code), code)
         end),
     })
 

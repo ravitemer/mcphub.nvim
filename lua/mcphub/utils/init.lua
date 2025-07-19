@@ -773,4 +773,45 @@ function M._format_time_diff(diff)
     end
 end
 
+--- Decode a JSON string into a Lua table
+--- @param str string The JSON string to decode
+--- @param opts? {use_custom_parser: boolean} Optional options
+--- @return boolean The decoded Lua table, or nil if decoding fails
+--- @return table|nil
+function M.json_decode(str, opts)
+    opts = opts or {}
+    local ok, result
+
+    -- Try decoding using vim.json.decode for all
+    ok, result = pcall(vim.json.decode, str, { luanil = { object = true, array = true } })
+    if ok then
+        return ok, result
+    end
+    -- If decoding fails, check if we should use a custom parser
+    if not ok and opts.use_custom_parser then
+        -- Try custom parser first (lua-json5) e.g `require
+        if type(config.json_decode) == "function" then
+            ok, result = pcall(config.json_decode, str)
+            if ok then
+                return ok, result
+            end
+        end
+
+        -- INFO: We can bundle a lightweight JSON5 parser using Node.js or rust but it needs a breaking change wrt the build step. Without build step, including the bundled script which is bundled in development might not go well with the users security concerns. So we will not include it for now and let the user provide a custom parser if needed.
+        -- -- Fallback to bundled JSON5 parser
+        -- local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
+        -- local json5_script = plugin_root .. "/scripts/bundled_json5.js"
+        --
+        -- local json5_result = vim.fn.system({ "node", json5_script }, str)
+        --
+        -- if vim.v.shell_error == 0 and json5_result and vim.trim(json5_result) ~= "" then
+        --     -- Parse the clean JSON output from bundled JSON5 parser
+        --     ok, result = pcall(vim.json.decode, json5_result, { luanil = { object = true, array = true } })
+        --     if ok then
+        --         return ok, result
+        --     end
+        -- end
+    end
+    return false, result
+end
 return M

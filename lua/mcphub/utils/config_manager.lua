@@ -1,3 +1,4 @@
+local Error = require("mcphub.utils.errors")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
 local validation = require("mcphub.utils.validation")
@@ -26,25 +27,200 @@ local function find_server_by_name(server_name, from_non_native)
     return nil
 end
 
+--- Read and parse a config file
+--- @param file_path string Path to the config file
+--- @return table|nil config Parsed config or nil on error
+--- @return string|nil error Error message if parsing failed
+local function read_config_file(file_path)
+    -- Check if file exists, create with default content if not
+    local file = io.open(file_path, "r")
+    if not file then
+        -- Ensure parent directory exists
+        local dir_path = vim.fn.fnamemodify(file_path, ":h")
+        if vim.fn.isdirectory(dir_path) == 0 then
+            vim.fn.mkdir(dir_path, "p")
+        end
+
+        local create_file = io.open(file_path, "w")
+        if not create_file then
+            return nil, "Failed to create config file: " .. file_path
+        end
+
+        -- Write default config
+        local default_config = { mcpServers = vim.empty_dict() }
+        create_file:write(vim.json.encode(default_config))
+        create_file:close()
+
+        -- Reopen for reading
+        file = io.open(file_path, "r")
+        if not file then
+            return nil, "Failed to reopen created config file: " .. file_path
+        end
+    end
+
+    -- Read and parse JSON
+    local content = file:read("*a")
+    file:close()
+
+    local success, json = utils.json_decode(content, { use_custom_parser = true })
+    if not success then
+        local error_msg = [[Invalid JSON in config file: ]]
+            .. file_path
+            .. [[
+
+If your config file uses JSON5 syntax (comments, trailing commas), please:
+1. Install lua-json5: https://github.com/Joakker/lua-json5
+2. Add to your mcphub setup: json_decode = require('json5').parse
+
+Example:
+  require('mcphub').setup({
+    json_decode = require('json5').parse,
+    -- other config...
+  })
+
+Parse error: ]]
+            .. tostring(json)
+        return nil, error_msg
+    end
+
+    return json, nil
+end
+
+--- Detect original format and normalize config
+--- @param config table Raw config object
+--- @param file_path string File path for logging
+--- @return table normalized_config Config with mcpServers key
+--- @return string original_servers_key Original key used ("servers" or "mcpServers")
+--- @return string|nil error Error message if validation failed
+local function normalize_config_format(config, file_path)
+    -- Format detection
+    local has_servers = config.servers and type(config.servers) == "table"
+    local has_mcp_servers = config.mcpServers and type(config.mcpServers) == "table"
+    local original_servers_key = "mcpServers" -- default
+
+    if not has_servers and not has_mcp_servers then
+        return nil, nil, "Config file must contain either 'servers' or 'mcpServers' object: " .. file_path
+    end
+
+    local normalized = vim.deepcopy(config)
+
+    -- Determine original format and normalize
+    if has_servers and not has_mcp_servers then
+        -- Pure VS Code format
+        original_servers_key = "servers"
+        normalized.mcpServers = config.servers
+        log.debug("ConfigManager: VS Code format detected in " .. file_path)
+    elseif has_servers and has_mcp_servers then
+        -- Both exist, prefer servers (VS Code format takes precedence)
+        original_servers_key = "servers"
+        normalized.mcpServers = config.servers
+        log.debug("ConfigManager: Both 'servers' and 'mcpServers' found in " .. file_path .. ", using 'servers'")
+    end
+    return normalized, original_servers_key, nil
+end
+
+--- Validate all servers in a config
+--- @param config table Config with mcpServers
+--- @param file_path string File path for error reporting
+--- @return boolean success True if all servers are valid
+--- @return string|nil error Error message if validation failed
+local function validate_servers_in_config(config, file_path)
+    for server_name, server_config in pairs(config.mcpServers or {}) do
+        local validation_result = validation.validate_server_config(server_name, server_config)
+        if not validation_result.ok then
+            return false,
+                "Server validation failed for '"
+                    .. server_name
+                    .. "' in "
+                    .. file_path
+                    .. ": "
+                    .. validation_result.error.message
+        end
+    end
+    return true, nil
+end
+
+--- Write config back to file preserving original format
+--- @param config table Config to write
+--- @param file_path string Path to write to
+--- @param original_servers_key string Original key format ("servers" or "mcpServers")
+--- @return boolean success True if write succeeded
+--- @return string|nil error Error message if write failed
+local function write_config_file(config, file_path, original_servers_key)
+    local output_config = vim.deepcopy(config)
+
+    -- Convert back to original format if needed
+    if original_servers_key == "servers" and output_config.mcpServers then
+        output_config.servers = output_config.mcpServers
+        output_config.mcpServers = nil
+    end
+
+    local utils = require("mcphub.utils")
+    local json_str = utils.pretty_json(vim.json.encode(output_config), { use_jq = true })
+
+    local file = io.open(file_path, "w")
+    if not file then
+        return false, "Failed to open config file for writing: " .. file_path
+    end
+
+    file:write(json_str)
+    file:close()
+    return true, nil
+end
+
+--- Read, parse, normalize and validate a config file - returns table with all info
+--- @param file_path string Path to the config file
+--- @return table result {ok: boolean, json: table?, content: string?, original_key: string?, error: string?}
+local function validate_config_file(file_path)
+    -- Read raw config
+    local raw_config, read_error = read_config_file(file_path)
+    if not raw_config then
+        return {
+            ok = false,
+            error = read_error,
+        }
+    end
+
+    -- Normalize format and detect original key
+    local normalized_config, original_servers_key, normalize_error = normalize_config_format(raw_config, file_path)
+    if not normalized_config then
+        return {
+            ok = false,
+            error = normalize_error,
+        }
+    end
+
+    -- Validate all servers
+    local valid, validation_error = validate_servers_in_config(normalized_config, file_path)
+    if not valid then
+        return {
+            ok = false,
+            error = validation_error,
+        }
+    end
+
+    return {
+        ok = true,
+        json = normalized_config,
+        original_json = raw_config,
+        original_key = original_servers_key,
+    }
+end
+
 --- Load a single config file and cache it
 --- @param file_path string Path to the config file
 --- @return boolean success Whether the file was loaded successfully
+--- @return string|nil error Error message if loading failed
 function M.load_config(file_path)
-    log.stack("ConfigManager: load_config")
     if not file_path or file_path == "" then
         log.warn("ConfigManager: Empty file path provided")
-        return false
+        return false, "Empty file path provided"
     end
 
     local file_result = validation.validate_config_file(file_path)
     if not file_result.ok then
-        log.error(
-            "ConfigManager: Failed to load config file: "
-                .. file_path
-                .. " - "
-                .. (file_result.error and file_result.error.message or "Unknown error")
-        )
-        return false
+        log.error("ConfigManager: " .. file_result.error)
+        return false, file_result.error
     end
 
     -- Cache the config, ensuring empty objects stay as objects
@@ -57,8 +233,8 @@ function M.load_config(file_path)
         State:notify_subscribers({ config_files_cache = true }, "ui")
     end)
 
-    log.debug("ConfigManager: Loaded config file: " .. file_path)
-    return true
+    log.debug("ConfigManager: Loaded config file: " .. file_path .. " (format: " .. file_result.original_key .. ")")
+    return true, nil
 end
 
 --- Get the config source for a server
@@ -213,24 +389,25 @@ end
 --- Uses State.current_hub.config_files to know which files to reload
 --- @param paths string[]|nil Array of file paths to refresh, if nil uses current hub context
 --- @return boolean success Whether all files were refreshed successfully
+--- @return string|nil error Error message if any file failed to refresh
 function M.refresh_config(paths)
     if not paths and (not State.current_hub or not State.current_hub.config_files) then
         log.debug("ConfigManager: No current hub context for refresh")
-        return false
+        return false, "No current hub context for refresh"
     end
 
-    local success = true
     State.config_files_cache = {} -- Clear cache
     paths = paths or State.current_hub.config_files
 
     for _, file_path in ipairs(paths) do
-        if not M.load_config(file_path) then
-            success = false
+        local ok, error_msg = M.load_config(file_path)
+        if not ok then
+            return false, "Failed to load config file '" .. file_path .. "': " .. (error_msg or "unknown error")
         end
     end
 
     log.debug("ConfigManager: Refreshed " .. #paths .. " config files")
-    return success
+    return true, nil
 end
 
 --- Get all active config files from current hub context
@@ -263,14 +440,14 @@ end
 
 --- Get the full config file content as JSON string (for Config UI)
 --- @param file_path string Path to the config file
---- @return string|nil JSON content or nil if not found
+--- @return table|nil JSON content or nil if not found
+--- @return string|nil error Error message if loading failed
 function M.get_file_content_json(file_path)
     local file_result = validation.validate_config_file(file_path)
     if not file_result.ok then
-        return nil
+        return nil, file_result.error
     end
-
-    return file_result.content
+    return file_result.original_json, nil
 end
 
 --- Initialize config cache with current hub context

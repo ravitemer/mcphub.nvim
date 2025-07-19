@@ -132,10 +132,11 @@ function ConfigView:render()
 
     -- Get and validate current file content
     local ConfigManager = require("mcphub.utils.config_manager")
-    local file_content = ConfigManager.get_file_content_json(current_file)
+    local file_content, file_read_error = ConfigManager.get_file_content_json(current_file)
 
     if not file_content then
-        table.insert(lines, self:center(NuiLine():append("Failed to load configuration file", Text.highlights.error)))
+        -- table.insert(lines, self:center(NuiLine():append("Failed to load configuration file", Text.highlights.error)))
+        vim.list_extend(lines, vim.tbl_map(Text.pad_line, Text.multiline(file_read_error or "", Text.highlights.error)))
         table.insert(lines, Text.empty_line())
     else
         -- Show file content with JSON highlighting
