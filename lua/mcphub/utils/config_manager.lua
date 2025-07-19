@@ -217,13 +217,13 @@ function M.load_config(file_path)
         return false, "Empty file path provided"
     end
 
-    local file_result = validation.validate_config_file(file_path)
+    local file_result = validate_config_file(file_path)
     if not file_result.ok then
         log.error("ConfigManager: " .. file_result.error)
         return false, file_result.error
     end
 
-    -- Cache the config, ensuring empty objects stay as objects
+    -- Cache the normalized config, ensuring empty objects stay as objects
     State.config_files_cache = State.config_files_cache or {}
     State.config_files_cache[file_path] = {
         mcpServers = file_result.json.mcpServers or vim.empty_dict(),
@@ -339,13 +339,16 @@ function M.update_server_config(server, config, options)
     end
 
     -- Load current config file
-    local file_result = validation.validate_config_file(config_source)
+    local file_result = validate_config_file(config_source)
     if not file_result.ok then
-        log.error("ConfigManager: Failed to load config file for update: " .. config_source)
+        log.error(
+            "ConfigManager: Failed to load config file for update: " .. config_source .. " - " .. file_result.error
+        )
         return false
     end
 
-    local file_config = file_result.json or {}
+    local file_config = file_result.json
+    local original_servers_key = file_result.original_key
     local server_section = is_native and "nativeMCPServers" or "mcpServers"
 
     -- Ensure section exists
@@ -359,17 +362,12 @@ function M.update_server_config(server, config, options)
         file_config[server_section][server_name] = config
     end
 
-    -- Write back to file
-    local utils = require("mcphub.utils")
-    local json_str = utils.pretty_json(vim.json.encode(file_config), { use_jq = true })
-    local file = io.open(config_source, "w")
-    if not file then
-        log.error("ConfigManager: Failed to open config file for writing: " .. config_source)
+    -- Write back to file preserving original format
+    local write_success, write_error = write_config_file(file_config, config_source, original_servers_key)
+    if not write_success then
+        log.error("ConfigManager: " .. write_error)
         return false
     end
-
-    file:write(json_str)
-    file:close()
 
     -- Update cache
     State.config_files_cache = State.config_files_cache or {}
@@ -443,7 +441,7 @@ end
 --- @return table|nil JSON content or nil if not found
 --- @return string|nil error Error message if loading failed
 function M.get_file_content_json(file_path)
-    local file_result = validation.validate_config_file(file_path)
+    local file_result = validate_config_file(file_path)
     if not file_result.ok then
         return nil, file_result.error
     end
