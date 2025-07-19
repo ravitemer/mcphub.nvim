@@ -1,18 +1,82 @@
 # Lualine Integration
 
-MCP Hub provides a lualine component that can be used to show the status of the MCP Hub and the number of connected servers. Add the component to a lualine section to use it. The following example shows how to add the component to the `lualine_x` section:
+MCP Hub provides multiple ways to integrate with lualine, with the recommended approach using global variables for optimal lazy-loading support.
+
+## Recommended: Global Variables Approach
+
+Use MCPHub's global variables for a lightweight, lazy-load friendly component:
 
 ```lua
 require('lualine').setup {
     sections = {
         lualine_x = {
-            -- Other lualine components in "x" section
-            {require('mcphub.extensions.lualine')}, -- Uses defaults
+            {
+                function()
+                    -- Check if MCPHub is loaded
+                    if not vim.g.loaded_mcphub then
+                        return "󰐻 -"
+                    end
+                    
+                    local count = vim.g.mcphub_servers_count or 0
+                    local status = vim.g.mcphub_status or "stopped"
+                    local executing = vim.g.mcphub_executing
+                    
+                    -- Show "-" when stopped
+                    if status == "stopped" then
+                        return "󰐻 -"
+                    end
+                    
+                    -- Show spinner when executing, starting, or restarting
+                    if executing or status == "starting" or status == "restarting" then
+                        local frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+                        local frame = math.floor(vim.loop.now() / 100) % #frames + 1
+                        return "󰐻 " .. frames[frame]
+                    end
+                    
+                    return "󰐻 " .. count
+                end,
+                color = function()
+                    if not vim.g.loaded_mcphub then
+                        return { fg = "#6c7086" } -- Gray for not loaded
+                    end
+                    
+                    local status = vim.g.mcphub_status or "stopped"
+                    if status == "ready" or status == "restarted" then
+                        return { fg = "#50fa7b" } -- Green for connected
+                    elseif status == "starting" or status == "restarting" then  
+                        return { fg = "#ffb86c" } -- Orange for connecting
+                    else
+                        return { fg = "#ff5555" } -- Red for error/stopped
+                    end
+                end,
+            },
         },
     },
 }
 ```
 
+### Available Global Variables
+
+MCPHub automatically maintains these global variables:
+- `vim.g.loaded_mcphub` - Whether MCPHub plugin is loaded (set by plugin loader)
+- `vim.g.mcphub_status` - Current hub state ("starting", "ready", "stopped", etc.)
+- `vim.g.mcphub_servers_count` - Number of connected servers  
+- `vim.g.mcphub_executing` - Whether a tool/resource is currently executing
+
+
+## Legacy: Full Component (Loads MCPHub) - DEPRECATED
+
+**⚠️ DEPRECATED**: This approach will load MCPHub even with lazy loading enabled and shows a deprecation warning. Use the global variables approach above instead.
+
+```lua
+require('lualine').setup {
+    sections = {
+        lualine_x = {
+            {require('mcphub.extensions.lualine')}, -- Uses defaults
+        },
+    },
+}
+```
 
 #### When MCP Hub is connecting:
 
@@ -26,10 +90,7 @@ require('lualine').setup {
 
 ![image](https://github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f)
 
-
-## Usage
-
-#### Options
+### Legacy Component Options
 
 The lualine component accepts the standard lualine options and the following options:
 - `icon`: Icon to display. (default: `"󰐻"`)

@@ -8,6 +8,11 @@ local native = require("mcphub.native")
 local utils = require("mcphub.utils")
 local validation = require("mcphub.utils.validation")
 
+-- Initialize global variables for lualine integration
+vim.g.mcphub_status = "stopped"
+vim.g.mcphub_servers_count = 0
+vim.g.mcphub_executing = false
+
 ---@class MCPHub
 local M = {
     is_native_server = native.is_native_server,

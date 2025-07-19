@@ -44,7 +44,7 @@ MCPHub.__index = MCPHub
 --- @param opts table Configuration options
 --- @return MCPHub.Hub
 function MCPHub:new(opts)
-    return setmetatable({
+    local instance = setmetatable({
         port = opts.port,
         server_url = opts.server_url,
         config = opts.config,
@@ -62,6 +62,11 @@ function MCPHub:new(opts)
         on_error = opts.on_error or function() end,
         setup_opts = opts,
     }, MCPHub)
+
+    -- Setup global state tracking
+    instance:_setup_global_state_tracking()
+
+    return instance
 end
 
 --- Resolve context (workspace vs global) for the current directory
@@ -429,6 +434,7 @@ function MCPHub:handle_hub_ready()
     self.ready = true
     self.is_restarting = false
     self.is_starting = false
+    self:_update_global_state()
     self.on_ready(self)
     self:update_servers()
     if State.marketplace_state.status == "empty" then
@@ -442,6 +448,7 @@ function MCPHub:_clean_up()
     self.is_starting = false
     self.is_restarting = false
     State:update_hub_state(constants.HubState.STOPPED)
+    self:_update_global_state()
 end
 
 ---@param msg string
@@ -1066,6 +1073,9 @@ function MCPHub:refresh_native_servers()
 end
 
 function MCPHub:fire_servers_updated()
+    -- Update global state
+    self:_update_global_state()
+
     -- Triggers UI update
     State:notify_subscribers({
         server_state = true,
@@ -1636,6 +1646,34 @@ function MCPHub:get_marketplace_catalog(opts)
                     },
                 },
             }, "marketplace")
+        end,
+    })
+end
+
+--- Update global variables for lualine integration
+function MCPHub:_update_global_state()
+    vim.g.mcphub_status = State.server_state.state
+    vim.g.mcphub_servers_count = #self:get_servers()
+end
+
+--- Setup global variable tracking for tool/resource execution
+function MCPHub:_setup_global_state_tracking()
+    local group = vim.api.nvim_create_augroup("mcphub_global_state", { clear = true })
+
+    -- Track tool/resource/prompt execution
+    vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = { "MCPHubToolStart", "MCPHubResourceStart", "MCPHubPromptStart" },
+        callback = function()
+            vim.g.mcphub_executing = true
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = { "MCPHubToolEnd", "MCPHubResourceEnd", "MCPHubPromptEnd" },
+        callback = function()
+            vim.g.mcphub_executing = false
         end,
     })
 end

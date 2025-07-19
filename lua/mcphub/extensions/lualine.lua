@@ -1,6 +1,11 @@
 --[[
 --NOTE: Having cmd = "MCPHub" or lazy = true in user's lazy config, and adding lualine component using require("mcphub.extensions.lualine") will start the hub indirectly.
 --]]
+
+-- DEPRECATED: This lualine component will load MCPHub even with lazy loading.
+-- Use the global variables approach instead: vim.g.mcphub_status, vim.g.mcphub_servers_count, vim.g.mcphub_executing
+-- See documentation for recommended usage: doc/extensions/lualine.md
+
 local M = require("lualine.component"):extend()
 local utils = require("lualine.utils.utils")
 local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
@@ -31,6 +36,10 @@ M.HubState = {
 vim.g.mcphub_status = M.HubState.STARTING
 -- Initialize the component
 function M:init(options)
+    vim.notify_once(
+        "MCPHub lualine extension is deprecated. Use global variables instead for better lazy-loading. See :help mcphub-lualine",
+        vim.log.levels.WARN
+    )
     M.super.init(self, options)
     self:create_autocommands()
     self.options = vim.tbl_deep_extend("keep", self.options or {}, default_options)

@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 18
+*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 19
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -3372,16 +3372,84 @@ Resources from MCP servers will also be available as CopilotChat variables `#`.
 
 LUALINE INTEGRATION               *mcphub.nvim-extensions-lualine-integration*
 
-MCP Hub provides a lualine component that can be used to show the status of the
-MCP Hub and the number of connected servers. Add the component to a lualine
-section to use it. The following example shows how to add the component to the
-`lualine_x` section:
+MCP Hub provides multiple ways to integrate with lualine, with the recommended
+approach using global variables for optimal lazy-loading support.
+
+
+RECOMMENDED: GLOBAL VARIABLES APPROACH ~
+
+Use MCPHub’s global variables for a lightweight, lazy-load friendly
+component:
 
 >lua
     require('lualine').setup {
         sections = {
             lualine_x = {
-                -- Other lualine components in "x" section
+                {
+                    function()
+                        -- Check if MCPHub is loaded
+                        if not vim.g.loaded_mcphub then
+                            return "󰐻 -"
+                        end
+                        
+                        local count = vim.g.mcphub_servers_count or 0
+                        local status = vim.g.mcphub_status or "stopped"
+                        local executing = vim.g.mcphub_executing
+                        
+                        -- Show "-" when stopped
+                        if status == "stopped" then
+                            return "󰐻 -"
+                        end
+                        
+                        -- Show spinner when executing, starting, or restarting
+                        if executing or status == "starting" or status == "restarting" then
+                            local frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+                            local frame = math.floor(vim.loop.now() / 100) % #frames + 1
+                            return "󰐻 " .. frames[frame]
+                        end
+                        
+                        return "󰐻 " .. count
+                    end,
+                    color = function()
+                        if not vim.g.loaded_mcphub then
+                            return { fg = "#6c7086" } -- Gray for not loaded
+                        end
+                        
+                        local status = vim.g.mcphub_status or "stopped"
+                        if status == "ready" or status == "restarted" then
+                            return { fg = "#50fa7b" } -- Green for connected
+                        elseif status == "starting" or status == "restarting" then  
+                            return { fg = "#ffb86c" } -- Orange for connecting
+                        else
+                            return { fg = "#ff5555" } -- Red for error/stopped
+                        end
+                    end,
+                },
+            },
+        },
+    }
+<
+
+
+AVAILABLE GLOBAL VARIABLES
+
+MCPHub automatically maintains these global variables: - `vim.g.loaded_mcphub`
+- Whether MCPHub plugin is loaded (set by plugin loader) -
+`vim.g.mcphub_status` - Current hub state ("starting", "ready", "stopped",
+etc.) - `vim.g.mcphub_servers_count` - Number of connected servers -
+`vim.g.mcphub_executing` - Whether a tool/resource is currently executing
+
+
+LEGACY: FULL COMPONENT (LOADS MCPHUB) - DEPRECATED ~
+
+**⚠️ DEPRECATED**: This approach will load MCPHub even with lazy loading
+enabled and shows a deprecation warning. Use the global variables approach
+above instead.
+
+>lua
+    require('lualine').setup {
+        sections = {
+            lualine_x = {
                 {require('mcphub.extensions.lualine')}, -- Uses defaults
             },
         },
@@ -3398,10 +3466,7 @@ WHEN CONNECTED SHOWS NUMBER OF CONNECTED SERVERS:
 WHEN A TOOL OR RESOURCE IS BEING CALLED, SHOWS SPINNER:
 
 
-USAGE ~
-
-
-OPTIONS
+LEGACY COMPONENT OPTIONS
 
 The lualine component accepts the standard lualine options and the following
 options: - `icon`: Icon to display. (default: `"󰐻"`) - `colored`: Enable
