@@ -2,6 +2,7 @@ local M = {}
 
 local uv = (vim.loop or vim.uv)
 local path = require("plenary.path")
+local utils = require("mcphub.utils")
 
 ---Search upward from current directory for any of the look_for files
 ---@param look_for_patterns string[] Array of file patterns to look for
@@ -136,7 +137,7 @@ function M.read_workspace_cache()
         return {}
     end
 
-    local success, cache = pcall(vim.json.decode, content, { luanil = { object = true, array = true } })
+    local success, cache = utils.json_decode(content)
     if not success then
         vim.notify("Failed to parse workspace cache: " .. cache_path, vim.log.levels.WARN)
         return {}

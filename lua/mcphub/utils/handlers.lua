@@ -2,6 +2,7 @@ local Error = require("mcphub.utils.errors")
 local State = require("mcphub.state")
 local constants = require("mcphub.utils.constants")
 local log = require("mcphub.utils.log")
+local utils = require("mcphub.utils")
 
 local M = {}
 
@@ -178,7 +179,7 @@ M.TypeHandlers = {
         validate = function(value, schema)
             -- Parse JSON object string and validate each property
             -- FIXME: need to implement proper validation for objects
-            local ok, obj = pcall(vim.fn.json_decode, value)
+            local ok, obj = utils.json_decode(value)
             if not ok or type(obj) ~= "table" then
                 return false
             end
@@ -216,13 +217,14 @@ M.TypeHandlers = {
             return "object"
         end,
         convert = function(value)
-            return vim.fn.json_decode(value)
+            local ok, result = utils.json_decode(value)
+            return ok and result or {}
         end,
     },
     array = {
         validate = function(value, schema)
             -- Parse JSON array string and validate each item
-            local ok, arr = pcall(vim.fn.json_decode, value)
+            local ok, arr = utils.json_decode(value)
             if not ok or type(arr) ~= "table" then
                 return false
             end
@@ -246,7 +248,8 @@ M.TypeHandlers = {
             return true
         end,
         convert = function(value)
-            return vim.fn.json_decode(value)
+            local ok, result = utils.json_decode(value)
+            return ok and result or {}
         end,
         format = function(schema)
             if schema.items then
@@ -333,7 +336,7 @@ M.ResponseHandlers = {
             return nil
         end
 
-        local ok, parsed_error = pcall(vim.fn.json_decode, response.body)
+        local ok, parsed_error = utils.json_decode(response.body)
         if ok and parsed_error.error then
             return Error(
                 "SERVER",
@@ -364,14 +367,7 @@ M.ResponseHandlers = {
             return nil, Error("SERVER", Error.Types.SERVER.API_ERROR, "Empty response from server", context)
         end
 
-        local ok, decoded = pcall(
-            vim.json.decode,
-            response,
-            { luanil = {
-                object = true,
-                array = true,
-            } }
-        )
+        local ok, decoded = utils.json_decode(response)
         if not ok then
             return nil,
                 Error(

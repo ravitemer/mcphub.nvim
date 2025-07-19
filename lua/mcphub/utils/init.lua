@@ -1,6 +1,7 @@
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
+local config = require("mcphub.config")
 local ui_utils = require("mcphub.utils.ui")
 local validation = require("mcphub.utils.validation")
 
@@ -200,7 +201,7 @@ function M.pretty_json(str, opts)
         return formatted
     else
         -- Fallback to custom implementation
-        local ok, parsed = pcall(vim.json.decode, str)
+        local ok, parsed = M.json_decode(str)
         if not ok then
             vim.notify("Failed to parse JSON string", vim.log.levels.INFO)
             return M.format_json_string(str, opts.unescape_slashes)
@@ -489,7 +490,7 @@ function M.parse_config_from_json(text)
         config = nil,
     }
 
-    local ok, parsed = pcall(vim.json.decode, text)
+    local ok, parsed = M.json_decode(text)
     if not ok then
         result.error = "Invalid JSON format"
         return result

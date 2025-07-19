@@ -429,9 +429,10 @@ function MarketplaceView:handle_installation_selection(context)
     local server = context.server
     local installation = context.installation
 
+    local ok, config = utils.json_decode(installation.config or "{}")
     -- Create server config object with the server ID
     local server_config = {
-        [server.id] = vim.json.decode(installation.config),
+        [server.id] = ok and config or {}, -- Use parsed config or empty table
     }
 
     -- Open the editor with the pre-populated config

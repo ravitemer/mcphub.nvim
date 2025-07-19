@@ -1237,7 +1237,7 @@ function MCPHub:connect_sse()
                     local data_line = event_str:match("\ndata: ([^\r\n]+)")
 
                     if event and data_line then
-                        local success, decoded = pcall(vim.fn.json_decode, data_line)
+                        local success, decoded = utils.json_decode(data_line)
                         if success then
                             log.trace(string.format("SSE event: %s", event))
                             handlers.SSEHandlers.handle_sse_event(event, decoded, self)

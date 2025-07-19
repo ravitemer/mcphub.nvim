@@ -4,6 +4,7 @@ local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
 local native = require("mcphub.native")
 local ui_utils = require("mcphub.utils.ui")
+local utils = require("mcphub.utils")
 
 ---@class MCPHub.ParsedParams
 ---@field errors string[] List of errors encountered during parsing
@@ -56,7 +57,7 @@ function M.parse_params(params, action_name)
     local uri = params.uri
     local arguments = params.tool_input or {}
     if type(arguments) == "string" then
-        local json_ok, decode_result = pcall(vim.fn.json_decode, arguments or "{}")
+        local json_ok, decode_result = utils.json_decode(arguments or "{}")
         if json_ok then
             arguments = decode_result or {}
         else
