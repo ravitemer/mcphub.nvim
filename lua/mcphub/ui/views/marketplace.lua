@@ -939,7 +939,6 @@ function MarketplaceView:render()
     return lines
 end
 
--- Get available installers
 function MarketplaceView:focus_first_interactive_line()
     vim.schedule(function()
         if self.interactive_lines and #self.interactive_lines > 0 then
