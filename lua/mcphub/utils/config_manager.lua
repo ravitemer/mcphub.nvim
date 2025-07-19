@@ -30,6 +30,7 @@ end
 --- @param file_path string Path to the config file
 --- @return boolean success Whether the file was loaded successfully
 function M.load_config(file_path)
+    log.stack("ConfigManager: load_config")
     if not file_path or file_path == "" then
         log.warn("ConfigManager: Empty file path provided")
         return false

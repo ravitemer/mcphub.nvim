@@ -143,18 +143,6 @@ function M.setup(opts)
     if not validation_result.ok then
         return _on_setup_failed(validation_result.error)
     end
-    local Native = require("mcphub.native")
-    Native.setup()
-    -- Initialize native servers if any provided in setup config
-    if config.native_servers then
-        for name, def in pairs(config.native_servers) do
-            local server = Native.register(def)
-            if server then
-                -- make sure the server name is set to key
-                server.name = name
-            end
-        end
-    end
 
     -- Setup cleanup and directory change handling
     local group = vim.api.nvim_create_augroup("mcphub_cleanup", {

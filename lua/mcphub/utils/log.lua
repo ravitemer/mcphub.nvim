@@ -131,4 +131,41 @@ function M.trace(msg)
     log_internal(msg, vim.log.levels.TRACE)
 end
 
+--- Log with call stack information
+--- @param msg string|table Message to log
+--- @param level? number Log level (default: DEBUG)
+function M.stack(msg, level)
+    level = level or vim.log.levels.DEBUG
+
+    -- Get call stack starting from level 3 to skip this function and log_internal
+    local stack = {}
+    local stack_level = 3
+
+    while true do
+        local info = debug.getinfo(stack_level, "Snl")
+        if not info then
+            break
+        end
+
+        local location = info.short_src .. ":" .. (info.currentline or "?")
+        local func_name = info.name or "<anonymous>"
+
+        table.insert(stack, string.format("  %s in %s", location, func_name))
+        stack_level = stack_level + 1
+
+        -- Limit stack depth to prevent spam
+        if #stack >= 10 then
+            table.insert(stack, "  ...")
+            break
+        end
+    end
+
+    local formatted_msg = msg
+    if #stack > 0 then
+        formatted_msg = msg .. "\nCall stack:\n" .. table.concat(stack, "\n")
+    end
+
+    log_internal(formatted_msg, level)
+end
+
 return M

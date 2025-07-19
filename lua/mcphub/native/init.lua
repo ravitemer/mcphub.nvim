@@ -182,9 +182,24 @@ function Native.add_prompt(server_name, prompt_def)
     end
 end
 
-function Native.setup()
+Native.done_setup = false
+function Native.setup(user_native_servers)
+    if Native.done_setup then
+        return
+    end
     require("mcphub.native.neovim")
     require("mcphub.native.mcphub")
+    -- Initialize native servers if any provided in setup config
+    if user_native_servers and type(user_native_servers) == "table" then
+        for name, def in pairs(user_native_servers) do
+            local server = Native.register(def)
+            if server then
+                -- make sure the server name is set to key
+                server.name = name
+            end
+        end
+    end
+    Native.done_setup = true
 end
 
 return Native

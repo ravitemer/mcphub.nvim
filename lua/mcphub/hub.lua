@@ -338,8 +338,10 @@ function MCPHub:start()
         self:handle_hub_stopped("Failed to load MCP servers configuration")
         return
     end
-
     log.debug("Resolved hub context: " .. vim.inspect(context))
+
+    -- Make sure to load after the config is refreshed to avoid double reading of config files
+    native.setup(config.native_servers)
 
     -- Step 3: Check if server is already running on the resolved port and is of same version in cases of plugin updated
     self:check_server(function(is_running, is_our_server, is_same_version)
