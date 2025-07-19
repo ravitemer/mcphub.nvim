@@ -1365,7 +1365,7 @@ function MCPHub:ensure_ready()
 end
 
 --- Get servers with their tools filtered based on server config
---- @param server table The server object to filter
+--- @param server MCPServer The server object to filter
 ---@return table[] Array of connected servers with disabled tools filtered out
 local function filter_server_capabilities(server)
     local config = config_manager.get_server_config(server) or {}
@@ -1386,6 +1386,15 @@ local function filter_server_capabilities(server)
             resourceTemplates = { list = "disabled_resourceTemplates", id = "uriTemplate" },
             prompts = { list = "disabled_prompts", id = "name" },
         }
+
+        --- Make the properties field in inputSchema will be encoded as a object not array when empty
+        if filtered_server.capabilities.tools then
+            for _, tool in ipairs(filtered_server.capabilities.tools) do
+                if tool.inputSchema and tool.inputSchema.properties and not next(tool.inputSchema.properties) then
+                    tool.inputSchema.properties = vim.empty_dict()
+                end
+            end
+        end
 
         for cap_type, filter in pairs(capability_filters) do
             if filtered_server.capabilities[cap_type] then
