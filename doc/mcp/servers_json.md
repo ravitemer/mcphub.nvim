@@ -321,7 +321,7 @@ MCPHub supports the following VS Code predefined variables:
 - These variables are available for placeholder resolution but are NOT passed to server environments
 - Use them in any configuration field: `command`, `args`, `env`, `url`, `headers`, `cwd`
 
-### VS Code Input Variables Support
+## VS Code Input Variables Support
 
 MCPHub supports VS Code's `${input:variable-id}` syntax for compatibility with VS Code configurations. Input variables are configured via MCPHub's `global_env` option and made available to all servers.
 
