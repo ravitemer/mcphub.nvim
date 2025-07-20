@@ -68,6 +68,8 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 | | Installation | ✅ | Manual and auto install with AI |
 | **Configuration** ||||
 | | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
+| | VS Code Compatibility | ✅ | Support for `servers` key, `${env:}`, `${input:}`, predefined variables |
+| | JSON5 Support | ✅ | Comments and trailing commas via [`lua-json5`](https://github.com/Joakker/lua-json5) |
 | **Workspace Management** ||||
 | | Project-Local Configs | ✅ | Automatic detection and merging with global config |
 | **Advanced** ||||

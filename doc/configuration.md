@@ -24,7 +24,7 @@ All options are optional with sensible defaults. See below for each option in de
             global_env = {}, -- Global environment variables available to all MCP servers (can be a table or a function returning a table)
             workspace = {
                 enabled = true, -- Enable project-local configuration files
-                look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries
+                look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries (VS Code format supported)
                 reload_on_dir_changed = true, -- Automatically switch hubs on DirChanged event
                 port_range = { min = 40000, max = 41000 }, -- Port range for generating unique workspace ports
                 get_port = nil, -- Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
@@ -77,6 +77,7 @@ All options are optional with sensible defaults. See below for each option in de
                     winhl = "Normal:MCPHubNormal,FloatBorder:MCPHubBorder",
                 },
             },
+            json_decode = nil, -- Custom JSON parser function (e.g., require('json5').parse for JSON5 support)
             on_ready = function(hub)
                 -- Called when hub is ready
             end,
@@ -442,6 +443,43 @@ Callback function executed when the MCP Hub server is ready and connected. Recei
 Default: `function(err) end`
 
 Callback function executed when an error occurs in the MCP Hub server. Receives the error message as an argument.
+
+
+### json_decode
+
+Default: `nil`
+
+Custom JSON parser function for configuration files. This is particularly useful for supporting JSON5 syntax (comments and trailing commas) in VS Code config files.
+
+#### JSON5 Support Example
+
+To enable JSON5 support for `.vscode/mcp.json` files with comments and trailing commas:
+
+1. Install the lua-json5 parser:
+   ```bash
+   # Using your package manager, e.g., lazy.nvim
+   { "Joakker/lua-json5" }
+   ```
+
+2. Configure MCPHub to use it:
+   ```lua
+   require("mcphub").setup({
+       json_decode = require('json5').parse,
+       -- other config...
+   })
+   ```
+
+With this setup, your config files can include:
+```json5
+{
+  // This is a comment
+  "servers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+    }, // Trailing comma is fine
+  },
+}
+```
 
 
 ### log

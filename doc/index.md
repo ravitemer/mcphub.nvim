@@ -20,7 +20,9 @@ Let's break down how MCP Hub operates in simple terms:
 
 ### MCP Config File
 
-Like any MCP client, MCP Hub requires a configuration file to define the MCP servers you want to use. This file is typically located at `~/.config/mcphub/servers.json`. MCP Hub supports local `stdio` servers as well as remote `streamable-http` or `sse` servers. This is similar to `claude_desktop_config.json` file for Claude desktop or `mcp.json` file used by VSCode. In fact you can use the same file for MCP Hub as well with some additional benefits. It looks something like:
+Like any MCP client, MCP Hub requires a configuration file to define the MCP servers you want to use. This file is typically located at `~/.config/mcphub/servers.json`. MCP Hub supports local `stdio` servers as well as remote `streamable-http` or `sse` servers. 
+
+**VS Code Compatibility**: MCP Hub supports VS Code's `.vscode/mcp.json` format directly, including the `servers` key, `${env:}` syntax, and predefined variables. You can use the same file for MCP Hub, VS Code, Claude Desktop, Cursor, Cline, Zed, etc. It looks something like:
 ```js
 // Example: ~/.config/mcphub/servers.json
 {
@@ -142,6 +144,8 @@ Users can view all active workspace hubs and switch between them seamlessly thro
 | | Installation | ✅ | Manual and auto install with AI |
 | **Configuration** ||||
 | | Universal `${}` Syntax | ✅ | Environment variables and command execution across all fields |
+| | VS Code Compatibility | ✅ | Support for `servers` key, `${env:}`, `${input:}`, predefined variables |
+| | JSON5 Support | ✅ | Comments and trailing commas via [`lua-json5`](https://github.com/Joakker/lua-json5) |
 | **Workspace Management** ||||
 | | Project-Local Configs | ✅ | Automatic detection and merging with global config |
 | **Advanced** ||||

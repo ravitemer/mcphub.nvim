@@ -1,9 +1,18 @@
 # MCP Config File
 
-MCPHub.nvim like other MCP clients uses a JSON configuration file to manage MCP servers. This `config` file is located at `~/.config/mcphub/servers.json` by default and supports real-time updates across all Neovim instances. You can set `config` option to a custom location. 
+MCPHub.nvim like other MCP clients uses a JSON configuration file to manage MCP servers. This `config` file is located at `~/.config/mcphub/servers.json` by default and supports real-time updates across all Neovim instances. You can set `config` option to a custom location.
+
+## VS Code Compatibility
+
+MCPHub fully supports VS Code's `.vscode/mcp.json` configuration format, including:
+
+- **`servers` key** instead of `mcpServers` (both keys are supported)
+- **VS Code variable syntax**: `${env:VARIABLE}`, `${workspaceFolder}`, `${userHome}`, etc.
+- **JSON5 syntax**: Comments and trailing commas (with [`lua-json5`](https://github.com/Joakker/lua-json5))
+- **Seamless migration**: Existing VS Code configs work directly
 
 > [!NOTE]
-> You can use a single config file for any MCP client like VSCode, Cursor, Cline, Zed etc as long as the config file follows the below structure. With MCPHub.nvim, `config` file can be safely added to source control as it supports **universal `${}` placeholder syntax** for environment variables and command execution across all configuration fields.
+> You can use a single config file for any MCP client like VS Code, Cursor, Cline, Zed etc. MCPHub supports both `mcpServers` and `servers` keys, with VS Code's format taking precedence if both are present. With MCPHub.nvim, `config` file can be safely added to source control as it supports **universal `${}` placeholder syntax** for environment variables and command execution across all configuration fields.
 
 
 
@@ -35,8 +44,9 @@ Add (`<A>`), edit (`<e>`), delete (`<d>`) MCP servers from the (`H`) Hub view.
 
 ## Basic Schema
 
-The `config` file should have a `mcpServers` key. This contains `stdio` and `remote` MCP servers. There is also another top level MCPHub specific field `nativeMCPServers` to store any disabled tools, custom instructions etc that the plugin updates internally. See [Lua MCP Servers](/mcp/native/index) for more about Lua native MCP servers
+MCPHub supports both traditional `mcpServers` format and VS Code's `servers` format:
 
+#### `mcpServers` Format
 ```json
 {
     "mcpServers": {
@@ -47,6 +57,16 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
     }
 }
 ```
+
+#### VS Code Format (also supported)
+```json
+{
+    "servers": {
+        // Add stdio and remote MCP servers here (VS Code format)
+    }
+}
+```
+
 
 ## Server Types
 
@@ -86,9 +106,11 @@ The `config` file should have a `mcpServers` key. This contains `stdio` and `rem
 
 ##### Universal `${}` Placeholder Syntax
 
-**All fields** support the universal placeholder syntax:
-- **`${ENV_VAR}`** - Resolves environment variables
+**All fields** support the universal placeholder syntax with VS Code compatibility:
+- **`${ENV_VAR}`** or **`${env:ENV_VAR}`** - Resolves environment variables (VS Code style supported)
 - **`${cmd: command args}`** - Executes commands and uses output
+- **`${workspaceFolder}`**, **`${userHome}`**, **`${pathSeparator}`** - VS Code predefined variables
+- **`${input:variable-id}`** - VS Code input variables (via MCP_HUB_ENV)
 - **`null` or `""`** - Falls back to `process.env`
 
 Given `API_KEY=secret` in the environment:
@@ -98,6 +120,8 @@ Given `API_KEY=secret` in the environment:
 | `"API_KEY": ""` | `"API_KEY": "secret"` | Empty string falls back to `process.env.API_KEY` |
 | `"API_KEY": null` | `"API_KEY": "secret"` | `null` falls back to `process.env.API_KEY` |
 | `"AUTH": "Bearer ${API_KEY}"` | `"AUTH": "Bearer secret"` | `${}` Placeholder values are replaced | 
+| `"AUTH": "Bearer ${env:API_KEY}"` | `"AUTH": "Bearer secret"` | VS Code style environment variables |
+| `"PATH": "${workspaceFolder}/bin"` | `"PATH": "/home/user/project/bin"` | VS Code predefined variables |
 | `"TOKEN": "${cmd: op read op://vault/token}"` | `"TOKEN": "secret"` | Commands are executed and output used |
 | `"HOME": "/home/ubuntu"` | `"HOME": "/home/ubuntu"` | Used as-is |
 
@@ -204,6 +228,7 @@ MCPHub supports both `streamable-http` and `sse` remote servers.
 
 > **Note**: Remote servers use the same universal `${}` placeholder syntax as local servers. See the Universal Placeholder Syntax section above for full details.
 
+
 ## MCPHub Specific Fields
 
 MCPHub adds several extra keys for each server automatically from the UI:
@@ -244,3 +269,91 @@ The `autoApprove` field allows fine-grained control over which tools are automat
 - Resources are always auto-approved by default (no explicit configuration needed)
 - Auto-approval only applies to enabled servers and enabled tools
 - You can toggle auto-approval from the UI using the `a` keymap on servers or individual tools
+
+
+### VS Code Format Example
+
+Here's a complete example using VS Code's `.vscode/mcp.json` format with JSON5 syntax:
+
+```json5
+{
+  // VS Code MCP configuration with JSON5 support
+  "servers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${env:GITHUB_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-filesystem", "${workspaceFolder}"],
+      "env": {
+        "WORKSPACE_PATH": "${workspaceFolder}",
+        "USER_HOME": "${userHome}"
+      }
+    }, // Trailing comma is supported with JSON5
+  }
+}
+```
+
+This example demonstrates:
+- **VS Code `servers` key** instead of `mcpServers`
+- **VS Code environment syntax**: `${env:GITHUB_TOKEN}`
+- **VS Code predefined variables**: `${workspaceFolder}`, `${userHome}`
+- **JSON5 features**: Comments and trailing commas
+
+### Supported Predefined Variables
+
+MCPHub supports the following VS Code predefined variables:
+
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `${workspaceFolder}` | Directory where mcp-hub is running | `/home/user/my-project` |
+| `${userHome}` | User's home directory | `/home/user` |
+| `${pathSeparator}` | OS path separator | `/` (Linux/macOS) or `\` (Windows) |
+| `${workspaceFolderBasename}` | Just the folder name | `my-project` |
+| `${cwd}` | Alias for workspaceFolder | `/home/user/my-project` |
+| `${/}` | VS Code shorthand for pathSeparator | `/` (Linux/macOS) or `\` (Windows) |
+
+
+**Notes:**
+- These variables are available for placeholder resolution but are NOT passed to server environments
+- Use them in any configuration field: `command`, `args`, `env`, `url`, `headers`, `cwd`
+
+### VS Code Input Variables Support
+
+MCPHub supports VS Code's `${input:variable-id}` syntax for compatibility with VS Code configurations. Input variables are configured via MCPHub's `global_env` option and made available to all servers.
+
+**Setup in MCPHub configuration:**
+```lua
+require("mcphub").setup({
+    global_env = {
+        ["input:perplexity-key"] = "my-awesome-project",
+    },
+    -- other config...
+})
+```
+
+**Usage in configuration files:**
+```json
+{
+  "servers": {
+    "Perplexity": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "server-perplexity-ask"],
+      "env": {
+        "PERPLEXITY_API_KEY": "${input:perplexity-key}"
+      }
+    }
+  }
+}
+```
+
+**How it works:**
+1. Input variables are defined in MCPHub's `global_env` configuration
+2. MCPHub passes them to the backend via `MCP_HUB_ENV`
+3. Variables are resolved using the format: `${input:variable-id}`
+4. This enables direct compatibility with existing VS Code configurations
+
