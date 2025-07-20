@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0] - 2025-07-20
+
+### Added
+
+- **VS Code Configuration Compatibility**: Support for `.vscode/mcp.json` format (#209)
+  - Support for `"servers"` key alongside existing `"mcpServers"` key
+  - VS Code variable syntax: `${env:VARIABLE}`, `${workspaceFolder}`, `${userHome}`, `${pathSeparator}`
+  - VS Code input variables via `global_env`: `${input:variable-id}` support
+  - Seamless migration: existing VS Code configs work directly
+
+- **JSON5 Support**: Enhanced config parsing with comments and trailing commas (#210)
+  - Custom `json_decode` option for JSON5 parser integration
+  - Comprehensive error messaging with setup guidance for JSON5
+  - Support for lua-json5 parser integration
+
+- **Configuration Enhancements**:
+  - `CWD` variable resolution in MCP server configs
+  - Lualine integration with global variables API for lazy-loading support
+  - Enhanced error handling during config file watching
+
+### Fixed
+
+- **Windows Compatibility**: Improved home directory detection for Windows users
+- **Config Error Handling**: Better error management during config file watching
+- **Marketplace Cleanup**: Removed legacy AI installation logic
+
+
 ## [6.0.0] - 2025-07-18
 
 ### Added
