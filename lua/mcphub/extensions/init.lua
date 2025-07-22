@@ -25,11 +25,7 @@ local M = {}
 function M.setup(config)
     local avante_config = config.avante or {}
     if avante_config.enabled then
-        local ok, _ = pcall(require, "avante")
-        if ok then
-            local avante_ext = require("mcphub.extensions.avante")
-            avante_ext.setup(avante_config)
-        end
+        require("mcphub.extensions.avante").setup(avante_config)
     end
 end
 

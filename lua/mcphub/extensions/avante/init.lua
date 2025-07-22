@@ -197,6 +197,11 @@ end
 ---@param config MCPHub.Extensions.AvanteConfig
 function M.setup(config)
     if config.make_slash_commands then
+        --Avoid checking for avante if the extension is not enabled
+        local ok, _ = pcall(require, "avante")
+        if not ok then
+            return
+        end
         require("mcphub.extensions.avante.slash_commands").setup()
     end
 end
