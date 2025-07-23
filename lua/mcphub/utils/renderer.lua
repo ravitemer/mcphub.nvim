@@ -928,7 +928,7 @@ function M.render_workspaces_section(line_offset, view)
         elseif b == current_port then
             return false
         else
-            return tonumber(a) < tonumber(b)
+            return (tonumber(a) or 0) < (tonumber(b) or 0)
         end
     end)
 
