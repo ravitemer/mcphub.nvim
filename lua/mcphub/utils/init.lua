@@ -123,10 +123,12 @@ end
 ---@param name string The event name (without "User" prefix)
 ---@param data? table Optional data to pass to the event
 function M.fire(name, data)
-    vim.api.nvim_exec_autocmds("User", {
-        pattern = name,
-        data = data,
-    })
+    vim.schedule(function()
+        vim.api.nvim_exec_autocmds("User", {
+            pattern = name,
+            data = data,
+        })
+    end)
 end
 
 --- Sort table keys recursively while preserving arrays

@@ -320,10 +320,6 @@ end
 ---@param resource MCPResource Resource definition to validate
 ---@return ValidationResult
 function M.validate_resource(resource)
-    local name_result = validate_property(resource.name, "string", "Resource Name", Error.Types.NATIVE.INVALID_NAME)
-    if not name_result.ok then
-        return name_result
-    end
     -- Validate URI
     local uri_result = validate_property(resource.uri, "string", "Resource URI", Error.Types.NATIVE.INVALID_URI)
     if not uri_result.ok then

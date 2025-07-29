@@ -20,7 +20,11 @@ end
 
 ---@param err MCPError Error to handle
 local function handle_error(err)
-    State:add_error(err)
+    vim.notify(
+        string.format("MCPHub Native Error: %s - %s", err.type, err.message),
+        vim.log.levels.ERROR,
+        { title = "MCPHub" }
+    )
 end
 
 ---@class NativeServerDef
