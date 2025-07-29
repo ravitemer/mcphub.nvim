@@ -30,7 +30,7 @@ end
 local function create_function_name(server_name, item_name, opts)
     local safe_server = make_safe_name(server_name)
     local safe_item = make_safe_name(item_name)
-    local name = safe_server .. "__" .. safe_item
+    local name = safe_server .. "_" .. safe_item
 
     if opts and opts.add_mcp_prefix then
         name = "mcp_" .. name
