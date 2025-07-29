@@ -138,7 +138,7 @@ Users can view all active workspace hubs and switch between them seamlessly thro
 | **Chat Integration** ||||
 | | [Avante.nvim](https://github.com/yetone/avante.nvim) | ✅ | Tools, resources, resourceTemplates, prompts(as slash_commands) |
 | | [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | ✅ | Tools, resources, templates, prompts (as slash_commands), 🖼 image responses | 
-| | [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | ✅ | In-built support [Draft](https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029) | 
+| | [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | ✅ | Tools, resources, function calling support |
 | **Marketplace** ||||
 | | Server Discovery | ✅ | Browse from verified MCP servers |
 | | Installation | ✅ | Manual and auto install with AI |

@@ -85,6 +85,12 @@ local defaults = {
             enabled = true,
             make_slash_commands = true,
         },
+        copilotchat = {
+            enabled = true,
+            convert_tools_to_functions = true,
+            convert_resources_to_functions = true,
+            add_mcp_prefix = false,
+        },
     },
     ---@type MCPHub.WorkspaceConfig
     workspace = {

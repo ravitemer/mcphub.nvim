@@ -1,147 +1,70 @@
-# CopilotChat Integration <Badge type="warning" text="Draft"/>
+# CopilotChat Integration
 
-[CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) supports function calling which is currently in [draft](https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029). To integrate MCP Hub with CopilotChat we need to use the `tools` branch of CopilotChat as shown below:
+Add MCP capabilities to [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) by adding it as an extension. CopilotChat now has native function-calling support, making it easy to integrate MCP tools and resources.
 
-> [!WARNING]
-> Please note that CopilotChat function-calling support is available as a [Draft PR](https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029). 
+## Features
 
-## Install CopilotChat
+- **Tool Integration**: Register MCP tools as CopilotChat functions with proper schemas
+- **Resource Integration**: Register MCP resources as CopilotChat functions for easy access
+- **Server Groups**: Functions are organized by MCP server name for better organization
+- **Real-time Updates**: Automatic updates in CopilotChat when MCP servers change
 
-```lua
-{
-    "deathbeam/CopilotChat.nvim",
-    dependencies = {
-        { "zbirenbaum/copilot.lua" },
-        { "nvim-lua/plenary.nvim", branch = "master" }, -- for curl, log and async functions
-    },
-    branch = "tools",
-    build = "make tiktoken", -- Only on MacOS or Linux
-}
-```
+## Setup
 
-## Integrate MCP Hub
+#### Enable CopilotChat Extension
 
-After the `setup()` of CopilotChat is called, add the following code. Please see the [draft PR](https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029) for more information.
+Add CopilotChat as an extension in your MCPHub configuration:
 
 ```lua
-local chat = require("CopilotChat")
-chat.setup()
-
-local mcp = require("mcphub")
-mcp.on({ "servers_updated", "tool_list_changed", "resource_list_changed" }, function()
-	local hub = mcp.get_hub_instance()
-	if not hub then
-		return
-	end
-
-	local async = require("plenary.async")
-	local call_tool = async.wrap(function(server, tool, input, callback)
-		hub:call_tool(server, tool, input, {
-			callback = function(res, err)
-				callback(res, err)
-			end,
-		})
-	end, 4)
-
-	local access_resource = async.wrap(function(server, uri, callback)
-		hub:access_resource(server, uri, {
-			callback = function(res, err)
-				callback(res, err)
-			end,
-		})
-	end, 3)
-
-	for name, tool in pairs(chat.config.functions) do
-		if tool.id and tool.id:sub(1, 3) == "mcp" then
-			chat.config.functions[name] = nil
-		end
-	end
-	local resources = hub:get_resources()
-	for _, resource in ipairs(resources) do
-		local name = resource.name:lower():gsub(" ", "_"):gsub(":", "")
-		chat.config.functions[name] = {
-			id = "mcp:" .. resource.server_name .. ":" .. name,
-			uri = resource.uri,
-			description = type(resource.description) == "string" and resource.description or "",
-			resolve = function()
-				local res, err = access_resource(resource.server_name, resource.uri)
-				if err then
-					error(err)
-				end
-
-				res = res or {}
-				local result = res.result or {}
-				local content = result.contents or {}
-				local out = {}
-
-				for _, message in ipairs(content) do
-					if message.text then
-						table.insert(out, {
-							uri = message.uri,
-							data = message.text,
-							mimetype = message.mimeType,
-						})
-					end
-				end
-
-				return out
-			end,
-		}
-	end
-
-	local tools = hub:get_tools()
-	for _, tool in ipairs(tools) do
-		chat.config.functions[tool.name] = {
-			id = "mcp:" .. tool.server_name .. ":" .. tool.name,
-			group = tool.server_name,
-			description = tool.description,
-			schema = tool.inputSchema,
-			resolve = function(input)
-				local res, err = call_tool(tool.server_name, tool.name, input)
-				if err then
-					error(err)
-				end
-
-				res = res or {}
-				local result = res.result or {}
-				local content = result.content or {}
-				local out = {}
-
-				for _, message in ipairs(content) do
-					if message.type == "text" then
-						table.insert(out, {
-							data = message.text,
-						})
-					elseif message.type == "resource" and message.resource and message.resource.text then
-						table.insert(out, {
-							uri = message.resource.uri,
-							data = message.resource.text,
-							mimetype = message.resource.mimeType,
-						})
-					end
-				end
-
-				return out
-			end,
-		}
-	end
-end)
+require("mcphub").setup({
+    extensions = {
+        copilotchat = {
+            enabled = true,
+            convert_tools_to_functions = true,     -- Convert MCP tools to CopilotChat functions
+            convert_resources_to_functions = true, -- Convert MCP resources to CopilotChat functions  
+            add_mcp_prefix = false,                -- Add "mcp_" prefix to function names
+        }
+    }
+})
 ```
+
+#### Configuration Options
+
+- **`convert_tools_to_functions`**: When `true`, all MCP tools are registered as CopilotChat functions
+- **`convert_resources_to_functions`**: When `true`, all MCP resources are registered as CopilotChat functions
+- **`add_mcp_prefix`**: When `true`, adds "mcp_" prefix to all function names (e.g., `mcp_github__get_issue`)
 
 ## Usage
 
-#### MCP Servers As Tools
+### MCP Tools 
 
-You can type `@` in the chat to see all the available tools in CopilotChat. CopilotChat allows us to add all the tools of a MCP server as a tool group as well as the individual tools. For e.g `> @neovim` will add all the tools of Neovim MCP server to the chat. The `>` at the start makes it sticky which means the tools will be sent with all user prompts. You can also just add a specific tool from Neovim server by selecting from the group.
+When `convert_tools_to_functions = true`, all MCP tools become available as CopilotChat functions. Functions are automatically organized by server name, making it easy to see all tools from a specific MCP server. Tool names follow the pattern `server_name__tool_name`:
 
-![Image](https://github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9)
+**Examples:**
+- `@neovim__read_file` - Read a file using the neovim server
+- `@github__create_issue` - Create a GitHub issue  
+- `@fetch__fetch` - Fetch web content
 
-![Image](https://github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c)
+![Tool Functions](https://github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9)
 
-#### MCP Resources As Variables
+### MCP Resources 
 
-Resources from MCP servers will also be available as CopilotChat variables `#`.
+You can use `#` to access MCP resources as variables in CopilotChat. In addition, when `convert_resources_to_functions = true`, all MCP resources will also be available as CopilotChat functions:
 
-![Image](https://github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733)
+**Examples:**
+- `#neovim__Buffer` - Access current buffer content
+- `@neovim__Buffer` - Get current buffer content (as a function)
+
+![Resource Functions](https://github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733)
 
 
+
+## Example Workflow
+
+1. **Start CopilotChat** and type `@` to see available functions
+2. **Select MCP functions** from your connected servers
+3. **Use tools**: `@github__create_issue Fix the navigation bug`
+4. **Access resources**: `@neovim__current_buffer Show me the current file content`
+5. **Organize by server**: Browse functions grouped by MCP server
+
+![Server Groups](https://github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c)

@@ -82,15 +82,20 @@
 
 ---@class EnhancedMCPPrompt : MCPPrompt
 ---@field server_name string
+---@field description string? -- Optional description for the prompt
 
 ---@class EnhancedMCPResourceTemplate : MCPResourceTemplate
+---@field description string? -- Optional description for the resource template
 ---@field server_name string
 
 ---@class EnhancedMCPResource : MCPResource
 ---@field server_name string
+---@field description string? -- Optional description for the resource
 
 ---@class EnhancedMCPTool : MCPTool
 ---@field server_name string
+---@field inputSchema? table -- Optional input schema for the tool
+---@field description string? -- Optional description for the tool
 
 ---@class MCPRequestOptions
 ---@field timeout? number
