@@ -70,6 +70,7 @@ function M.register(opts)
     end
 
     local async = require("plenary.async")
+    local chat_functions = require("CopilotChat.functions")
     local shared = require("mcphub.extensions.shared")
 
     -- Cleanup existing mcphub functions
@@ -208,6 +209,7 @@ function M.register(opts)
         for safe_server_name, data in pairs(server_data) do
             local server_name = data.server_name
             local resources = data.resources
+            local resource_templates = data.resource_templates
 
             -- Handle regular resources
             for _, resource in ipairs(resources) do
@@ -250,28 +252,46 @@ function M.register(opts)
                 end
             end
 
-            --TODO: Handle resource templates
-            -- local resource_templates = data.resource_templates
-            -- for _, template in ipairs(resource_templates) do
-            --     local template_name = template.name or extract_name_from_uri(template.uriTemplate)
-            --     local function_name = create_function_name(safe_server_name, template_name, opts)
-            --
-            --     -- Check for function name conflicts
-            --     if chat.config.functions[function_name] then
-            --         table.insert(skipped_functions, function_name)
-            --     else
-            --         chat.config.functions[function_name] = {
-            --             _mcphub = true,
-            --             uri = template.uriTemplate,
-            --             description = template.description or "No description provided",
-            --             resolve = function()
-            --                 -- Resource templates need URI parameters filled in
-            --                 -- This would require additional UI for parameter collection
-            --                 error("Resource templates not yet supported")
-            --             end,
-            --         }
-            --     end
-            -- end
+            -- Handle resource templates
+            for _, template in ipairs(resource_templates) do
+                local template_name = template.name or extract_name_from_uri(template.uriTemplate)
+                local function_name = create_function_name(safe_server_name, template_name, opts)
+
+                -- Check for function name conflicts
+                if chat.config.functions[function_name] then
+                    table.insert(skipped_functions, function_name)
+                else
+                    chat.config.functions[function_name] = {
+                        _mcphub = true,
+                        uri = template.uriTemplate,
+                        description = template.description or "No description provided",
+                        resolve = function(input)
+                            local url = chat_functions.uri_to_url(template.uriTemplate, input or {})
+                            local res, err = access_resource(server_name, url)
+                            if err then
+                                error(err)
+                            end
+
+                            res = res or {}
+                            local result_data = res.result or {}
+                            local content = result_data.contents or {}
+                            local out = {}
+
+                            for _, message in ipairs(content) do
+                                if message.text then
+                                    table.insert(out, {
+                                        uri = message.uri,
+                                        data = message.text,
+                                        mimetype = message.mimeType,
+                                    })
+                                end
+                            end
+
+                            return out
+                        end,
+                    }
+                end
+            end
         end
     end
 
