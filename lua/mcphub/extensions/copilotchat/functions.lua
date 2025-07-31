@@ -264,6 +264,7 @@ function M.register(opts)
                     chat.config.functions[function_name] = {
                         _mcphub = true,
                         uri = template.uriTemplate,
+                        group = safe_server_name,
                         description = template.description or "No description provided",
                         resolve = function(input)
                             local url = chat_functions.uri_to_url(template.uriTemplate, input or {})
