@@ -76,29 +76,34 @@ function M.register(opts)
     -- Cleanup existing mcphub functions
     cleanup_mcphub_functions(chat)
 
-    -- Create async wrappers
+    -- Create async wrappers with proper event loop scheduling
     local call_tool = async.wrap(function(server, tool, input, callback)
-        hub:call_tool(server, tool, input, {
-            caller = {
-                type = "copilotchat",
-                copilotchat = chat,
-            },
-            callback = function(res, err)
-                callback(res, err)
-            end,
-        })
+        -- Schedule the MCP call to run in the main event loop to avoid fast event context issues
+        vim.schedule(function()
+            hub:call_tool(server, tool, input, {
+                caller = {
+                    type = "copilotchat",
+                    copilotchat = chat,
+                },
+                callback = function(res, err)
+                    callback(res, err)
+                end,
+            })
+        end)
     end, 4)
 
     local access_resource = async.wrap(function(server, uri, callback)
-        hub:access_resource(server, uri, {
-            caller = {
-                type = "copilotchat",
-                copilotchat = chat,
-            },
-            callback = function(res, err)
-                callback(res, err)
-            end,
-        })
+        vim.schedule(function()
+            hub:access_resource(server, uri, {
+                caller = {
+                    type = "copilotchat",
+                    copilotchat = chat,
+                },
+                callback = function(res, err)
+                    callback(res, err)
+                end,
+            })
+        end)
     end, 3)
 
     -- Get servers and process them to avoid name conflicts
