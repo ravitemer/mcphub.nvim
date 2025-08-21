@@ -24,6 +24,7 @@ Run `:checkhealth mcphub` in Neovim to check for common issues
  uvx --version    # Should be installed
  ```
 - Most server commands use `npx` or `uvx` - verify these work in your terminal
+- Neovim must be built with LuaJIT (not PUC Lua 5.1)
 
 ## Configuration File
 

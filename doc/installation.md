@@ -4,7 +4,7 @@ Please read the [getting started](/index) guide before reading this.
 
 ## Requirements
 
-- Neovim >= 0.8.0
+- Neovim >= 0.8.0 (built with LuaJIT)
 - Node.js >= 18.0.0
 - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
 - [mcp-hub](https://github.com/ravitemer/mcp-hub) (automatically installed via build command)
