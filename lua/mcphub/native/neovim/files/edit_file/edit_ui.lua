@@ -152,8 +152,8 @@ function EditUI:_generate_hunk_blocks()
         local location_result = located_block.location_result
         if location_result.found then
             precise_diff_hunks = vim.diff(
-                table.concat(location_result.found_lines, "\n"),
-                table.concat(located_block.replace_lines, "\n"),
+                table.concat(location_result.found_lines, "\n") .. "\n",
+                table.concat(located_block.replace_lines, "\n") .. "\n",
                 { result_type = "indices", algorithm = "histogram", ctxlen = 3 }
             ) or {} --[[@as table<integer, integer>]]
         end

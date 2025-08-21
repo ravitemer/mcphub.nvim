@@ -28,7 +28,7 @@ end
 ---@param file_content string Content of the target file
 ---@return LocatedBlock[] located_blocks Blocks with location information
 function BlockLocator:locate_all_blocks(parsed_blocks, file_content)
-    local file_lines = vim.split(file_content, "\n", { plain = true, trimempty = true })
+    local file_lines = vim.split(file_content, "\n", { plain = true, trimempty = false })
     local located_blocks = {}
     for _, parsed_block in ipairs(parsed_blocks) do
         if vim.trim(parsed_block.search_content) == "" then
