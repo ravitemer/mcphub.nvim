@@ -266,10 +266,30 @@ function M.show_mcp_tool_prompt(params)
         end
     end
 
-    return require("mcphub.utils.ui").confirm(lines, {
+    -- Fire event before showing confirmation window
+    utils.fire("MCPHubApprovalWindowOpened", {
+        action = action_name,
+        server_name = server_name,
+        tool_name = tool_name,
+        uri = uri,
+        arguments = arguments,
+    })
+    local confirmed, cancelled = require("mcphub.utils.ui").confirm(lines, {
         min_width = 70,
         max_width = 100,
     })
+    -- Fire event after user makes decision
+    utils.fire("MCPHubApprovalWindowClosed", {
+        action = action_name,
+        server_name = server_name,
+        tool_name = tool_name,
+        uri = uri,
+        arguments = arguments,
+        confirmed = confirmed,
+        cancelled = cancelled,
+    })
+
+    return confirmed, cancelled
 end
 
 ---@param parsed_params MCPHub.ParsedParams

@@ -321,12 +321,13 @@ require("mcphub").setup({
 - `params.action` - Either "use_mcp_tool" or "access_mcp_resource"
 - `params.uri` - Resource URI (for resource access)
 - `params.is_auto_approved_in_server` - Boolean indicating if tool is configured for auto-approval in servers.json
-
 **Return values:**
 - `true` - Auto-approve the call
 - `false` - Show confirmation prompt
 - `string` - Deny with error message
 - `nil` - Show confirmation prompt (same as false)
+
+**Events:** When the confirmation window is shown, MCPHub fires `MCPHubApprovalWindowOpened` and `MCPHubApprovalWindowClosed` events that can be used for sound notifications or other integrations.
 
 #### Server-Level Auto-Approval
 
