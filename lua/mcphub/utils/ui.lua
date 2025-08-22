@@ -18,7 +18,7 @@ function M.multiline_input(title, content, on_save, opts)
     width = math.min(width, max_width) - 3
 
     -- Set buffer options
-    vim.api.nvim_buf_set_option(bufnr, "buftype", "acwrite")
+    vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
     vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     vim.api.nvim_buf_set_option(bufnr, "swapfile", false)
     if opts.filetype then
