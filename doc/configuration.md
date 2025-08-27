@@ -90,10 +90,6 @@ All options are optional with sensible defaults. See below for each option in de
                 file_path = nil,
                 prefix = "MCPHub",
             },
-
-            -- Global environment variables available to all MCP servers
-            -- Can be a table or a function(context) -> table
-            global_env = {},
         })
     end
 }
