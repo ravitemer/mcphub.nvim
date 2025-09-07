@@ -45,7 +45,6 @@ function M.multiline_input(title, content, on_save, opts)
         height = height,
         anchor = "NW",
         style = "minimal",
-        border = "rounded",
         title = { { " " .. title .. " ", Text.highlights.title } },
         title_pos = "center",
         footer = opts.show_footer ~= false and {
@@ -357,7 +356,6 @@ function M.confirm(message, opts)
 
         -- Enhanced window options with better styling
         win_opts.style = "minimal"
-        win_opts.border = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
         win_opts.title_pos = "center"
         win_opts.title = {
             { " MCPHUB Confirmation ", Text.highlights.header_btn },
@@ -551,7 +549,6 @@ function M.open_auth_popup(server_name, auth_url)
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
         title = string.format(Text.icons.unauthorized .. " Authorize %s ", server_name),
         title_pos = "center",
     }
@@ -566,7 +563,6 @@ function M.open_auth_popup(server_name, auth_url)
         col = col,
         style = "minimal",
         title = input_title,
-        border = "rounded",
     }
 
     -- Set info content with proper highlighting

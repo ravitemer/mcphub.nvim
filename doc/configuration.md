@@ -405,7 +405,7 @@ Default:
             width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
             height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
             align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
-            border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+            border = nil, -- When nil, uses vim.o.winborder. Can be set to "none", "single", "double", "rounded", "solid", "shadow" to override
             relative = "editor",
             zindex = 50,
         },
@@ -426,7 +426,7 @@ Controls the appearance and behavior of the MCPHub UI window:
   - `"left"`, `"right"`: Left/right edge, centered vertically
 - `relative`: Window placement relative to ("editor", "win", or "cursor")
 - `zindex`: Window stacking order
-- `border`: Border style ("none", "single", "double", "rounded", "solid", "shadow")
+- `border`: Border style (defaults to `vim.o.winborder`). Can be set to "none", "single", "double", "rounded", "solid", "shadow" to override the global setting
 
 ### on_ready
 

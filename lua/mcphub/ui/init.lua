@@ -34,7 +34,7 @@ local defaults = {
         width = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
         height = 0.8, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
         align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
-        border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+        border = nil, -- When nil, uses vim.o.winborder. Can be set to "none", "single", "double", "rounded", "solid", "shadow" to override
         relative = "editor",
         zindex = 50,
     },
