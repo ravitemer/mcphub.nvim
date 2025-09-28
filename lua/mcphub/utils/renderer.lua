@@ -339,7 +339,10 @@ function M.render_server_capabilities(server, lines, current_line, server_config
         -- end
 
         if
-            #server.capabilities.tools + #server.capabilities.resources + #server.capabilities.resourceTemplates
+            #server.capabilities.tools
+                + #server.capabilities.resources
+                + #server.capabilities.resourceTemplates
+                + #server.capabilities.prompts
             == 0
         then
             table.insert(
