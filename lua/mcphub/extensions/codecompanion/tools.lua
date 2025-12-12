@@ -187,7 +187,7 @@ end
 
 -- Cleanup dynamic tools and groups
 local function cleanup_dynamic_items(config)
-    local tools = config.strategies.chat.tools
+    local tools = config.interactions.chat.tools
     local groups = tools.groups or {}
 
     -- Clean up existing MCP dynamic tools
@@ -222,7 +222,7 @@ function M.register(opts)
     -- Cleanup existing dynamic items
     cleanup_dynamic_items(config)
 
-    local tools = config.strategies.chat.tools
+    local tools = config.interactions.chat.tools
     local groups = tools.groups or {}
 
     -- Get servers and process in one go
