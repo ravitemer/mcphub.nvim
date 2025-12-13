@@ -14,7 +14,7 @@ function M.register(opts)
         return
     end
 
-    local cc_variables = config.strategies.chat.variables
+    local cc_variables = config.interactions.chat.variables
 
     -- Remove existing MCP variables
     for key, value in pairs(cc_variables) do
@@ -57,7 +57,7 @@ function M.register(opts)
 
                 -- Handle images
                 if result.images and #result.images > 0 then
-                    local helpers = require("codecompanion.strategies.chat.helpers")
+                    local helpers = require("codecompanion.interactions.chat.helpers")
                     for _, image in ipairs(result.images) do
                         local id = string.format("mcp-%s", os.time())
                         helpers.add_image(self.Chat, {
