@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2025 December 12
+*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2025 December 14
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
