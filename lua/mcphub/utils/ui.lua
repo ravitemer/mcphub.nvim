@@ -110,7 +110,13 @@ function M.multiline_input(title, content, on_save, opts)
             end
         end
         -- Close the window
-        vim.api.nvim_win_close(win, true)
+        if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+        end
+
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
         -- -- Call save callback if content changed
         -- if content ~= new_content then
         on_save(new_content)
@@ -118,7 +124,13 @@ function M.multiline_input(title, content, on_save, opts)
     end
 
     local function close_window()
-        vim.api.nvim_win_close(win, true)
+        if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+        end
+
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
         if opts.on_cancel then
             opts.on_cancel()
         end
@@ -387,9 +399,9 @@ function M.confirm(message, opts)
             is_closed = true
 
             vim.schedule(function()
-                    if vim.api.nvim_win_is_valid(win) then
-                        vim.api.nvim_win_close(win, true)
-                    end
+                if vim.api.nvim_win_is_valid(win) then
+                    vim.api.nvim_win_close(win, true)
+                end
 
                 if vim.api.nvim_buf_is_valid(bufnr) then
                     vim.api.nvim_buf_delete(bufnr, { force = true })
