@@ -607,6 +607,13 @@ function M.open_auth_popup(server_name, auth_url)
         if vim.api.nvim_win_is_valid(input_win) then
             vim.api.nvim_win_close(input_win, true)
         end
+
+        if vim.api.nvim_buf_is_valid(info_buf) then
+            vim.api.nvim_buf_delete(info_buf, { force = true })
+        end
+        if vim.api.nvim_buf_is_valid(input_buf) then
+            vim.api.nvim_buf_delete(input_buf, { force = true })
+        end
         -- Return focus to MCPHub window
         if State.ui_instance and State.ui_instance.window then
             vim.api.nvim_set_current_win(State.ui_instance.window)
