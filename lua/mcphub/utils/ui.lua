@@ -387,10 +387,12 @@ function M.confirm(message, opts)
             is_closed = true
 
             vim.schedule(function()
-                if vim.api.nvim_win_is_valid(win) then
                     if vim.api.nvim_win_is_valid(win) then
                         vim.api.nvim_win_close(win, true)
                     end
+
+                if vim.api.nvim_buf_is_valid(bufnr) then
+                    vim.api.nvim_buf_delete(bufnr, { force = true })
                 end
                 callback(confirmed, cancelled)
             end)
