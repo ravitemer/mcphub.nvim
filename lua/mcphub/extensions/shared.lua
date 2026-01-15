@@ -292,20 +292,19 @@ function M.show_mcp_tool_prompt(params)
     return confirmed, cancelled
 end
 
+--- Check auto-approval status without showing any dialog
 ---@param parsed_params MCPHub.ParsedParams
 ---@return {error?:string, approve:boolean}
-function M.handle_auto_approval_decision(parsed_params)
+function M.check_auto_approval(parsed_params)
     local auto_approve = State.config.auto_approve or false
     local status = { approve = false, error = nil }
-    --- If user has a custom function that decides whether to auto-approve
-    --- call that with params + saved autoApprove state as is_auto_approved_in_server field
+
+    -- Check global auto_approve config (can be boolean or function)
     if type(auto_approve) == "function" then
         local ok, res = pcall(auto_approve, parsed_params)
         if not ok or type(res) == "string" then
-            --- If auto_approve function throws an error, or returns a string, treat it as an error
             status = { approve = false, error = res }
         elseif type(res) == "boolean" then
-            --- If auto_approve function returns a boolean, use that as the decision
             status = { approve = res, error = nil }
         end
     elseif type(auto_approve) == "boolean" then
@@ -317,6 +316,14 @@ function M.handle_auto_approval_decision(parsed_params)
         status = { approve = true, error = nil }
     end
 
+    return status
+end
+
+---@param parsed_params MCPHub.ParsedParams
+---@return {error?:string, approve:boolean}
+function M.handle_auto_approval_decision(parsed_params)
+    local status = M.check_auto_approval(parsed_params)
+
     if status.error then
         return { error = status.error or "Something went wrong with auto-approval", approve = false }
     end
@@ -325,6 +332,7 @@ function M.handle_auto_approval_decision(parsed_params)
         local confirmed, _ = M.show_mcp_tool_prompt(parsed_params)
         return { error = not confirmed and "User cancelled the operation", approve = confirmed }
     end
+
     return status
 end
 

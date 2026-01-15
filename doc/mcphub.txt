@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2025 December 12
+*mcphub.nvim.txt*         For NVIM v0.10.0        Last change: 2026 January 15
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -1169,7 +1169,7 @@ Given `API_KEY=secret` in the environment:
   "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"             Used as-is
   ----------------------------------------------------------------------------------------------------------------
 
-  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 CWD EXAMPLE:
@@ -2593,7 +2593,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM�S PARROT PROMPT
+REAL EXAMPLE: NEOVIM’S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -3557,7 +3557,7 @@ etc.) - `vim.g.mcphub_servers_count` - Number of connected servers -
 
 LEGACY: FULL COMPONENT (LOADS MCPHUB) - DEPRECATED ~
 
-**�� ️ DEPRECATED**: This approach will load MCPHub even with lazy loading
+**⚠️ DEPRECATED**: This approach will load MCPHub even with lazy loading
 enabled and shows a deprecation warning. Use the global variables approach
 above instead.
 

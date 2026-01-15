@@ -1,0 +1,22 @@
+{
+  "name": "mcphub-proxy",
+  "version": "1.0.0",
+  "description": "MCP proxy server that bridges mcp-hub to Neovim native servers via RPC",
+  "type": "module",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "neovim": "^5.2.0"
+  },
+  "keywords": [
+    "mcp",
+    "neovim",
+    "rpc",
+    "proxy"
+  ],
+  "author": "mcphub.nvim",
+  "license": "MIT"
+}
