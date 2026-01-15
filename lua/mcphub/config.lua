@@ -3,7 +3,7 @@ local M = {}
 local SHUTDOWN_DELAY = 5 * 60 * 1000 -- 5 minutes
 
 ---@class MCPHub.WorkspaceConfig
----@field enabled boolean Master switch for workspace-specific hubs
+---@field enabled boolean|"always" Master switch for workspace-specific hubs. Can be false (disabled), true (enabled with config file search), or "always" (always use workspace mode with 1s shutdown delay)
 ---@field look_for string[] Files to search for (in order)
 ---@field port_range { min: number, max: number } Port range for workspace hubs
 ---@field reload_on_dir_changed boolean Whether to listen to DirChanged events to reload workspace config
@@ -61,6 +61,7 @@ local defaults = {
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
+    rpc = true, -- Start standalone RPC proxy server for external MCP clients (e.g., Claude Code)
     ---@type table | fun(context: MCPHub.JobContext): table Global environment variables available to all MCP servers
     global_env = {}, -- Environment variables that will be available to all MCP servers
     ---@type string?
@@ -69,7 +70,8 @@ local defaults = {
     cmdArgs = nil, -- will be set based on system if not provided
     ---@type LogConfig
     log = {
-        level = vim.log.levels.ERROR,
+        -- TODO: fix me after and disable
+        level = vim.log.levels.DEBUG,
         to_file = false,
         file_path = nil,
         prefix = "MCPHub",
@@ -94,8 +96,8 @@ local defaults = {
     },
     ---@type MCPHub.WorkspaceConfig
     workspace = {
-        enabled = true, -- Enables workspace-specific hubs
-        look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to search for (in order)
+        enabled = true, -- Enables workspace-specific hubs. Can be: false (disabled), true (enabled with config file search), or "always" (always use workspace mode without requiring config files)
+        look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to search for (in order). Only used when enabled = true
         reload_on_dir_changed = true, -- Whether to listen to DirChanged events to reload workspace config
         port_range = { min = 40000, max = 41000 }, -- Port range for workspace hubs
         -- function that determines that returns the port
