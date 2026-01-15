@@ -24,7 +24,7 @@ function M.setup(opts)
     local tools = require("mcphub.extensions.codecompanion.tools")
     ---Add @mcp group with `use_mcp_tool` and `access_mcp_resource` tools
     local static_tools = tools.create_static_tools(opts)
-    cc_config.strategies.chat.tools = vim.tbl_deep_extend("force", cc_config.strategies.chat.tools, static_tools)
+    cc_config.interactions.chat.tools = vim.tbl_deep_extend("force", cc_config.interactions.chat.tools, static_tools)
 
     ---Make each MCP server into groups and each tool from MCP server into function tools with proper namespacing
     tools.setup_dynamic_tools(opts)

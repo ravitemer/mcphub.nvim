@@ -4,7 +4,7 @@
 <video muted controls src="https://github.com/user-attachments/assets/1a10ad50-5832-4627-bcc3-be49e7941105"></video>
 </p>
 
-Add MCP capabilities to [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) by adding it as an extension. 
+Add MCP capabilities to [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) by adding it as an extension.
 
 ## Features
 
@@ -27,7 +27,7 @@ require("codecompanion").setup({
     mcphub = {
       callback = "mcphub.extensions.codecompanion",
       opts = {
-        -- MCP Tools 
+        -- MCP Tools
         make_tools = true,              -- Make individual tools (@server__tool) and server groups (@server) from MCP servers
         show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
         add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
@@ -35,7 +35,7 @@ require("codecompanion").setup({
         format_tool = nil,               -- function(tool_name:string, tool: CodeCompanion.Agent.Tool) : string Function to format tool names to show in the chat buffer
         -- MCP Resources
         make_vars = true,                -- Convert MCP resources to #variables for prompts
-        -- MCP Prompts 
+        -- MCP Prompts
         make_slash_commands = true,      -- Add MCP prompts as /slash commands
       }
     }
@@ -50,7 +50,7 @@ MCP Hub provides multiple ways to access MCP tools in CodeCompanion, giving you 
 ### Tool Access
 
 #### 1. Universal MCP Access (`@mcp`)
-Adds all available MCP servers to the system prompt and provides LLM with `@mcp` tool group which has `use_mcp_tool` and `access_mcp_resource` tools. 
+Adds all available MCP servers to the system prompt and provides LLM with `@mcp` tool group which has `use_mcp_tool` and `access_mcp_resource` tools.
 ```
 @{mcp} What files are in the current directory?
 ```
@@ -60,8 +60,8 @@ You can add all the enabled tools from a specific server with server groups. Unl
 
 ```
 @{neovim} Read the main.lua file    # All tools from the neovim server will be added as function tools
-@{github} Create an issue           
-@{fetch} Get this webpage           
+@{github} Create an issue
+@{fetch} Get this webpage
 ```
 
 Server groups are automatically created based on your connected MCP servers when enabled via `make_tools`. Check your MCP Hub UI to see which servers you have connected.
@@ -85,7 +85,7 @@ Example configuration for custom tool groups:
 
 ```lua
 require("codecompanion").setup({
-  strategies = {
+  interactions = {
     chat = {
       tools = {
         groups = {
@@ -97,7 +97,7 @@ require("codecompanion").setup({
               -- GitHub operations
               "github__list_issues", "github__get_issue", "github__get_issue_comments",
               "github__create_issue", "github__create_pull_request", "github__get_file_contents",
-              "github__create_or_update_file",  "github__search_code"             
+              "github__create_or_update_file",  "github__search_code"
             },
           },
         },
@@ -124,7 +124,7 @@ Then use your custom groups:
 
 **Important Notes:**
 - Tool names depend on your connected MCP servers
-- Use MCP Hub UI or Codecompanion's tool completion to see available servers and tools  
+- Use MCP Hub UI or Codecompanion's tool completion to see available servers and tools
 - Tool names follow the pattern `servername__toolname`
 - Mix MCP tools with CodeCompanion's built-in tools (`cmd_runner`, `editor`, `files`, etc.)
 - Each MCP tool can be individually auto-approved for fine-grained control (see Auto-Approval section)
@@ -177,7 +177,7 @@ For fine-grained control, configure auto-approval per server or per tool in your
             "autoApprove": true  // Auto-approve all tools on this server
         },
         "partially-trusted": {
-            "command": "npx", 
+            "command": "npx",
             "args": ["some-mcp-server"],
             "autoApprove": ["read_file", "list_files"]  // Only auto-approve specific tools
         }
@@ -201,7 +201,7 @@ You can set `auto_approve` to `true` to automatically approve all MCP tool calls
 ```lua
 require("mcphub").setup({
     -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
-    auto_approve = true, 
+    auto_approve = true,
 })
 ```
 
@@ -220,17 +220,17 @@ require("mcphub").setup({
         if vim.g.codecompanion_auto_tool_mode == true then
             return true -- Auto approve when CodeCompanion auto-tool mode is on
         end
-        
+
         -- Auto-approve GitHub issue reading
         if params.server_name == "github" and params.tool_name == "get_issue" then
             return true -- Auto approve
         end
-        
+
         -- Block access to private repos
         if params.arguments.repo == "private" then
             return "You can't access my private repo" -- Error message
         end
-        
+
         -- Auto-approve safe file operations in current project
         if params.tool_name == "read_file" then
             local path = params.arguments.path or ""
@@ -238,12 +238,12 @@ require("mcphub").setup({
                 return true -- Auto approve
             end
         end
-        
+
         -- Check if tool is configured for auto-approval in servers.json
         if params.is_auto_approved_in_server then
             return true -- Respect servers.json configuration
         end
-        
+
         return false -- Show confirmation prompt
     end,
 })

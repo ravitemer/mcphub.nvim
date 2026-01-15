@@ -11,7 +11,7 @@ function M.register()
     end
 
     local prompts = hub:get_prompts()
-    local slash_commands = config.strategies.chat.slash_commands
+    local slash_commands = config.interactions.chat.slash_commands
 
     -- Remove existing MCP slash commands
     for key, value in pairs(slash_commands) do
@@ -92,7 +92,7 @@ function M.register()
 
                         -- Handle images
                         if output.images and #output.images > 0 then
-                            local helpers = require("codecompanion.strategies.chat.helpers")
+                            local helpers = require("codecompanion.interactions.chat.helpers")
                             for _, image in ipairs(output.images) do
                                 local id = string.format("mcp-%s", os.time())
                                 helpers.add_image(self, {

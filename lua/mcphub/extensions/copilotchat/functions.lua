@@ -38,7 +38,7 @@ local function create_function_name(server_name, item_name, opts)
 
     -- Limit the name to 64 characters
     if #name > 64 then
-      name = name:sub(1, 64)
+        name = name:sub(1, 64)
     end
 
     return name

@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*          For NVIM v0.10.0          Last change: 2025 July 19
+*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2025 December 12
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -22,7 +22,7 @@ Table of Contents                              *mcphub.nvim-table-of-contents*
 5. Extensions                                         |mcphub.nvim-extensions|
   - Avante Integration             |mcphub.nvim-extensions-avante-integration|
   - CodeCompanion Integration|mcphub.nvim-extensions-codecompanion-integration|
-  - CopilotChat Integration  |mcphub.nvim-extensions-copilotchat-integration-|
+  - CopilotChat Integration   |mcphub.nvim-extensions-copilotchat-integration|
   - Lualine Integration           |mcphub.nvim-extensions-lualine-integration|
 6. Other                                                   |mcphub.nvim-other|
 7. Links                                                   |mcphub.nvim-links|
@@ -49,10 +49,12 @@ MCP CONFIG FILE ~
 Like any MCP client, MCP Hub requires a configuration file to define the MCP
 servers you want to use. This file is typically located at
 `~/.config/mcphub/servers.json`. MCP Hub supports local `stdio` servers as well
-as remote `streamable-http` or `sse` servers. This is similar to
-`claude_desktop_config.json` file for Claude desktop or `mcp.json` file used by
-VSCode. In fact you can use the same file for MCP Hub as well with some
-additional benefits. It looks something like:
+as remote `streamable-http` or `sse` servers.
+
+**VS Code Compatibility**: MCP Hub supports VS Code’s `.vscode/mcp.json`
+format directly, including the `servers` key, `${env:}` syntax, and predefined
+variables. You can use the same file for MCP Hub, VS Code, Claude Desktop,
+Cursor, Cline, Zed, etc. It looks something like:
 
 >js
     // Example: ~/.config/mcphub/servers.json
@@ -213,8 +215,9 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                                                                (as slash_commands),
                                                                🖼 image responses
 
-                       CopilotChat.nvim     ✅                 In-built support
-                                                               Draft
+                       CopilotChat.nvim     ✅                 Tools, resources,
+                                                               function calling
+                                                               support
 
   Marketplace                                                  
 
@@ -230,6 +233,15 @@ FEATURE SUPPORT MATRIX   *mcphub.nvim-what-is-mcp-hub?-feature-support-matrix*
                                                                variables and
                                                                command execution
                                                                across all fields
+
+                       VS Code              ✅                 Support for servers
+                       Compatibility                           key, ${env:},
+                                                               ${input:},
+                                                               predefined variables
+
+                       JSON5 Support        ✅                 Comments and
+                                                               trailing commas via
+                                                               lua-json5
 
   Workspace Management                                         
 
@@ -277,7 +289,7 @@ Please read the getting started </index> guide before reading this.
 
 REQUIREMENTS                           *mcphub.nvim-installation-requirements*
 
-- Neovim >= 0.8.0
+- Neovim >= 0.8.0 (built with LuaJIT)
 - Node.js >= 18.0.0
 - plenary.nvim <https://github.com/nvim-lua/plenary.nvim>
 - mcp-hub <https://github.com/ravitemer/mcp-hub> (automatically installed via build command)
@@ -451,7 +463,7 @@ detail.
                 global_env = {}, -- Global environment variables available to all MCP servers (can be a table or a function returning a table)
                 workspace = {
                     enabled = true, -- Enable project-local configuration files
-                    look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries
+                    look_for = { ".mcphub/servers.json", ".vscode/mcp.json", ".cursor/mcp.json" }, -- Files to look for when detecting project boundaries (VS Code format supported)
                     reload_on_dir_changed = true, -- Automatically switch hubs on DirChanged event
                     port_range = { min = 40000, max = 41000 }, -- Port range for generating unique workspace ports
                     get_port = nil, -- Optional function returning custom port number. Called when generating ports to allow custom port assignment logic
@@ -504,6 +516,7 @@ detail.
                         winhl = "Normal:MCPHubNormal,FloatBorder:MCPHubBorder",
                     },
                 },
+                json_decode = nil, -- Custom JSON parser function (e.g., require('json5').parse for JSON5 support)
                 on_ready = function(hub)
                     -- Called when hub is ready
                 end,
@@ -516,10 +529,6 @@ detail.
                     file_path = nil,
                     prefix = "MCPHub",
                 },
-    
-                -- Global environment variables available to all MCP servers
-                -- Can be a table or a function(context) -> table
-                global_env = {},
             })
         end
     }
@@ -795,6 +804,10 @@ Boolean indicating if tool is configured for auto-approval in servers.json
 confirmation prompt - `string` - Deny with error message - `nil` - Show
 confirmation prompt (same as false)
 
+**Events:** When the confirmation window is shown, MCPHub fires
+`MCPHubApprovalWindowOpened` and `MCPHubApprovalWindowClosed` events that can
+be used for sound notifications or other integrations.
+
 
 SERVER-LEVEL AUTO-APPROVAL
 
@@ -888,7 +901,7 @@ Default:
                 width = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
                 height = 0.85, -- 0-1 (ratio); "50%" (percentage); 50 (raw number)
                 align = "center", -- "center", "top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"
-                border = "rounded", -- "none", "single", "double", "rounded", "solid", "shadow"
+                border = nil, -- When nil, uses vim.o.winborder. Can be set to "none", "single", "double", "rounded", "solid", "shadow" to override
                 relative = "editor",
                 zindex = 50,
             },
@@ -907,7 +920,8 @@ height (same format as width) - `align`: Window alignment position. Options: -
 Top/bottom edge, centered horizontally - `"left"`, `"right"`: Left/right edge,
 centered vertically - `relative`: Window placement relative to ("editor",
 "win", or "cursor") - `zindex`: Window stacking order - `border`: Border style
-("none", "single", "double", "rounded", "solid", "shadow")
+(defaults to `vim.o.winborder`). Can be set to "none", "single", "double",
+"rounded", "solid", "shadow" to override the global setting
 
 
 ON_READY ~
@@ -924,6 +938,53 @@ Default: `function(err) end`
 
 Callback function executed when an error occurs in the MCP Hub server. Receives
 the error message as an argument.
+
+
+JSON_DECODE ~
+
+Default: `nil`
+
+Custom JSON parser function for configuration files. This is particularly
+useful for supporting JSON5 syntax (comments and trailing commas) in VS Code
+config files.
+
+
+JSON5 SUPPORT EXAMPLE
+
+To enable JSON5 support for `.vscode/mcp.json` files with comments and trailing
+commas:
+
+1. Install the lua-json5 parser:
+
+>bash
+    # Using your package manager, e.g., lazy.nvim
+    { "Joakker/lua-json5" }
+<
+
+
+2. Configure MCPHub to use it:
+
+>lua
+    require("mcphub").setup({
+        json_decode = require('json5').parse,
+        -- other config...
+    })
+<
+
+
+
+With this setup, your config files can include:
+
+>json5
+    {
+      // This is a comment
+      "servers": {
+        "github": {
+          "url": "https://api.githubcopilot.com/mcp/",
+        }, // Trailing comma is fine
+      },
+    }
+<
 
 
 LOG ~
@@ -956,11 +1017,23 @@ default and supports real-time updates across all Neovim instances. You can set
 `config` option to a custom location.
 
 
-  [!NOTE] You can use a single config file for any MCP client like VSCode,
-  Cursor, Cline, Zed etc as long as the config file follows the below structure.
-  With MCPHub.nvim, `config` file can be safely added to source control as it
-  supports **universal ${} placeholder syntax** for environment variables and
-  command execution across all configuration fields.
+VS CODE COMPATIBILITY ~
+
+MCPHub fully supports VS Code’s `.vscode/mcp.json` configuration format,
+including:
+
+- **servers key** instead of `mcpServers` (both keys are supported)
+- **VS Code variable syntax**: `${env:VARIABLE}`, `${workspaceFolder}`, `${userHome}`, etc.
+- **JSON5 syntax**: Comments and trailing commas (with `lua-json5` <https://github.com/Joakker/lua-json5>)
+- **Seamless migration**: Existing VS Code configs work directly
+
+
+  [!NOTE] You can use a single config file for any MCP client like VS Code,
+  Cursor, Cline, Zed etc. MCPHub supports both `mcpServers` and `servers` keys,
+  with VS Code’s format taking precedence if both are present. With
+  MCPHub.nvim, `config` file can be safely added to source control as it supports
+  **universal ${} placeholder syntax** for environment variables and command
+  execution across all configuration fields.
 
   [!TIP] Use the `global_env` option to inject environment variables into all MCP
   servers, instead of duplicating them in every server’s `env` field.
@@ -990,11 +1063,11 @@ Add (`<A>`), edit (`<e>`), delete (`<d>`) MCP servers from the (`H`) Hub view.
 
 BASIC SCHEMA ~
 
-The `config` file should have a `mcpServers` key. This contains `stdio` and
-`remote` MCP servers. There is also another top level MCPHub specific field
-`nativeMCPServers` to store any disabled tools, custom instructions etc that
-the plugin updates internally. See Lua MCP Servers </mcp/native/index> for more
-about Lua native MCP servers
+MCPHub supports both traditional `mcpServers` format and VS Code’s `servers`
+format:
+
+
+MCPSERVERS FORMAT
 
 >json
     {
@@ -1003,6 +1076,17 @@ about Lua native MCP servers
         },
         "nativeMCPServers": { // MCPHub specific
             // To store disabled tools, custom instructions etc
+        }
+    }
+<
+
+
+VS CODE FORMAT (ALSO SUPPORTED)
+
+>json
+    {
+        "servers": {
+            // Add stdio and remote MCP servers here (VS Code format)
         }
     }
 <
@@ -1052,31 +1136,40 @@ OPTIONAL FIELDS:
 
 UNIVERSAL ${} PLACEHOLDER SYNTAX
 
-**All fields** support the universal placeholder syntax: - **${ENV_VAR}** -
-Resolves environment variables - **${cmd: command args}** - Executes commands
-and uses output - **null or ""** - Falls back to `process.env`
+**All fields** support the universal placeholder syntax with VS Code
+compatibility: - **${ENV_VAR}** or **${env:ENV_VAR}** - Resolves environment
+variables (VS Code style supported) - **${cmd: command args}** - Executes
+commands and uses output - **${workspaceFolder}**, **${userHome}**,
+**${pathSeparator}** - VS Code predefined variables - **${input:variable-id}**
+- VS Code input variables (via MCP_HUB_ENV) - **null or ""** - Falls back to
+`process.env`
 
 Given `API_KEY=secret` in the environment:
 
-  -------------------------------------------------------------------------------------------------------
-  Example                                       Becomes                   Description
-  --------------------------------------------- ------------------------- -------------------------------
-  "API_KEY": ""                                 "API_KEY": "secret"       Empty string falls back to
-                                                                          process.env.API_KEY
+  ----------------------------------------------------------------------------------------------------------------
+  Example                                       Becomes                            Description
+  --------------------------------------------- ---------------------------------- -------------------------------
+  "API_KEY": ""                                 "API_KEY": "secret"                Empty string falls back to
+                                                                                   process.env.API_KEY
 
-  "API_KEY": null                               "API_KEY": "secret"       null falls back to
-                                                                          process.env.API_KEY
+  "API_KEY": null                               "API_KEY": "secret"                null falls back to
+                                                                                   process.env.API_KEY
 
-  "AUTH": "Bearer ${API_KEY}"                   "AUTH": "Bearer secret"   ${} Placeholder values are
-                                                                          replaced
+  "AUTH": "Bearer ${API_KEY}"                   "AUTH": "Bearer secret"            ${} Placeholder values are
+                                                                                   replaced
 
-  "TOKEN": "${cmd: op read op://vault/token}"   "TOKEN": "secret"         Commands are executed and
-                                                                          output used
+  "AUTH": "Bearer ${env:API_KEY}"               "AUTH": "Bearer secret"            VS Code style environment
+                                                                                   variables
 
-  "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"    Used as-is
-  -------------------------------------------------------------------------------------------------------
+  "PATH": "${workspaceFolder}/bin"              "PATH": "/home/user/project/bin"   VS Code predefined variables
 
-  ⚠️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
+  "TOKEN": "${cmd: op read op://vault/token}"   "TOKEN": "secret"                  Commands are executed and
+                                                                                   output used
+
+  "HOME": "/home/ubuntu"                        "HOME": "/home/ubuntu"             Used as-is
+  ----------------------------------------------------------------------------------------------------------------
+
+  �� ️ **Legacy Syntax**: `$VAR` (args) and `$: command` (env) are deprecated
   but still supported with warnings. Use `${VAR}` and `${cmd: command}` instead.
 
 CWD EXAMPLE:
@@ -1240,6 +1333,107 @@ automatically approved without user confirmation:
 configuration needed) - Auto-approval only applies to enabled servers and
 enabled tools - You can toggle auto-approval from the UI using the `a` keymap
 on servers or individual tools
+
+
+VS CODE FORMAT EXAMPLE
+
+Here’s a complete example using VS Code’s `.vscode/mcp.json` format with
+JSON5 syntax:
+
+>json5
+    {
+      // VS Code MCP configuration with JSON5 support
+      "servers": {
+        "github": {
+          "url": "https://api.githubcopilot.com/mcp/",
+          "headers": {
+            "Authorization": "Bearer ${env:GITHUB_TOKEN}"
+          }
+        },
+        "filesystem": {
+          "command": "npx",
+          "args": ["-y", "mcp-server-filesystem", "${workspaceFolder}"],
+          "env": {
+            "WORKSPACE_PATH": "${workspaceFolder}",
+            "USER_HOME": "${userHome}"
+          }
+        }, // Trailing comma is supported with JSON5
+      }
+    }
+<
+
+This example demonstrates: - **VS Code servers key** instead of `mcpServers` -
+**VS Code environment syntax**: `${env:GITHUB_TOKEN}` - **VS Code predefined
+variables**: `${workspaceFolder}`, `${userHome}` - **JSON5 features**: Comments
+and trailing commas
+
+
+SUPPORTED PREDEFINED VARIABLES
+
+MCPHub supports the following VS Code predefined variables:
+
+  ----------------------------------------------------------------------------------
+  Variable                     Description              Example Value
+  ---------------------------- ------------------------ ----------------------------
+  ${workspaceFolder}           Directory where mcp-hub  /home/user/my-project
+                               is running               
+
+  ${userHome}                  User’s home directory    /home/user
+
+  ${pathSeparator}             OS path separator        / (Linux/macOS) or \
+                                                        (Windows)
+
+  ${workspaceFolderBasename}   Just the folder name     my-project
+
+  ${cwd}                       Alias for                /home/user/my-project
+                               workspaceFolder          
+
+  ${/}                         VS Code shorthand for    / (Linux/macOS) or \
+                               pathSeparator            (Windows)
+  ----------------------------------------------------------------------------------
+**Notes:** - These variables are available for placeholder resolution but are
+NOT passed to server environments - Use them in any configuration field:
+`command`, `args`, `env`, `url`, `headers`, `cwd`
+
+
+VS CODE INPUT VARIABLES SUPPORT ~
+
+MCPHub supports VS Code’s `${input:variable-id}` syntax for compatibility
+with VS Code configurations. Input variables are configured via MCPHub’s
+`global_env` option and made available to all servers.
+
+**Setup in MCPHub configuration:**
+
+>lua
+    require("mcphub").setup({
+        global_env = {
+            ["input:perplexity-key"] = "my-awesome-project",
+        },
+        -- other config...
+    })
+<
+
+**Usage in configuration files:**
+
+>json
+    {
+      "servers": {
+        "Perplexity": {
+          "type": "stdio",
+          "command": "npx",
+          "args": ["-y", "server-perplexity-ask"],
+          "env": {
+            "PERPLEXITY_API_KEY": "${input:perplexity-key}"
+          }
+        }
+      }
+    }
+<
+
+**How it works:** 1. Input variables are defined in MCPHub’s `global_env`
+configuration 2. MCPHub passes them to the backend via `MCP_HUB_ENV` 3.
+Variables are resolved using the format: `${input:variable-id}` 4. This enables
+direct compatibility with existing VS Code configurations
 
 
 LUA MCP SERVERS                      *mcphub.nvim-mcp-servers-lua-mcp-servers*
@@ -2399,7 +2593,7 @@ Here’s a simple chat prompt:
 <
 
 
-REAL EXAMPLE: NEOVIM’S PARROT PROMPT
+REAL EXAMPLE: NEOVIM�S PARROT PROMPT
 
 Here’s how the built-in Neovim server implements a fun parrot prompt:
 
@@ -2947,7 +3141,7 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
         mcphub = {
           callback = "mcphub.extensions.codecompanion",
           opts = {
-            -- MCP Tools 
+            -- MCP Tools
             make_tools = true,              -- Make individual tools (@server__tool) and server groups (@server) from MCP servers
             show_server_tools_in_chat = true, -- Show individual tools in chat completion (when make_tools=true)
             add_mcp_prefix_to_tool_names = false, -- Add mcp__ prefix (e.g `@mcp__github`, `@mcp__neovim__list_issues`)
@@ -2955,7 +3149,7 @@ Register MCP Hub as an extension in your CodeCompanion configuration:
             format_tool = nil,               -- function(tool_name:string, tool: CodeCompanion.Agent.Tool) : string Function to format tool names to show in the chat buffer
             -- MCP Resources
             make_vars = true,                -- Convert MCP resources to #variables for prompts
-            -- MCP Prompts 
+            -- MCP Prompts
             make_slash_commands = true,      -- Add MCP prompts as /slash commands
           }
         }
@@ -2993,8 +3187,8 @@ connected MCP servers:
 
 >
     @{neovim} Read the main.lua file    # All tools from the neovim server will be added as function tools
-    @{github} Create an issue           
-    @{fetch} Get this webpage           
+    @{github} Create an issue
+    @{fetch} Get this webpage
 <
 
 Server groups are automatically created based on your connected MCP servers
@@ -3030,7 +3224,7 @@ Example configuration for custom tool groups:
 
 >lua
     require("codecompanion").setup({
-      strategies = {
+      interactions = {
         chat = {
           tools = {
             groups = {
@@ -3042,7 +3236,7 @@ Example configuration for custom tool groups:
                   -- GitHub operations
                   "github__list_issues", "github__get_issue", "github__get_issue_comments",
                   "github__create_issue", "github__create_pull_request", "github__get_file_contents",
-                  "github__create_or_update_file",  "github__search_code"             
+                  "github__create_or_update_file",  "github__search_code"
                 },
               },
             },
@@ -3122,7 +3316,7 @@ your `servers.json`:
                 "autoApprove": true  // Auto-approve all tools on this server
             },
             "partially-trusted": {
-                "command": "npx", 
+                "command": "npx",
                 "args": ["some-mcp-server"],
                 "autoApprove": ["read_file", "list_files"]  // Only auto-approve specific tools
             }
@@ -3144,7 +3338,7 @@ calls without user confirmation:
 >lua
     require("mcphub").setup({
         -- This sets vim.g.mcphub_auto_approve to true by default (can also be toggled from the HUB UI with `ga`)
-        auto_approve = true, 
+        auto_approve = true,
     })
 <
 
@@ -3165,17 +3359,17 @@ specific tool call:
             if vim.g.codecompanion_auto_tool_mode == true then
                 return true -- Auto approve when CodeCompanion auto-tool mode is on
             end
-            
+    
             -- Auto-approve GitHub issue reading
             if params.server_name == "github" and params.tool_name == "get_issue" then
                 return true -- Auto approve
             end
-            
+    
             -- Block access to private repos
             if params.arguments.repo == "private" then
                 return "You can't access my private repo" -- Error message
             end
-            
+    
             -- Auto-approve safe file operations in current project
             if params.tool_name == "read_file" then
                 local path = params.arguments.path or ""
@@ -3183,12 +3377,12 @@ specific tool call:
                     return true -- Auto approve
                 end
             end
-            
+    
             -- Check if tool is configured for auto-approval in servers.json
             if params.is_auto_approved_in_server then
                 return true -- Respect servers.json configuration
             end
-            
+    
             return false -- Show confirmation prompt
         end,
     })
@@ -3213,161 +3407,82 @@ The system checks auto-approval in this order: 1. **Function**: Custom
 field in server config 3. **Default**: Show confirmation dialog
 
 
-COPILOTCHAT INTEGRATION      *mcphub.nvim-extensions-copilotchat-integration-*
+COPILOTCHAT INTEGRATION       *mcphub.nvim-extensions-copilotchat-integration*
 
-CopilotChat.nvim <https://github.com/CopilotC-Nvim/CopilotChat.nvim> supports
-function calling which is currently in draft
-<https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029>. To integrate MCP
-Hub with CopilotChat we need to use the `tools` branch of CopilotChat as shown
-below:
+Add MCP capabilities to CopilotChat.nvim
+<https://github.com/CopilotC-Nvim/CopilotChat.nvim> by adding it as an
+extension. CopilotChat now has native function-calling support, making it easy
+to integrate MCP tools and resources.
 
 
-  [!WARNING] Please note that CopilotChat function-calling support is available
-  as a Draft PR <https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029>.
+FEATURES ~
 
-INSTALL COPILOTCHAT ~
+- **Tool Integration**: Register MCP tools as CopilotChat functions with proper schemas
+- **Resource Integration**: Register MCP resources as CopilotChat functions for easy access
+- **Server Groups**: Functions are organized by MCP server name for better organization
+- **Real-time Updates**: Automatic updates in CopilotChat when MCP servers change
+
+
+SETUP ~
+
+
+ENABLE COPILOTCHAT EXTENSION
+
+Add CopilotChat as an extension in your MCPHub configuration:
 
 >lua
-    {
-        "deathbeam/CopilotChat.nvim",
-        dependencies = {
-            { "zbirenbaum/copilot.lua" },
-            { "nvim-lua/plenary.nvim", branch = "master" }, -- for curl, log and async functions
-        },
-        branch = "tools",
-        build = "make tiktoken", -- Only on MacOS or Linux
-    }
+    require("mcphub").setup({
+        extensions = {
+            copilotchat = {
+                enabled = true,
+                convert_tools_to_functions = true,     -- Convert MCP tools to CopilotChat functions
+                convert_resources_to_functions = true, -- Convert MCP resources to CopilotChat functions  
+                add_mcp_prefix = false,                -- Add "mcp_" prefix to function names
+            }
+        }
+    })
 <
 
 
-INTEGRATE MCP HUB ~
+CONFIGURATION OPTIONS
 
-After the `setup()` of CopilotChat is called, add the following code. Please
-see the draft PR <https://github.com/CopilotC-Nvim/CopilotChat.nvim/pull/1029>
-for more information.
-
->lua
-    local chat = require("CopilotChat")
-    chat.setup()
-    
-    local mcp = require("mcphub")
-    mcp.on({ "servers_updated", "tool_list_changed", "resource_list_changed" }, function()
-    	local hub = mcp.get_hub_instance()
-    	if not hub then
-    		return
-    	end
-    
-    	local async = require("plenary.async")
-    	local call_tool = async.wrap(function(server, tool, input, callback)
-    		hub:call_tool(server, tool, input, {
-    			callback = function(res, err)
-    				callback(res, err)
-    			end,
-    		})
-    	end, 4)
-    
-    	local access_resource = async.wrap(function(server, uri, callback)
-    		hub:access_resource(server, uri, {
-    			callback = function(res, err)
-    				callback(res, err)
-    			end,
-    		})
-    	end, 3)
-    
-    	for name, tool in pairs(chat.config.functions) do
-    		if tool.id and tool.id:sub(1, 3) == "mcp" then
-    			chat.config.functions[name] = nil
-    		end
-    	end
-    	local resources = hub:get_resources()
-    	for _, resource in ipairs(resources) do
-    		local name = resource.name:lower():gsub(" ", "_"):gsub(":", "")
-    		chat.config.functions[name] = {
-    			id = "mcp:" .. resource.server_name .. ":" .. name,
-    			uri = resource.uri,
-    			description = type(resource.description) == "string" and resource.description or "",
-    			resolve = function()
-    				local res, err = access_resource(resource.server_name, resource.uri)
-    				if err then
-    					error(err)
-    				end
-    
-    				res = res or {}
-    				local result = res.result or {}
-    				local content = result.contents or {}
-    				local out = {}
-    
-    				for _, message in ipairs(content) do
-    					if message.text then
-    						table.insert(out, {
-    							uri = message.uri,
-    							data = message.text,
-    							mimetype = message.mimeType,
-    						})
-    					end
-    				end
-    
-    				return out
-    			end,
-    		}
-    	end
-    
-    	local tools = hub:get_tools()
-    	for _, tool in ipairs(tools) do
-    		chat.config.functions[tool.name] = {
-    			id = "mcp:" .. tool.server_name .. ":" .. tool.name,
-    			group = tool.server_name,
-    			description = tool.description,
-    			schema = tool.inputSchema,
-    			resolve = function(input)
-    				local res, err = call_tool(tool.server_name, tool.name, input)
-    				if err then
-    					error(err)
-    				end
-    
-    				res = res or {}
-    				local result = res.result or {}
-    				local content = result.content or {}
-    				local out = {}
-    
-    				for _, message in ipairs(content) do
-    					if message.type == "text" then
-    						table.insert(out, {
-    							data = message.text,
-    						})
-    					elseif message.type == "resource" and message.resource and message.resource.text then
-    						table.insert(out, {
-    							uri = message.resource.uri,
-    							data = message.resource.text,
-    							mimetype = message.resource.mimeType,
-    						})
-    					end
-    				end
-    
-    				return out
-    			end,
-    		}
-    	end
-    end)
-<
+- **convert_tools_to_functions**: When `true`, all MCP tools are registered as CopilotChat functions
+- **convert_resources_to_functions**: When `true`, all MCP resources are registered as CopilotChat functions
+- **add_mcp_prefix**: When `true`, adds "mcp_" prefix to all function names (e.g., `mcp_github__get_issue`)
 
 
 USAGE ~
 
 
-MCP SERVERS AS TOOLS
+MCP TOOLS
 
-You can type `@` in the chat to see all the available tools in CopilotChat.
-CopilotChat allows us to add all the tools of a MCP server as a tool group as
-well as the individual tools. For e.g `> @neovim` will add all the tools of
-Neovim MCP server to the chat. The `>` at the start makes it sticky which means
-the tools will be sent with all user prompts. You can also just add a specific
-tool from Neovim server by selecting from the group.
+When `convert_tools_to_functions = true`, all MCP tools become available as
+CopilotChat functions. Functions are automatically organized by server name,
+making it easy to see all tools from a specific MCP server. Tool names follow
+the pattern `server_name__tool_name`:
+
+**Examples:** - `@neovim__read_file` - Read a file using the neovim server -
+`@github__create_issue` - Create a GitHub issue - `@fetch__fetch` - Fetch web
+content
 
 
-MCP RESOURCES AS VARIABLES
+MCP RESOURCES
 
-Resources from MCP servers will also be available as CopilotChat variables `#`.
+You can use `#` to access MCP resources as variables in CopilotChat. In
+addition, when `convert_resources_to_functions = true`, all MCP resources will
+also be available as CopilotChat functions:
+
+**Examples:** - `#neovim__Buffer` - Access current buffer content -
+`@neovim__Buffer` - Get current buffer content (as a function)
+
+
+EXAMPLE WORKFLOW ~
+
+1. **Start CopilotChat** and type `@` to see available functions
+2. **Select MCP functions** from your connected servers
+3. **Use tools**: `@github__create_issue Fix the navigation bug`
+4. **Access resources**: `@neovim__current_buffer Show me the current file content`
+5. **Organize by server**: Browse functions grouped by MCP server
 
 
 LUALINE INTEGRATION               *mcphub.nvim-extensions-lualine-integration*
@@ -3442,7 +3557,7 @@ etc.) - `vim.g.mcphub_servers_count` - Number of connected servers -
 
 LEGACY: FULL COMPONENT (LOADS MCPHUB) - DEPRECATED ~
 
-**⚠️ DEPRECATED**: This approach will load MCPHub even with lazy loading
+**�� ️ DEPRECATED**: This approach will load MCPHub even with lazy loading
 enabled and shows a deprecation warning. Use the global variables approach
 above instead.
 
@@ -3541,9 +3656,9 @@ doc/other/architecture.md doc/other/troubleshooting.md
 18. *Image*: doc/extensions/https:/github.com/user-attachments/assets/131bfed2-c4e7-4e2e-ba90-c86e6ca257fd
 19. *Image*: doc/extensions/https:/github.com/user-attachments/assets/befd1d44-bca3-41f6-a99a-3d15c6c8a5f5
 20. *Image*: doc/extensions/https:/github.com/user-attachments/assets/64708065-3428-4eb3-82a5-e32d2d1f98c6
-21. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
-22. *Image*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
-23. *Image*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
+21. *Tool Functions*: doc/extensions/https:/github.com/user-attachments/assets/7c16bc7e-a9df-4afc-9736-2ee6a39919a9
+22. *Resource Functions*: doc/extensions/https:/github.com/user-attachments/assets/7f77bf1e-12b7-4745-a87b-40181a619733
+23. *Server Groups*: doc/extensions/https:/github.com/user-attachments/assets/adc556bb-7d5f-4d22-820a-a7daeb0ac72c
 24. *image*: doc/extensions/https:/github.com/user-attachments/assets/f67802fe-6b0c-48a5-9275-bff9f830ce29
 25. *image*: doc/extensions/https:/github.com/user-attachments/assets/f90f7cc4-ff34-4481-9732-a0331a26502b
 26. *image*: doc/extensions/https:/github.com/user-attachments/assets/f6bdeeec-48f7-48de-89a5-22236a52843f

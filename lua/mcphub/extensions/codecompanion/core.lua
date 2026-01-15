@@ -108,7 +108,7 @@ local function add_tool_output(
     images
 )
     local config = require("codecompanion.config")
-    local helpers = require("codecompanion.strategies.chat.helpers")
+    local helpers = require("codecompanion.interactions.chat.helpers")
     local show_result_in_chat = opts.show_result_in_chat == true
     local text = llm_msg
     local formatted_name = opts.format_tool and opts.format_tool(display_name, tool) or display_name
