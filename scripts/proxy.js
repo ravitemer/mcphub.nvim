@@ -143,7 +143,7 @@ async function refresh(nvim) {
   log.trace("refreshing...")
 
   try {
-    const servers = await nvim.lua('return require("mcphub.native.neovim.proxy").get_all_servers()')
+    const servers = await nvim.lua('return require("mcphub.extensions.proxy").get_all_servers()')
 
     log.debug(`Loaded ${servers.length} MCP server(s): ${servers.map((s) => s.name).join(", ")}`)
 
@@ -211,9 +211,9 @@ async function listen(nvim) {
     const toolName = toolParts.join("__")
 
     try {
-      log.trace("Calling hub_call_tool via RPC...")
+      log.trace("Calling proxy.call_tool via RPC...")
       const result = await withTimeout(
-        nvim.lua(`return require("mcphub.native.neovim.proxy").hub_call_tool(...)`, [
+        nvim.lua(`return require("mcphub.extensions.proxy").call_tool(...)`, [
           serverName,
           toolName,
           { arguments: args || {}, caller: { type: "external", source: "proxy" } }
@@ -222,9 +222,13 @@ async function listen(nvim) {
       )
       log.trace("RPC call completed")
 
+      if (!result) {
+        log.warn(`Tool ${name} returned null/undefined result`)
+        throw new Error("Tool returned no result")
+      }
+
       if (result.error) {
         log.warn(`Tool ${name} returned error: ${result.error}`)
-
         throw new Error(result.error)
       }
 
@@ -279,9 +283,13 @@ async function listen(nvim) {
 
     try {
       const result = await withTimeout(
-        nvim.lua(`return require("mcphub.native.neovim.proxy").hub_access_resource(...)`, [serverName, resourceUri, { caller: { type: "external", source: "proxy" } }]),
+        nvim.lua(`return require("mcphub.extensions.proxy").access_resource(...)`, [serverName, resourceUri, { caller: { type: "external", source: "proxy" } }]),
         config["rpc-call-timeout"]
       )
+
+      if (!result) {
+        throw new Error("Resource returned no result")
+      }
 
       if (result.error) {
         throw new Error(result.error)
@@ -332,13 +340,17 @@ async function listen(nvim) {
 
     try {
       const result = await withTimeout(
-        nvim.lua(`return require("mcphub.native.neovim.proxy").hub_get_prompt(...)`, [
+        nvim.lua(`return require("mcphub.extensions.proxy").get_prompt(...)`, [
           serverName,
           promptName,
           { arguments: args || {}, caller: { type: "external", source: "proxy" } }
         ]),
         config["rpc-call-timeout"]
       )
+
+      if (!result) {
+        throw new Error("Prompt returned no result")
+      }
 
       if (result.error) {
         throw new Error(result.error)
