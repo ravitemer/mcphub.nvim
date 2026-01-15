@@ -51,7 +51,7 @@ function MCPHub:new(opts)
         server_url = opts.server_url,
         config = opts.config,
         auto_toggle_mcp_servers = opts.auto_toggle_mcp_servers,
-        shutdown_delay = State.config.workspace.enabled == "always" and 0 or opts.shutdown_delay,
+        shutdown_delay = opts.workspace.enabled == "always" and 0 or opts.shutdown_delay,
         cmd = opts.cmd,
         cmdArgs = opts.cmdArgs,
         ready = false,
