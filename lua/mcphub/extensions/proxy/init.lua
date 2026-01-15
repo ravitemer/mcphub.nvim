@@ -36,7 +36,6 @@ function M.get()
         url = "",
         headers = {},
         env = {},
-        alwaysAllow = true,
     }
 end
 
@@ -89,99 +88,122 @@ function M.get_all_servers()
     return formatted_servers
 end
 
---- Call a tool via hub.
+--- Send result back to proxy.js via notification
+---@param request_id string The request ID to respond to
+---@param result table The result to send
+local function send_result(request_id, result)
+    vim.rpcnotify(0, "mcphub_proxy_result", request_id, result)
+end
+
+--- Async version of call_tool for proxy (uses nice UI)
+---@param request_id string Request ID for async response
 ---@param server_name string Name of the server
 ---@param tool_name string Name of the tool
 ---@param params table Parameters including arguments and caller context
----@return table Result or error
-function M.call_tool(server_name, tool_name, params)
-    local mcphub = require("mcphub")
-    local hub = mcphub.get_hub_instance()
+function M.call_tool(request_id, server_name, tool_name, params)
+    local async = require("plenary.async")
 
-    if not hub or not hub:is_ready() then
-        return { error = "Hub is not ready" }
-    end
+    async.run(function()
+        local mcphub = require("mcphub")
+        local hub = mcphub.get_hub_instance()
 
-    local arguments = params.arguments or {}
-    local caller = params.caller or { type = "proxy" }
+        if not hub or not hub:is_ready() then
+            send_result(request_id, { error = "Hub is not ready" })
+            return
+        end
 
-    -- Handle approval flow (synchronous version for RPC context)
-    local parsed_params = shared.parse_params({
-        server_name = server_name,
-        tool_name = tool_name,
-        tool_input = arguments,
-    }, "use_mcp_tool")
+        local arguments = params.arguments or {}
+        local caller = params.caller or { type = "proxy" }
 
-    if #parsed_params.errors > 0 then
-        return { error = table.concat(parsed_params.errors, "\n") }
-    end
+        -- Parse and validate params
+        local parsed_params = shared.parse_params({
+            server_name = server_name,
+            tool_name = tool_name,
+            tool_input = arguments,
+        }, "use_mcp_tool")
 
-    local approval = shared.handle_auto_approval_decision_sync(parsed_params)
-    if approval.error then
-        return { error = approval.error }
-    end
+        if #parsed_params.errors > 0 then
+            send_result(request_id, { error = table.concat(parsed_params.errors, "\n") })
+            return
+        end
 
-    local result, err = hub:call_tool(server_name, tool_name, arguments, {
-        parse_response = false,
-        caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
-    })
+        -- Use the async approval with nice UI!
+        local approval = shared.handle_auto_approval_decision(parsed_params)
+        if approval.error then
+            send_result(request_id, { error = approval.error })
+            return
+        end
 
-    if err then
-        return { error = err }
-    elseif result and result.result then
-        return result.result
-    elseif result then
-        return result
-    end
+        local result, err = hub:call_tool(server_name, tool_name, arguments, {
+            parse_response = false,
+            caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
+        })
 
-    return { error = "No result returned from hub" }
+        if err then
+            send_result(request_id, { error = err })
+        elseif result and result.result then
+            send_result(request_id, result.result)
+        elseif result then
+            send_result(request_id, result)
+        else
+            send_result(request_id, { error = "No result returned from hub" })
+        end
+    end)
 end
 
---- Access a resource via hub.
+--- Async version of access_resource for proxy (uses nice UI)
+---@param request_id string Request ID for async response
 ---@param server_name string Name of the server
 ---@param uri string Resource URI
 ---@param params? table Optional parameters including caller context
----@return table Result or error
-function M.access_resource(server_name, uri, params)
-    params = params or {}
-    local mcphub = require("mcphub")
-    local hub = mcphub.get_hub_instance()
+function M.access_resource(request_id, server_name, uri, params)
+    local async = require("plenary.async")
 
-    if not hub or not hub:is_ready() then
-        return { error = "Hub is not ready" }
-    end
+    async.run(function()
+        params = params or {}
+        local mcphub = require("mcphub")
+        local hub = mcphub.get_hub_instance()
 
-    local caller = params.caller or { type = "proxy" }
+        if not hub or not hub:is_ready() then
+            send_result(request_id, { error = "Hub is not ready" })
+            return
+        end
 
-    -- Handle approval flow (same as codecompanion/avante)
-    local parsed_params = shared.parse_params({
-        server_name = server_name,
-        uri = uri,
-    }, "access_mcp_resource")
+        local caller = params.caller or { type = "proxy" }
 
-    if #parsed_params.errors > 0 then
-        return { error = table.concat(parsed_params.errors, "\n") }
-    end
+        -- Parse and validate params
+        local parsed_params = shared.parse_params({
+            server_name = server_name,
+            uri = uri,
+        }, "access_mcp_resource")
 
-    local approval = shared.handle_auto_approval_decision_sync(parsed_params)
-    if approval.error then
-        return { error = approval.error }
-    end
+        if #parsed_params.errors > 0 then
+            send_result(request_id, { error = table.concat(parsed_params.errors, "\n") })
+            return
+        end
 
-    local result, err = hub:access_resource(server_name, uri, {
-        parse_response = false,
-        caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
-    })
+        -- Use the async approval with nice UI!
+        local approval = shared.handle_auto_approval_decision(parsed_params)
+        if approval.error then
+            send_result(request_id, { error = approval.error })
+            return
+        end
 
-    if err then
-        return { error = err }
-    elseif result and result.result then
-        return result.result
-    elseif result then
-        return result
-    end
+        local result, err = hub:access_resource(server_name, uri, {
+            parse_response = false,
+            caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
+        })
 
-    return { error = "No result returned from hub" }
+        if err then
+            send_result(request_id, { error = err })
+        elseif result and result.result then
+            send_result(request_id, result.result)
+        elseif result then
+            send_result(request_id, result)
+        else
+            send_result(request_id, { error = "No result returned from hub" })
+        end
+    end)
 end
 
 --- Get a prompt via hub.

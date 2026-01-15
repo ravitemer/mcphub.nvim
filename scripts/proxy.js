@@ -13,6 +13,7 @@ import {
 import { attach } from "neovim"
 import { parseArgs } from "util"
 import { createWriteStream } from "fs"
+import { randomUUID } from "crypto"
 
 const LogLevel = {
   TRACE: 0,
@@ -22,6 +23,9 @@ const LogLevel = {
   ERROR: 4,
   OFF: 5
 }
+
+/** @type {Map<string, {resolve: function, reject: function}>} */
+const pendingRequests = new Map()
 
 const { values } = parseArgs({
   options: {
@@ -131,7 +135,53 @@ async function connect() {
 
   log.info("Attached to Neovim RPC socket:", config.socket)
 
+  // Set up notification handler for async responses
+  client.on("notification", (method, args) => {
+    log.trace(`Notification received: ${method}`, args)
+
+    if (method === "mcphub_proxy_result") {
+      const [id, result] = args
+      const pending = pendingRequests.get(id)
+
+      if (pending) {
+        log.debug(`Resolving pending request: ${id}`)
+        pending.resolve(result)
+        pendingRequests.delete(id)
+      } else {
+        log.warn(`Received result for unknown request: ${id}`)
+      }
+    }
+  })
+
   return client
+}
+
+/**
+ * Execute an async operation that sends result via notification
+ * @param {(requestId: string) => Promise<any>} callback - Function that initiates the Lua call
+ * @returns {Promise<any>}
+ */
+function call(callback) {
+  const id = randomUUID()
+
+  return new Promise((resolve, reject) => {
+    pendingRequests.set(id, { resolve, reject })
+
+    log.debug(`Sending async request: ${id}`)
+
+    callback(id).catch((err) => {
+      pendingRequests.delete(id)
+      reject(err)
+    })
+
+    setTimeout(() => {
+      if (pendingRequests.has(id)) {
+        log.warn(`Request timeout: ${id}`)
+        pendingRequests.delete(id)
+        reject(new Error("Request timeout - approval may have been cancelled"))
+      }
+    }, config["rpc-call-timeout"])
+  })
 }
 
 /**
@@ -211,16 +261,11 @@ async function listen(nvim) {
     const toolName = toolParts.join("__")
 
     try {
-      log.trace("Calling proxy.call_tool via RPC...")
-      const result = await withTimeout(
-        nvim.lua(`return require("mcphub.extensions.proxy").call_tool(...)`, [
-          serverName,
-          toolName,
-          { arguments: args || {}, caller: { type: "external", source: "proxy" } }
-        ]),
-        config["rpc-call-timeout"]
+      log.trace("Calling proxy.call_tool...")
+      const result = await call((requestId) =>
+        nvim.lua(`require("mcphub.extensions.proxy").call_tool(...)`, [requestId, serverName, toolName, { arguments: args || {}, caller: { type: "external", source: "proxy" } }])
       )
-      log.trace("RPC call completed")
+      log.trace("Async call completed")
 
       if (!result) {
         log.warn(`Tool ${name} returned null/undefined result`)
@@ -282,9 +327,8 @@ async function listen(nvim) {
     const [, serverName, resourceUri] = match
 
     try {
-      const result = await withTimeout(
-        nvim.lua(`return require("mcphub.extensions.proxy").access_resource(...)`, [serverName, resourceUri, { caller: { type: "external", source: "proxy" } }]),
-        config["rpc-call-timeout"]
+      const result = await call((requestId) =>
+        nvim.lua(`require("mcphub.extensions.proxy").access_resource(...)`, [requestId, serverName, resourceUri, { caller: { type: "external", source: "proxy" } }])
       )
 
       if (!result) {
@@ -340,11 +384,7 @@ async function listen(nvim) {
 
     try {
       const result = await withTimeout(
-        nvim.lua(`return require("mcphub.extensions.proxy").get_prompt(...)`, [
-          serverName,
-          promptName,
-          { arguments: args || {}, caller: { type: "external", source: "proxy" } }
-        ]),
+        nvim.lua(`return require("mcphub.extensions.proxy").get_prompt(...)`, [serverName, promptName, { arguments: args || {}, caller: { type: "external", source: "proxy" } }]),
         config["rpc-call-timeout"]
       )
 
