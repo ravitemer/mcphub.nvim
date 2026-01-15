@@ -49,43 +49,7 @@ function M.get_all_servers()
         return {}
     end
 
-    local servers = hub:get_servers()
-
-    local formatted_servers = {}
-    for _, server in ipairs(servers) do
-        table.insert(formatted_servers, {
-            name = server.name,
-            displayName = server.displayName,
-            description = server.description,
-            status = server.status,
-            capabilities = {
-                tools = vim.tbl_map(function(t)
-                    return {
-                        name = t.name,
-                        description = t.description,
-                        inputSchema = t.inputSchema,
-                    }
-                end, server.capabilities.tools or {}),
-                resources = vim.tbl_map(function(r)
-                    return {
-                        uri = r.uri,
-                        name = r.name,
-                        description = r.description,
-                        mimeType = r.mimeType,
-                    }
-                end, server.capabilities.resources or {}),
-                prompts = vim.tbl_map(function(p)
-                    return {
-                        name = p.name,
-                        description = p.description,
-                        arguments = p.arguments,
-                    }
-                end, server.capabilities.prompts or {}),
-            },
-        })
-    end
-
-    return formatted_servers
+    return hub:get_servers()
 end
 
 --- Send result back to proxy.js via notification
@@ -134,20 +98,23 @@ function M.call_tool(request_id, server_name, tool_name, params)
             return
         end
 
-        local result, err = hub:call_tool(server_name, tool_name, arguments, {
+        -- Use callback to avoid blocking vim.wait() in NativeServer:call_tool
+        -- This allows interactive tools like edit_file to work properly
+        hub:call_tool(server_name, tool_name, arguments, {
             parse_response = false,
             caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
+            callback = function(result, err)
+                if err then
+                    send_result(request_id, { error = err })
+                elseif result and result.result then
+                    send_result(request_id, result.result)
+                elseif result then
+                    send_result(request_id, result)
+                else
+                    send_result(request_id, { error = "No result returned from hub" })
+                end
+            end,
         })
-
-        if err then
-            send_result(request_id, { error = err })
-        elseif result and result.result then
-            send_result(request_id, result.result)
-        elseif result then
-            send_result(request_id, result)
-        else
-            send_result(request_id, { error = "No result returned from hub" })
-        end
     end)
 end
 
@@ -189,20 +156,22 @@ function M.access_resource(request_id, server_name, uri, params)
             return
         end
 
-        local result, err = hub:access_resource(server_name, uri, {
+        -- Use callback to avoid blocking vim.wait() in NativeServer:access_resource
+        hub:access_resource(server_name, uri, {
             parse_response = false,
             caller = vim.tbl_extend("force", caller, { auto_approve = approval.approve }),
+            callback = function(result, err)
+                if err then
+                    send_result(request_id, { error = err })
+                elseif result and result.result then
+                    send_result(request_id, result.result)
+                elseif result then
+                    send_result(request_id, result)
+                else
+                    send_result(request_id, { error = "No result returned from hub" })
+                end
+            end,
         })
-
-        if err then
-            send_result(request_id, { error = err })
-        elseif result and result.result then
-            send_result(request_id, result.result)
-        elseif result then
-            send_result(request_id, result)
-        else
-            send_result(request_id, { error = "No result returned from hub" })
-        end
     end)
 end
 
