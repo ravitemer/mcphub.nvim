@@ -292,20 +292,120 @@ function M.show_mcp_tool_prompt(params)
     return confirmed, cancelled
 end
 
+--- Synchronous version for RPC context (can't use async UI)
+---@param params MCPHub.ParsedParams
+---@return boolean confirmed
+---@return boolean cancelled
+function M.show_mcp_tool_prompt_sync(params)
+    local action_name = params.action
+    local server_name = params.server_name
+    local tool_name = params.tool_name
+    local uri = params.uri
+    local arguments = params.arguments or {}
+
+    local lines = {}
+    local is_tool = action_name == "use_mcp_tool"
+
+    -- Header as a question
+    local header_line = NuiLine()
+    header_line:append(Text.icons.event, Text.highlights.warn)
+    header_line:append(" Do you want to ", Text.highlights.text)
+    if is_tool then
+        header_line:append("call ", Text.highlights.text)
+        header_line:append(tool_name, Text.highlights.warn_italic)
+    else
+        header_line:append("access ", Text.highlights.text)
+        header_line:append(uri, Text.highlights.link)
+    end
+    header_line:append(" on ", Text.highlights.text)
+    header_line:append(server_name, Text.highlights.success_italic)
+    header_line:append("?", Text.highlights.text)
+    table.insert(lines, header_line)
+
+    -- Parameters section
+    if is_tool and next(arguments) then
+        table.insert(lines, NuiLine():append(""))
+
+        for key, value in pairs(arguments) do
+            -- Parameter name
+            local param_name_line = NuiLine()
+            param_name_line:append(Text.icons.param, Text.highlights.info)
+            param_name_line:append(" " .. key .. ":", Text.highlights.json_property)
+            table.insert(lines, param_name_line)
+
+            -- Parameter value
+            local function add_value_lines(val)
+                if type(val) == "string" then
+                    local value_lines = val:find("\n") and vim.split(val, "\n", { plain = true })
+                        or { '"' .. val .. '"' }
+                    for _, line in ipairs(value_lines) do
+                        local value_line = NuiLine()
+                        value_line:append("    " .. line, Text.highlights.json_string)
+                        table.insert(lines, value_line)
+                    end
+                elseif type(val) == "boolean" then
+                    local value_line = NuiLine()
+                    value_line:append("    " .. tostring(val), Text.highlights.json_boolean)
+                    table.insert(lines, value_line)
+                elseif type(val) == "number" then
+                    local value_line = NuiLine()
+                    value_line:append("    " .. tostring(val), Text.highlights.json_number)
+                    table.insert(lines, value_line)
+                else
+                    for _, line in ipairs(vim.split(vim.inspect(val), "\n", { plain = true })) do
+                        local value_line = NuiLine()
+                        value_line:append("    " .. line, Text.highlights.muted)
+                        table.insert(lines, value_line)
+                    end
+                end
+            end
+
+            add_value_lines(value)
+            table.insert(lines, NuiLine():append(""))
+        end
+    end
+
+    -- Fire event before showing confirmation window
+    utils.fire("MCPHubApprovalWindowOpened", {
+        action = action_name,
+        server_name = server_name,
+        tool_name = tool_name,
+        uri = uri,
+        arguments = arguments,
+    })
+
+    local confirmed, cancelled = ui_utils.confirm_sync(lines, {
+        min_width = 70,
+        max_width = 100,
+    })
+
+    -- Fire event after user makes decision
+    utils.fire("MCPHubApprovalWindowClosed", {
+        action = action_name,
+        server_name = server_name,
+        tool_name = tool_name,
+        uri = uri,
+        arguments = arguments,
+        confirmed = confirmed,
+        cancelled = cancelled,
+    })
+
+    return confirmed, cancelled
+end
+
+--- Check auto-approval status without showing any dialog
 ---@param parsed_params MCPHub.ParsedParams
 ---@return {error?:string, approve:boolean}
-function M.handle_auto_approval_decision(parsed_params)
+function M.check_auto_approval(parsed_params)
     local auto_approve = State.config.auto_approve or false
     local status = { approve = false, error = nil }
-    --- If user has a custom function that decides whether to auto-approve
-    --- call that with params + saved autoApprove state as is_auto_approved_in_server field
+
+    -- Check global auto_approve config (can be boolean or function)
     if type(auto_approve) == "function" then
         local ok, res = pcall(auto_approve, parsed_params)
         if not ok or type(res) == "string" then
-            --- If auto_approve function throws an error, or returns a string, treat it as an error
             status = { approve = false, error = res }
         elseif type(res) == "boolean" then
-            --- If auto_approve function returns a boolean, use that as the decision
             status = { approve = res, error = nil }
         end
     elseif type(auto_approve) == "boolean" then
@@ -317,6 +417,14 @@ function M.handle_auto_approval_decision(parsed_params)
         status = { approve = true, error = nil }
     end
 
+    return status
+end
+
+---@param parsed_params MCPHub.ParsedParams
+---@return {error?:string, approve:boolean}
+function M.handle_auto_approval_decision(parsed_params)
+    local status = M.check_auto_approval(parsed_params)
+
     if status.error then
         return { error = status.error or "Something went wrong with auto-approval", approve = false }
     end
@@ -325,6 +433,25 @@ function M.handle_auto_approval_decision(parsed_params)
         local confirmed, _ = M.show_mcp_tool_prompt(parsed_params)
         return { error = not confirmed and "User cancelled the operation", approve = confirmed }
     end
+
+    return status
+end
+
+--- Synchronous version for RPC context (can't use async UI)
+---@param parsed_params MCPHub.ParsedParams
+---@return {error?:string, approve:boolean}
+function M.handle_auto_approval_decision_sync(parsed_params)
+    local status = M.check_auto_approval(parsed_params)
+
+    if status.error then
+        return { error = status.error or "Something went wrong with auto-approval", approve = false }
+    end
+
+    if status.approve == false and parsed_params.needs_confirmation_window then
+        local confirmed, _ = M.show_mcp_tool_prompt_sync(parsed_params)
+        return { error = not confirmed and "User cancelled the operation", approve = confirmed }
+    end
+
     return status
 end
 

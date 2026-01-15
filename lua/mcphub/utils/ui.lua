@@ -491,6 +491,191 @@ function M.confirm(message, opts)
     return result()
 end
 
+--- Synchronous confirm dialog for RPC context (can't use async)
+--- Uses getchar() loop to handle input synchronously
+---@param message string | NuiLine[] The message to display
+---@param opts? { min_width?: number, max_width?: number }
+---@return boolean confirmed
+---@return boolean cancelled
+function M.confirm_sync(message, opts)
+    opts = opts or {}
+
+    if not message or (type(message) == "table" and #message == 0) then
+        return false, true
+    end
+
+    local active_option = "yes"
+    local confirmed = false
+    local cancelled = false
+
+    -- Function to create footer with current active state
+    local function create_footer()
+        return {
+            { " ", Text.highlights.seamless_border },
+            {
+                " Yes ",
+                active_option == "yes" and Text.highlights.button_active or Text.highlights.button_inactive,
+            },
+            { " • ", Text.highlights.seamless_border },
+            { " No ", active_option == "no" and Text.highlights.button_active or Text.highlights.button_inactive },
+            { " • ", Text.highlights.seamless_border },
+            {
+                " Cancel ",
+                active_option == "cancel" and Text.highlights.button_active or Text.highlights.button_inactive,
+            },
+            { " ", Text.highlights.seamless_border },
+        }
+    end
+
+    -- Process message into lines
+    local lines = {}
+    if type(message) == "string" then
+        lines = Text.multiline(message)
+    elseif vim.islist(message) then
+        for _, line in ipairs(message) do
+            if type(line) == "string" then
+                vim.list_extend(lines, Text.multiline(line))
+            elseif vim.islist(line) then
+                local n_line = NuiLine()
+                for _, part in ipairs(line) do
+                    if type(part) == "string" then
+                        n_line:append(part)
+                    else
+                        n_line:append(unpack(part))
+                    end
+                end
+                table.insert(lines, n_line)
+            else
+                local n_line = NuiLine()
+                n_line:append(line)
+                table.insert(lines, n_line)
+            end
+        end
+    end
+
+    -- Calculate optimal window dimensions
+    local min_width = opts.min_width or 50
+    local max_width = opts.max_width or 80
+    local content_width = 0
+
+    for _, line in ipairs(lines) do
+        local line_width = type(line) == "string" and #line or line:width()
+        content_width = math.max(content_width, line_width)
+    end
+
+    local width = math.max(min_width, math.min(max_width, content_width + 8))
+    local height = math.min(#lines + 3, math.floor(vim.o.lines * 0.6))
+
+    local win_opts = M.get_window_position(width, height)
+
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    local ns_id = vim.api.nvim_create_namespace("MCPHubConfirmPromptSync")
+
+    table.insert(lines, 1, NuiLine():append(""))
+
+    for i, line in ipairs(lines) do
+        if type(line) == "string" then
+            line = Text.pad_line(line)
+        elseif line._texts then
+            line = Text.pad_line(line)
+        else
+            local nui_line = NuiLine()
+            if vim.islist(line) then
+                for _, part in ipairs(line) do
+                    if type(part) == "string" then
+                        nui_line:append(part)
+                    elseif vim.islist(part) then
+                        nui_line:append(part[1], part[2])
+                    end
+                end
+            else
+                nui_line:append(tostring(line))
+            end
+            line = Text.pad_line(nui_line)
+        end
+        line:render(bufnr, ns_id, i)
+    end
+
+    win_opts.style = "minimal"
+    win_opts.border = vim.o.winborder == "" and { "╭", "─", "╮", "│", "╯", "─", "╰", "│" } or nil
+    win_opts.title_pos = "center"
+    win_opts.title = {
+        { " MCPHUB Confirmation ", Text.highlights.header_btn },
+    }
+    win_opts.footer = create_footer()
+    win_opts.footer_pos = "center"
+
+    local win = vim.api.nvim_open_win(bufnr, true, win_opts)
+
+    vim.api.nvim_set_option_value("wrap", true, { win = win })
+    vim.api.nvim_set_option_value("cursorline", false, { win = win })
+    vim.api.nvim_set_option_value("modifiable", false, { buf = bufnr })
+    vim.api.nvim_set_option_value("buftype", "nofile", { buf = bufnr })
+    vim.api.nvim_set_option_value("swapfile", false, { buf = bufnr })
+
+    vim.cmd("redraw")
+
+    -- Function to update footer
+    local function update_footer()
+        if vim.api.nvim_win_is_valid(win) then
+            local config = vim.api.nvim_win_get_config(win)
+            config.footer = create_footer()
+            vim.api.nvim_win_set_config(win, config)
+            vim.cmd("redraw")
+        end
+    end
+
+    -- Use getchar() loop to handle input synchronously
+    while true do
+        local ok, char = pcall(vim.fn.getchar)
+        if not ok then
+            cancelled = true
+            break
+        end
+
+        local key = type(char) == "number" and vim.fn.nr2char(char) or char
+
+        if key == "y" or key == "Y" then
+            confirmed = true
+            break
+        elseif key == "n" or key == "N" then
+            confirmed = false
+            break
+        elseif key == "c" or key == "C" or key == "q" or key == "\27" then -- \27 is Escape
+            cancelled = true
+            break
+        elseif key == "\r" then -- Enter
+            if active_option == "yes" then
+                confirmed = true
+            elseif active_option == "no" then
+                confirmed = false
+            else
+                cancelled = true
+            end
+            break
+        elseif key == "\t" then -- Tab
+            if active_option == "yes" then
+                active_option = "no"
+            elseif active_option == "no" then
+                active_option = "cancel"
+            else
+                active_option = "yes"
+            end
+            update_footer()
+        end
+    end
+
+    -- Close window
+    if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+    end
+    if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+    end
+
+    return confirmed, cancelled
+end
+
 -- Helper function to determine window positioning
 ---@param width number
 ---@param height number

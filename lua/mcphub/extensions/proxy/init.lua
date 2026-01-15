@@ -2,69 +2,6 @@ local M = {}
 
 local shared = require("mcphub.extensions.shared")
 
---- Synchronous approval check for RPC context (can't use async UI)
---- Uses vim.schedule + vim.wait to show dialog in main loop while blocking RPC
----@param parsed_params table
----@return {error?: string, approve: boolean}
-local function handle_approval_sync(parsed_params)
-    local State = require("mcphub.state")
-
-    local auto_approve = State.config.auto_approve or false
-    local status = { approve = false, error = nil }
-
-    -- Check global auto_approve config
-    if type(auto_approve) == "function" then
-        local ok, res = pcall(auto_approve, parsed_params)
-        if not ok or type(res) == "string" then
-            status = { approve = false, error = res }
-        elseif type(res) == "boolean" then
-            status = { approve = res, error = nil }
-        end
-    elseif type(auto_approve) == "boolean" then
-        status = { approve = auto_approve, error = nil }
-    end
-
-    -- Check server-level autoApprove
-    if parsed_params.is_auto_approved_in_server then
-        status = { approve = true, error = nil }
-    end
-
-    if status.error then
-        return { error = status.error, approve = false }
-    end
-
-    -- If not auto-approved and needs confirmation, show dialog via vim.schedule
-    if status.approve == false and parsed_params.needs_confirmation_window then
-        local is_tool = parsed_params.action == "use_mcp_tool"
-        local msg = is_tool
-                and string.format("Allow tool '%s' on server '%s'?", parsed_params.tool_name, parsed_params.server_name)
-            or string.format("Allow access to '%s' on server '%s'?", parsed_params.uri, parsed_params.server_name)
-
-        -- Use vim.schedule to run confirm in main loop, then wait for result
-        local result = nil
-        local done = false
-
-        vim.schedule(function()
-            local choice = vim.fn.confirm(msg, "&Yes\n&No", 2)
-            result = choice == 1
-            done = true
-        end)
-
-        -- Wait for the scheduled function to complete (timeout after 60 seconds)
-        vim.wait(60000, function()
-            return done
-        end, 50)
-
-        if not done then
-            return { error = "Approval timeout", approve = false }
-        end
-
-        return { error = not result and "User cancelled the operation" or nil, approve = result }
-    end
-
-    return status
-end
-
 --- Get proxy command and args for external MCP clients
 ---@return { command: string, args: string[] }
 function M.get()
@@ -179,7 +116,7 @@ function M.call_tool(server_name, tool_name, params)
         return { error = table.concat(parsed_params.errors, "\n") }
     end
 
-    local approval = handle_approval_sync(parsed_params)
+    local approval = shared.handle_auto_approval_decision_sync(parsed_params)
     if approval.error then
         return { error = approval.error }
     end
@@ -226,7 +163,7 @@ function M.access_resource(server_name, uri, params)
         return { error = table.concat(parsed_params.errors, "\n") }
     end
 
-    local approval = handle_approval_sync(parsed_params)
+    local approval = shared.handle_auto_approval_decision_sync(parsed_params)
     if approval.error then
         return { error = approval.error }
     end
