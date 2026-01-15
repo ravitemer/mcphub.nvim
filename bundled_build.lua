@@ -76,28 +76,25 @@ else
     }):wait()
     if npm_install_result.code ~= 0 then
         error("Failed to install mcp-hub: " .. npm_install_result.stderr)
-    else
-        -- Install RPC proxy dependencies
-        local scripts_dir = root .. "/scripts"
-        if vim.fn.isdirectory(scripts_dir) == 1 then
-            status("Installing RPC proxy dependencies...", vim.log.levels.INFO)
-            local proxy_install_result = vim.system({
-                "npm",
-                "install",
-            }, {
-                cwd = scripts_dir,
-                stdout = on_stdout,
-                stderr = on_stderr,
-            }):wait()
-            if proxy_install_result.code ~= 0 then
-                status(
-                    "Warning: Failed to install RPC proxy dependencies: " .. proxy_install_result.stderr,
-                    vim.log.levels.WARN
-                )
-            else
-                status("RPC proxy dependencies installed successfully", vim.log.levels.INFO)
-            end
-        end
-        status("Build complete!", vim.log.levels.INFO)
     end
+
+    status("Installing RPC proxy dependencies...", vim.log.levels.INFO)
+    local proxy_install_result = vim.system({
+        "npm",
+        "install",
+    }, {
+        cwd = root .. "/scripts",
+        stdout = on_stdout,
+        stderr = on_stderr,
+    }):wait()
+    if proxy_install_result.code ~= 0 then
+        status(
+            "Warning: Failed to install RPC proxy dependencies: " .. proxy_install_result.stderr,
+            vim.log.levels.WARN
+        )
+    else
+        status("RPC proxy dependencies installed successfully", vim.log.levels.INFO)
+    end
+
+    status("Build complete!", vim.log.levels.INFO)
 end

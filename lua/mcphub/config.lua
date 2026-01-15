@@ -61,7 +61,6 @@ local defaults = {
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary
-    rpc = true, -- Start standalone RPC proxy server for external MCP clients (e.g., Claude Code)
     ---@type table | fun(context: MCPHub.JobContext): table Global environment variables available to all MCP servers
     global_env = {}, -- Environment variables that will be available to all MCP servers
     ---@type string?
@@ -70,8 +69,7 @@ local defaults = {
     cmdArgs = nil, -- will be set based on system if not provided
     ---@type LogConfig
     log = {
-        -- TODO: fix me after and disable
-        level = vim.log.levels.DEBUG,
+        level = vim.log.levels.ERROR,
         to_file = false,
         file_path = nil,
         prefix = "MCPHub",

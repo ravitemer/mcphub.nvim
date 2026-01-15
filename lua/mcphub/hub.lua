@@ -34,8 +34,6 @@ local MCP_REQUEST_TIMEOUT = 60000 -- 60s for MCP requests
 --- @field is_owner boolean Whether this instance started the server
 --- @field is_shutting_down boolean Whether we're in the process of shutting down
 --- @field mcp_request_timeout number --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
---- @field proxy_job Job|nil The standalone RPC proxy process job
---- @field proxy_socket string|nil The Unix socket path where external MCP clients connect to the proxy
 --- @field on_ready fun(hub)
 --- @field on_error fun(error:string)
 --- @field setup_opts table Original options used to create this hub instance
@@ -60,8 +58,6 @@ function MCPHub:new(opts)
         is_shutting_down = false,
         is_starting = false,
         mcp_request_timeout = opts.mcp_request_timeout or MCP_REQUEST_TIMEOUT,
-        proxy_job = nil,
-        proxy_socket = nil,
         on_ready = opts.on_ready or function() end,
         on_error = opts.on_error or function() end,
         setup_opts = opts,
@@ -76,9 +72,7 @@ end
 --- Resolve context (workspace vs global) for the current directory
 --- @return MCPHub.JobContext|nil Context information or nil on error
 function MCPHub:resolve_context()
-    local workspace_enabled = State.config.workspace.enabled
-
-    if not workspace_enabled then
+    if not State.config.workspace.enabled then
         return self:_resolve_global_context()
     end
 
@@ -89,48 +83,8 @@ end
 --- @return MCPHub.JobContext|nil Workspace context or nil to fall back to global
 function MCPHub:_resolve_workspace_context()
     local cwd = vim.fn.getcwd()
-    local workspace_enabled = State.config.workspace.enabled
 
-    -- Handle "always" mode - create workspace context without requiring config files
-    -- In "always" mode, each Neovim instance gets its own unique workspace, never reusing existing hubs
-    if workspace_enabled == "always" then
-        log.debug("creating unique workspace without config file search for: " .. cwd)
-
-        local port
-        local global_config = self.config
-        local config_files = { global_config }
-
-        -- In "always" mode, NEVER reuse existing hubs - always create a fresh one per instance
-        if State.config.workspace.get_port and type(State.config.workspace.get_port) == "function" then
-            port = State.config.workspace.get_port()
-            if not port or type(port) ~= "number" then
-                vim.notify("Invalid port returned by workspace.get_port function", vim.log.levels.ERROR)
-                return nil
-            end
-            log.debug("Using custom port from workspace.get_port: " .. port)
-        else
-            -- Pass nil as workspace_path to get a random port (not based on directory hash)
-            port = workspace_utils.find_available_port(nil, State.config.workspace.port_range, 100)
-        end
-
-        if not port then
-            vim.notify("No available ports for workspace hub", vim.log.levels.ERROR)
-            return nil
-        end
-
-        log.debug(("Starting unique workspace hub on port %d for %s"):format(port, cwd))
-
-        return {
-            port = port,
-            cwd = cwd,
-            config_files = config_files,
-            is_workspace_mode = true,
-            workspace_root = cwd,
-            existing_hub = nil, -- Never reuse in "always" mode
-        }
-    end
-
-    -- Standard workspace mode - search for config files
+    -- Find workspace config
     local workspace_info = workspace_utils.find_workspace_config(State.config.workspace.look_for, cwd)
 
     if not workspace_info and not State.config.workspace == "always" then
@@ -290,17 +244,10 @@ function MCPHub:_start_server_with_context(context)
     end
 
     -- Add other flags
-    -- For "always" mode workspaces, use a very short shutdown delay (1 second)
-    -- since the hub is tied to this specific Neovim instance
-    local shutdown_delay = self.shutdown_delay or 0
-    if context.is_workspace_mode and State.config.workspace.enabled == "always" then
-        shutdown_delay = 1000 -- 1 second for immediate shutdown in "always" mode
-    end
-
     vim.list_extend(args, {
         "--auto-shutdown",
         "--shutdown-delay",
-        shutdown_delay,
+        self.shutdown_delay or 0,
         "--watch",
     })
 
@@ -401,20 +348,6 @@ function MCPHub:start()
     -- Make sure to load after the config is refreshed to avoid double reading of config files
     native.setup(config.native_servers)
     self:fire_servers_updated()
-
-    -- Start standalone RPC proxy server for external MCP clients
-    -- The proxy listens on a Unix socket for MCP client connections
-    if config.rpc then
-        local proxy_job, proxy_socket, err =
-            require("mcphub.native.neovim.rpc").start_proxy_server(context, self.mcp_request_timeout)
-        if proxy_job and proxy_socket then
-            self.proxy_job = proxy_job
-            self.proxy_socket = proxy_socket
-            log.info("RPC proxy started on socket: " .. self.proxy_socket)
-        else
-            log.warn("Failed to start RPC proxy: " .. (err or "unknown error"))
-        end
-    end
 
     -- Step 3: Check if server is already running on the resolved port and is of same version in cases of plugin updated
     self:check_server(function(is_running, is_our_server, is_same_version)
@@ -1260,13 +1193,6 @@ function MCPHub:stop()
     self.is_shutting_down = true
     -- Stop SSE connection
     self:stop_sse()
-    -- Stop RPC proxy if running
-    if self.proxy_job then
-        log.debug("Stopping RPC proxy process")
-        self.proxy_job:shutdown(0, 3) -- SIGTERM with 15 second timeout
-        self.proxy_job = nil
-        self.proxy_socket = nil
-    end
     self:_clean_up()
     self.is_shutting_down = false
 end
