@@ -368,8 +368,7 @@ function M.confirm(message, opts)
 
         -- Enhanced window options with better styling
         win_opts.style = "minimal"
-        win_opts.border = vim.o.winborder ~= "" and vim.o.winborder
-            or { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
+        win_opts.border = vim.o.winborder == "" and { "╭", "─", "╮", "│", "╯", "─", "╰", "│" } or nil
         win_opts.title_pos = "center"
         win_opts.title = {
             { " MCPHUB Confirmation ", Text.highlights.header_btn },
