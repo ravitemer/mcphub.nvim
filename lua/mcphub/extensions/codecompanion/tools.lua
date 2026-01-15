@@ -113,6 +113,7 @@ local tool_schemas = {
                     tool_input = {
                         description = "Input object for the tool call",
                         type = "object",
+                        additionalProperties = false,
                     },
                 },
                 required = { "server_name", "tool_name", "tool_input" },
