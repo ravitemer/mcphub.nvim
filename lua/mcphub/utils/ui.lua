@@ -110,7 +110,13 @@ function M.multiline_input(title, content, on_save, opts)
             end
         end
         -- Close the window
-        vim.api.nvim_win_close(win, true)
+        if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+        end
+
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
         -- -- Call save callback if content changed
         -- if content ~= new_content then
         on_save(new_content)
@@ -118,7 +124,13 @@ function M.multiline_input(title, content, on_save, opts)
     end
 
     local function close_window()
-        vim.api.nvim_win_close(win, true)
+        if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+        end
+
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
         if opts.on_cancel then
             opts.on_cancel()
         end
@@ -388,9 +400,11 @@ function M.confirm(message, opts)
 
             vim.schedule(function()
                 if vim.api.nvim_win_is_valid(win) then
-                    if vim.api.nvim_win_is_valid(win) then
-                        vim.api.nvim_win_close(win, true)
-                    end
+                    vim.api.nvim_win_close(win, true)
+                end
+
+                if vim.api.nvim_buf_is_valid(bufnr) then
+                    vim.api.nvim_buf_delete(bufnr, { force = true })
                 end
                 callback(confirmed, cancelled)
             end)
@@ -604,6 +618,13 @@ function M.open_auth_popup(server_name, auth_url)
         end
         if vim.api.nvim_win_is_valid(input_win) then
             vim.api.nvim_win_close(input_win, true)
+        end
+
+        if vim.api.nvim_buf_is_valid(info_buf) then
+            vim.api.nvim_buf_delete(info_buf, { force = true })
+        end
+        if vim.api.nvim_buf_is_valid(input_buf) then
+            vim.api.nvim_buf_delete(input_buf, { force = true })
         end
         -- Return focus to MCPHub window
         if State.ui_instance and State.ui_instance.window then
