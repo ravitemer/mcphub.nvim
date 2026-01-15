@@ -66,30 +66,29 @@ function M.is_port_available(port)
 end
 
 ---Find next available port starting from generated port
----@param workspace_path string|nil Workspace root path (nil for random port selection)
----@param port_range table {min: number, max: number}
----@param max_attempts? number Maximum attempts to find a port (default: 100)
+---@param opts { port_range: table, workspace_path?: string, max_attempts?: number }? Options to search for available port
 ---@return number|nil Available port number or nil if none found
-function M.find_available_port(workspace_path, port_range, max_attempts)
-    max_attempts = max_attempts or 100
+function M.find_available_port(opts)
+    opts = vim.tbl_extend("force", {
+        max_attempts = 100,
+    }, opts or {})
 
-    -- If workspace_path is nil, use random port selection instead of hashing
+    ---@type number
     local base_port
-    if workspace_path then
-        base_port = M.generate_workspace_port(workspace_path, port_range)
+    if opts.workspace_path then
+        base_port = M.generate_workspace_port(opts.workspace_path, opts.port_range)
     else
-        -- Random starting point for "always" mode to avoid collisions
         math.randomseed(os.time() + vim.fn.getpid())
-        local range_size = port_range.max - port_range.min + 1
-        base_port = port_range.min + math.random(0, range_size - 1)
+        local range_size = opts.port_range.max - opts.port_range.min + 1
+        base_port = opts.port_range.min + math.random(0, range_size - 1)
     end
 
-    for i = 0, max_attempts - 1 do
+    for i = 0, opts.max_attempts - 1 do
         local port = base_port + i
 
         -- Wrap around if we exceed max port
-        if port > port_range.max then
-            port = port_range.min + (port - port_range.max - 1)
+        if port > opts.port_range.max then
+            port = opts.port_range.min + (port - opts.port_range.max - 1)
         end
 
         if M.is_port_available(port) then
