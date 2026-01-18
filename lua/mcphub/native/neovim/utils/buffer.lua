@@ -2,9 +2,10 @@ local M = {}
 
 ---@class FileInfo
 ---@field name string # File name or path
----@field type string # File type (file/directory/etc)
+---@field type string # File type (file/directory/link/etc)
 ---@field size number # File size in bytes
 ---@field modified number # Last modification timestamp
+---@field symlink_target string|nil # If type is 'link', the target path
 
 ---@class DirectoryInfo
 ---@field path string # Current directory path
@@ -13,24 +14,49 @@ local M = {}
 
 ---@param path? string # Directory path to scan (defaults to current working directory)
 ---@return DirectoryInfo
+---@param path? string # Directory path to scan (defaults to current working directory)
+---@return DirectoryInfo
 function M.get_directory_info(path)
     path = path or vim.loop.cwd()
-    -- Check if git repo
-    local is_git = vim.fn.system("git rev-parse --is-inside-work-tree 2>/dev/null"):match("true")
+
+    -- Normalize path separators
+    path = vim.fn.fnamemodify(path, ":p:h")
+
+    -- Check if the specified path is a git repo
+    -- Use -C flag to specify directory instead of cd command for better cross-platform support
+    local is_git = vim.fn
+        .system(string.format("git -C %s rev-parse --is-inside-work-tree 2>/dev/null", vim.fn.shellescape(path)))
+        :match("true")
     local files = {}
 
     if is_git then
-        -- Use git ls-files for git-aware listing
-        local git_files = vim.fn.systemlist("git ls-files --cached --others --exclude-standard")
+        -- Use git ls-files for git-aware listing in the specified directory
+        local git_files = vim.fn.systemlist(
+            string.format("git -C %s ls-files --cached --others --exclude-standard", vim.fn.shellescape(path))
+        )
         for _, file in ipairs(git_files) do
-            local stat = vim.loop.fs_stat(file)
-            if stat then
-                table.insert(files, {
+            -- Build full path using cross-platform path joining
+            local full_path = vim.fs.joinpath and vim.fs.joinpath(path, file) or (path .. "/" .. file)
+
+            -- Use lstat to detect symlinks without following them
+            local lstat = vim.loop.fs_lstat(full_path)
+            if lstat then
+                local file_info = {
                     name = file,
-                    type = stat.type,
-                    size = stat.size,
-                    modified = stat.mtime.sec,
-                })
+                    type = lstat.type,
+                    size = lstat.size,
+                    modified = lstat.mtime.sec,
+                }
+
+                -- If it's a symlink, get the target path
+                if lstat.type == "link" then
+                    local target = vim.loop.fs_readlink(full_path)
+                    if target then
+                        file_info.symlink_target = target
+                    end
+                end
+
+                table.insert(files, file_info)
             end
         end
     else
@@ -43,14 +69,28 @@ function M.get_directory_info(path)
                     break
                 end
 
-                local stat = vim.loop.fs_stat(name)
-                if stat then
-                    table.insert(files, {
+                -- Build full path using cross-platform path joining
+                local full_path = vim.fs.joinpath and vim.fs.joinpath(path, name) or (path .. "/" .. name)
+
+                -- Use lstat to detect symlinks without following them
+                local lstat = vim.loop.fs_lstat(full_path)
+                if lstat then
+                    local file_info = {
                         name = name,
-                        type = type or stat.type,
-                        size = stat.size,
-                        modified = stat.mtime.sec,
-                    })
+                        type = type or lstat.type,
+                        size = lstat.size,
+                        modified = lstat.mtime.sec,
+                    }
+
+                    -- If it's a symlink, get the target path
+                    if lstat.type == "link" then
+                        local target = vim.loop.fs_readlink(full_path)
+                        if target then
+                            file_info.symlink_target = target
+                        end
+                    end
+
+                    table.insert(files, file_info)
                 end
             end
         end
