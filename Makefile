@@ -1,8 +1,12 @@
-all: format test docs
+all: format test docs proxy
 
 format:
 	@echo Formatting...
 	@stylua tests/ lua/ -f ./stylua.toml
+
+proxy:
+	@echo Installing RPC proxy dependencies...
+	@cd scripts && npm install
 
 test: deps
 	@echo Testing...

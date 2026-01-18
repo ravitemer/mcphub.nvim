@@ -49,7 +49,7 @@ function MCPHub:new(opts)
         server_url = opts.server_url,
         config = opts.config,
         auto_toggle_mcp_servers = opts.auto_toggle_mcp_servers,
-        shutdown_delay = opts.shutdown_delay,
+        shutdown_delay = (opts.workspace or {}).enabled == "always" and 0 or opts.shutdown_delay,
         cmd = opts.cmd,
         cmdArgs = opts.cmdArgs,
         ready = false,
@@ -87,14 +87,20 @@ function MCPHub:_resolve_workspace_context()
     -- Find workspace config
     local workspace_info = workspace_utils.find_workspace_config(State.config.workspace.look_for, cwd)
 
-    if not workspace_info then
+    if not workspace_info and not State.config.workspace == "always" then
         -- No workspace config found, fall back to global mode
         log.debug("No workspace config found, falling back to global mode")
+
         return self:_resolve_global_context()
+    elseif not workspace_info then
+        workspace_info = {}
+
+        log.debug("Workspace mode set to always, starting hub for current process")
     end
 
     log.debug("Found workspace config" .. vim.inspect(workspace_info))
 
+    ---@type number?
     local port
 
     -- Prepare config files (order matters: global first, then project)
@@ -122,11 +128,10 @@ function MCPHub:_resolve_workspace_context()
             log.debug("Using custom port from workspace.get_port: " .. port)
         else
             -- Generate new port
-            port = workspace_utils.find_available_port(
-                workspace_info.root_dir,
-                State.config.workspace.port_range,
-                100 -- max attempts
-            )
+            port = workspace_utils.find_available_port({
+                port_range = State.config.workspace.port_range,
+                workspace_path = workspace_info.root_dir,
+            })
         end
 
         if not port then
