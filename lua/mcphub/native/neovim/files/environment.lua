@@ -33,7 +33,11 @@ return {
 
         -- Format workspace files
         local workspace_files = vim.tbl_map(function(file)
-            return string.format("%s (%s, %.2fKB)", file.name, file.type, file.size / 1024)
+            if file.type == "link" and file.symlink_target then
+                return string.format("%s (symlink -> %s, %.2fKB)", file.name, file.symlink_target, file.size / 1024)
+            else
+                return string.format("%s (%s, %.2fKB)", file.name, file.type, file.size / 1024)
+            end
         end, dir_info.files)
 
         local text = string.format(
