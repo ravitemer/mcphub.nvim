@@ -284,6 +284,38 @@ function NativeServer:call_tool(name, arguments, opts)
         tool_result = result
         tool_error = err
         tool_finished = true
+
+        -- Handle review flow if requested
+        local caller = opts.caller or {}
+        if caller.review_requested and result and not err then
+            local ui_utils = require("mcphub.utils.ui")
+            local metadata = caller.review_metadata
+                or {
+                    server_name = self.name,
+                    tool_name = name,
+                    action = "use_mcp_tool",
+                }
+
+            ui_utils.review_tool_result(result, metadata, function(approved)
+                if approved then
+                    -- User approved, continue with actual result
+                    if opts.callback then
+                        opts.callback(result, err)
+                    end
+                else
+                    -- User rejected, send rejection message
+                    local rejected_result = {
+                        text = "Tool result was rejected by the user during review.",
+                        isError = false,
+                    }
+                    if opts.callback then
+                        opts.callback(rejected_result, nil)
+                    end
+                end
+            end)
+            return
+        end
+
         if opts.callback then
             opts.callback(result, err)
             return
@@ -362,6 +394,38 @@ function NativeServer:access_resource(uri, opts)
         resource_result = result
         resource_error = err
         resource_accessed = true
+
+        -- Handle review flow if requested
+        local caller = opts.caller or {}
+        if caller.review_requested and result and not err then
+            local ui_utils = require("mcphub.utils.ui")
+            local metadata = caller.review_metadata
+                or {
+                    server_name = self.name,
+                    uri = uri,
+                    action = "access_mcp_resource",
+                }
+
+            ui_utils.review_tool_result(result, metadata, function(approved)
+                if approved then
+                    -- User approved, continue with actual result
+                    if opts.callback then
+                        opts.callback(result, err)
+                    end
+                else
+                    -- User rejected, send rejection message
+                    local rejected_result = {
+                        text = "Tool result was rejected by the user during review.",
+                        isError = false,
+                    }
+                    if opts.callback then
+                        opts.callback(rejected_result, nil)
+                    end
+                end
+            end)
+            return
+        end
+
         if opts.callback then
             opts.callback(result, err)
             return

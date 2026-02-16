@@ -57,7 +57,12 @@ local defaults = {
     --- Custom function to parse json file (e.g `require'json5'.parse` from `https://github.com/Joakker/lua-json5 to parse json5 syntax for .vscode/mcp.json like files)
     ---@type function | nil
     json_decode = nil,
-    ---@type boolean | fun(parsed_params: MCPHub.ParsedParams): boolean | nil | string  Function to determine if a call should be auto-approved
+    ---@type boolean | fun(parsed_params: MCPHub.ParsedParams): boolean | nil | string | {approve: boolean, review: boolean}
+    --- Function to determine if a call should be auto-approved. Can return:
+    --- - `boolean`: approve (true) or deny (false) the operation
+    --- - `string`: error message (treated as denial)
+    --- - `{approve: boolean, review: boolean}`: approve and optionally request review before sending to LLM
+    --- - `nil`: denial
     auto_approve = false,
     auto_toggle_mcp_servers = true, -- Let LLMs start and stop MCP servers automatically
     use_bundled_binary = false, -- Whether to use bundled mcp-hub binary

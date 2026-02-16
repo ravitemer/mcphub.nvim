@@ -61,8 +61,12 @@ MCP Hub is a MCP client for neovim that seamlessly integrates [MCP (Model Contex
 | | Headers | ✅ | For API keys/tokens |
 | **Chat Integration** ||||
 | | [Avante.nvim](https://github.com/yetone/avante.nvim) | ✅ | Tools, resources, resourceTemplates, prompts(as slash_commands) |
-| | [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | ✅ | Tools, resources, templates, prompts (as slash_commands), 🖼 image responses | 
+| | [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | ✅ | Tools, resources, templates, prompts (as slash_commands), 🖼 image responses, 🔒 tool result review | 
 | | [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | ✅ | Tools, resources, function calling support |
+| **Security & Control** ||||
+| | Tool Confirmation | ✅ | User confirmation before tool execution |
+| | Result Review | ✅ | Inspect & approve/reject tool results before sending to LLM |
+| | Granular Auto-Approval | ✅ | Per-server, per-tool, or function-based approval rules |
 | **Marketplace** ||||
 | | Server Discovery | ✅ | Browse from verified MCP servers |
 | | Installation | ✅ | Manual and auto install with AI |

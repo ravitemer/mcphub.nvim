@@ -156,12 +156,30 @@ If `make_slash_commands = true`, MCP prompts are available as slash commands:
 
 
 
-## Auto-Approval
+## Tool Approval & Review
 
 By default, whenever codecompanion calls `use_mcp_tool` or `access_mcp_resource` tool or a specific tool on some MCP server, it shows a confirm dialog with tool name, server name and arguments.
 
 ![Image](https://github.com/user-attachments/assets/201a5804-99b6-4284-9351-348899e62467)
 
+### Review Tool Results
+
+The confirmation dialog now includes a **"Yes & Review"** option, allowing you to inspect tool results before they're sent to the LLM. This is particularly useful for preventing sensitive data leakage when working with tools that access confidential information (JIRA, Confluence, databases, etc.).
+
+**Keyboard shortcuts in confirmation dialog:**
+- `y`/`Y` - Yes (execute and auto-send to LLM)
+- `r`/`R` - **Yes & Review** (execute, then show review window)
+- `n`/`N` - No (don't execute)
+- `c`/`C` or `<Esc>` - Cancel
+
+When you select "Yes & Review", the tool executes and then displays a review window where you can:
+- Inspect the full result (with scrolling for large outputs)
+- Approve to send to LLM (`y`, `a`, or `<CR>` on Approve)
+- Reject to prevent data leakage (`n`, `r`, or `<Esc>`)
+
+**See the full documentation**: [Tool Result Review Feature](/other/review-feature)
+
+### Auto-Approval
 
 #### Fine-Grained Auto-Approval
 
@@ -239,6 +257,11 @@ require("mcphub").setup({
             end
         end
 
+        -- Execute JIRA/Confluence tools but always review results
+        if params.server_name == "jira" or params.server_name == "confluence" then
+            return { approve = true, review = true }
+        end
+
         -- Check if tool is configured for auto-approval in servers.json
         if params.is_auto_approved_in_server then
             return true -- Respect servers.json configuration
@@ -258,8 +281,9 @@ require("mcphub").setup({
 - `params.is_auto_approved_in_server` - Boolean indicating if tool is configured for auto-approval in servers.json
 
 **Return values:**
-- `true` - Auto-approve the call
-- `false` - Show confirmation prompt
+- `true` - Auto-approve and execute immediately (no review)
+- `false` - Show confirmation prompt (user can choose review)
+- `{ approve = true, review = true }` - Execute and force review window
 - `string` - Deny with error message
 - `nil` - Show confirmation prompt (same as false)
 

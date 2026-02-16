@@ -38,6 +38,33 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
             })
         end
 
+        -- Helper function to handle review flow
+        ---@param res MCPResponseOutput
+        ---@param metadata table
+        local function handle_review_flow(res, metadata)
+            if not result.review_requested then
+                -- No review requested, pass through directly
+                output_handler({ status = "success", data = res })
+                return
+            end
+
+            -- Show review window
+            local ui_utils = require("mcphub.utils.ui")
+            ui_utils.review_tool_result(res, metadata, function(approved)
+                if approved then
+                    -- User approved, send actual result
+                    output_handler({ status = "success", data = res })
+                else
+                    -- User rejected, send rejection message
+                    local rejected_result = {
+                        text = "Tool result was rejected by the user during review.",
+                        isError = false,
+                    }
+                    output_handler({ status = "success", data = rejected_result })
+                end
+            end)
+        end
+
         -- Call appropriate hub method
         if parsed_params.action == "access_mcp_resource" then
             hub:access_resource(parsed_params.server_name, parsed_params.uri, {
@@ -45,6 +72,12 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                     type = "codecompanion",
                     codecompanion = agent,
                     auto_approve = result.approve,
+                    review_requested = result.review_requested,
+                    review_metadata = {
+                        server_name = parsed_params.server_name,
+                        uri = parsed_params.uri,
+                        action = "access_mcp_resource",
+                    },
                 },
                 parse_response = true,
                 callback = function(res, err)
@@ -55,7 +88,11 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                                 or "No response from accessing the resource " .. parsed_params.uri,
                         })
                     elseif res then
-                        output_handler({ status = "success", data = res })
+                        handle_review_flow(res, {
+                            server_name = parsed_params.server_name,
+                            uri = parsed_params.uri,
+                            action = "access_mcp_resource",
+                        })
                     end
                 end,
             })
@@ -65,6 +102,12 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                     type = "codecompanion",
                     codecompanion = agent,
                     auto_approve = result.approve,
+                    review_requested = result.review_requested,
+                    review_metadata = {
+                        server_name = parsed_params.server_name,
+                        tool_name = parsed_params.tool_name,
+                        action = "use_mcp_tool",
+                    },
                 },
                 parse_response = true,
                 callback = function(res, err)
@@ -73,7 +116,11 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
                     elseif res.error then
                         output_handler({ status = "error", data = res.error })
                     else
-                        output_handler({ status = "success", data = res })
+                        handle_review_flow(res, {
+                            server_name = parsed_params.server_name,
+                            tool_name = parsed_params.tool_name,
+                            action = "use_mcp_tool",
+                        })
                     end
                 end,
             })
