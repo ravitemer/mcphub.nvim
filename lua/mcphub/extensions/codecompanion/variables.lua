@@ -15,6 +15,9 @@ function M.register(opts)
     end
 
     local cc_variables = config.interactions.chat.variables
+    if cc_variables == nil then
+      cc_variables = {}
+    end
 
     -- Remove existing MCP variables
     for key, value in pairs(cc_variables) do
