@@ -25,17 +25,17 @@ end
 ---@param has_function_calling boolean
 ---@param opts MCPHub.Extensions.CodeCompanionConfig
 local function create_static_handler(action_name, has_function_calling, opts)
-    ---@param agent CodeCompanion.Agent The Editor tool
-    ---@param args MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs The arguments from the LLM's tool call
-    ---@param output_handler function Callback for asynchronous calls
+    ---@param self CodeCompanion.Tools The tools coordinator
+    ---@param action MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs The arguments from the LLM's tool call
+    ---@param cmd_opts { input?: any, output_cb: function } Options including the output callback
     ---@return nil|{ status: "success"|"error", data: string }
-    return function(agent, args, _, output_handler)
+    return function(self, action, cmd_opts)
         local context = {
             tool_display_name = action_name,
             is_individual_tool = false,
             action = action_name,
         }
-        core.execute_mcp_tool(args, agent, output_handler, context)
+        core.execute_mcp_tool(action, self, cmd_opts.output_cb, context)
     end
 end
 
@@ -50,14 +50,14 @@ end
 ---@param namespaced_name string Namespaced tool name (safe_server_name__safe_tool_name)
 ---@return function
 local function create_individual_tool_handler(server_name, tool_name, namespaced_name)
-    ---@param agent CodeCompanion.Agent The Editor tool
-    ---@param args MCPHub.ToolCallArgs
-    ---@param output_handler function Callback for asynchronous calls
-    return function(agent, args, _, output_handler)
+    ---@param self CodeCompanion.Tools The tools coordinator
+    ---@param action MCPHub.ToolCallArgs The arguments from the LLM's tool call
+    ---@param cmd_opts { input?: any, output_cb: function } Options including the output callback
+    return function(self, action, cmd_opts)
         local params = {
             server_name = server_name,
             tool_name = tool_name,
-            tool_input = args,
+            tool_input = action,
         }
         ---@type MCPHub.ToolCallContext
         local context = {
@@ -65,7 +65,7 @@ local function create_individual_tool_handler(server_name, tool_name, namespaced
             is_individual_tool = true,
             action = "use_mcp_tool",
         }
-        core.execute_mcp_tool(params, agent, output_handler, context)
+        core.execute_mcp_tool(params, self, cmd_opts.output_cb, context)
     end
 end
 
@@ -137,7 +137,7 @@ function M.create_static_tools(opts)
                 id = "mcp_static:mcp",
                 description = " Call tools and resources from MCP servers with:\n\n - `use_mcp_tool`\n - `access_mcp_resource`\n",
                 hide_in_help_window = false,
-                system_prompt = function(_)
+                system_prompt = function(group_config, ctx)
                     local hub = require("mcphub").get_hub_instance()
                     if not hub then
                         vim.notify("MCP Hub is not initialized", vim.log.levels.WARN)
@@ -170,15 +170,21 @@ function M.create_static_tools(opts)
             hide_in_help_window = true,
             visible = false,
             ---@class MCPHub.Extensions.CodeCompanionTool: CodeCompanion.Agent.Tool
-            callback = {
-                name = action_name,
-                cmds = { create_static_handler(action_name, has_function_calling, opts) },
-                system_prompt = function()
-                    return string.format("You can use the %s tool to %s\n", action_name, schema["function"].description)
-                end,
-                output = core.create_output_handlers(action_name, has_function_calling, opts),
-                schema = schema,
-            },
+            callback = function()
+                return {
+                    name = action_name,
+                    cmds = { create_static_handler(action_name, has_function_calling, opts) },
+                    system_prompt = function(group_config, ctx)
+                        return string.format(
+                            "You can use the %s tool to %s\n",
+                            action_name,
+                            schema["function"].description
+                        )
+                    end,
+                    output = core.create_output_handlers(action_name, has_function_calling, opts),
+                    schema = schema,
+                }
+            end,
         }
         table.insert(tools.groups.mcp.tools, action_name)
     end
@@ -277,19 +283,23 @@ function M.register(opts)
                         description = tool.description,
                         hide_in_help_window = true,
                         visible = opts.show_server_tools_in_chat == true,
-                        callback = {
-                            name = namespaced_tool_name,
-                            cmds = { create_individual_tool_handler(server.name, tool_name, namespaced_tool_name) },
-                            output = core.create_output_handlers(namespaced_tool_name, true, opts),
-                            schema = {
-                                type = "function",
-                                ["function"] = {
-                                    name = namespaced_tool_name,
-                                    description = tool.description,
-                                    parameters = tool.inputSchema,
+                        callback = function()
+                            return {
+                                name = namespaced_tool_name,
+                                cmds = {
+                                    create_individual_tool_handler(server.name, tool_name, namespaced_tool_name),
                                 },
-                            },
-                        },
+                                output = core.create_output_handlers(namespaced_tool_name, true, opts),
+                                schema = {
+                                    type = "function",
+                                    ["function"] = {
+                                        name = namespaced_tool_name,
+                                        description = tool.description,
+                                        parameters = tool.inputSchema,
+                                    },
+                                },
+                            }
+                        end,
                     }
                 end
             end
@@ -328,7 +338,7 @@ function M.register(opts)
                         )
                     ),
                     tools = tool_names,
-                    system_prompt = function(self)
+                    system_prompt = function(group_config, ctx)
                         if custom_instructions and custom_instructions ~= "" then
                             return custom_instructions
                         end

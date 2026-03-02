@@ -14,9 +14,8 @@ function M.register()
     local slash_commands = config.interactions.chat.slash_commands
 
     -- Remove existing MCP slash commands
-    for key, value in pairs(slash_commands) do
-        local id = value.id or ""
-        if id:sub(1, 3) == "mcp" then
+    for key, _ in pairs(slash_commands) do
+        if type(key) == "string" and key:sub(1, 4) == "mcp:" then
             slash_commands[key] = nil
         end
     end
@@ -41,7 +40,6 @@ function M.register()
         end
 
         slash_commands["mcp:" .. prompt_name] = {
-            id = "mcp" .. server_name .. prompt_name,
             description = description,
             callback = function(self)
                 shared.collect_arguments(arguments, function(values)
@@ -92,10 +90,9 @@ function M.register()
 
                         -- Handle images
                         if output.images and #output.images > 0 then
-                            local helpers = require("codecompanion.interactions.chat.helpers")
                             for _, image in ipairs(output.images) do
                                 local id = string.format("mcp-%s", os.time())
-                                helpers.add_image(self, {
+                                self:add_image_message({
                                     id = id,
                                     base64 = image.data,
                                     mimetype = image.mimeType,

@@ -14,18 +14,17 @@ function M.register(opts)
         return
     end
 
-    local cc_variables = config.interactions.chat.variables
+    local cc_editor_context = config.interactions.chat.editor_context
 
-    -- Remove existing MCP variables
-    for key, value in pairs(cc_variables) do
-        local id = value.id or ""
-        if id:sub(1, 3) == "mcp" then
-            cc_variables[key] = nil
+    -- Remove existing MCP editor context entries
+    for key, _ in pairs(cc_editor_context) do
+        if type(key) == "string" and key:sub(1, 4) == "mcp:" then
+            cc_editor_context[key] = nil
         end
     end
 
     local added_resources = {}
-    -- Add current resources as variables
+    -- Add current resources as editor context
     for _, resource in ipairs(resources) do
         local server_name = resource.server_name
         local uri = resource.uri
@@ -34,12 +33,11 @@ function M.register(opts)
         description = description:gsub("\n", " ")
         description = resource_name .. " (" .. description .. ")"
         local var_id = "mcp:" .. uri
-        cc_variables[var_id] = {
-            id = "mcp" .. server_name .. uri,
+        cc_editor_context[var_id] = {
             description = description,
             hide_in_help_window = true,
             callback = function(self)
-                -- Sync call - blocks UI (can't use async in variables yet)
+                -- Sync call - blocks UI (can't use async in editor context yet)
                 local result = hub:access_resource(server_name, uri, {
                     caller = {
                         type = "codecompanion",
@@ -57,10 +55,9 @@ function M.register(opts)
 
                 -- Handle images
                 if result.images and #result.images > 0 then
-                    local helpers = require("codecompanion.interactions.chat.helpers")
                     for _, image in ipairs(result.images) do
                         local id = string.format("mcp-%s", os.time())
-                        helpers.add_image(self.Chat, {
+                        self.Chat:add_image_message({
                             id = id,
                             base64 = image.data,
                             mimetype = image.mimeType,
@@ -74,7 +71,7 @@ function M.register(opts)
         table.insert(added_resources, var_id)
     end
 
-    -- Update syntax highlighting for variables
+    -- Update syntax highlighting for editor context
     M.update_variable_syntax(added_resources)
 end
 -- Setup MCP resources as CodeCompanion variables
