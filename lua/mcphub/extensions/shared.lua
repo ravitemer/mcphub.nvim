@@ -15,6 +15,7 @@ local utils = require("mcphub.utils")
 ---@field uri string URI of the resource to access (nil for tools)
 ---@field is_auto_approved_in_server boolean Whether the tool autoApproved in the servers.json
 ---@field needs_confirmation_window boolean Whether the tool call needs a confirmation window
+---@field review_requested boolean Whether user wants to review result before sending to LLM
 
 ---@class MCPHub.ToolCallArgs
 ---@field server_name string Name of the server to call the tool on.
@@ -91,6 +92,7 @@ function M.parse_params(params, action_name)
         uri = uri or "nil",
         needs_confirmation_window = M.needs_confirmation_window(server_name, tool_name),
         is_auto_approved_in_server = M.is_auto_approved_in_server(server_name, tool_name),
+        review_requested = false, -- Will be set by confirmation dialog
     }
 end
 
@@ -109,6 +111,7 @@ function M.needs_confirmation_window(server_name, tool_name)
     end
     return true
 end
+
 ---@param arguments MCPPromptArgument[]
 ---@param callback fun(values: string[])
 function M.collect_arguments(arguments, callback)
@@ -197,6 +200,7 @@ end
 ---@param params MCPHub.ParsedParams
 ---@return boolean confirmed
 ---@return boolean cancelled
+---@return boolean review_requested
 function M.show_mcp_tool_prompt(params)
     local action_name = params.action
     local server_name = params.server_name
@@ -274,7 +278,7 @@ function M.show_mcp_tool_prompt(params)
         uri = uri,
         arguments = arguments,
     })
-    local confirmed, cancelled = require("mcphub.utils.ui").confirm(lines, {
+    local confirmed, cancelled, review_requested = require("mcphub.utils.ui").confirm(lines, {
         min_width = 70,
         max_width = 100,
     })
@@ -287,44 +291,66 @@ function M.show_mcp_tool_prompt(params)
         arguments = arguments,
         confirmed = confirmed,
         cancelled = cancelled,
+        review_requested = review_requested,
     })
 
-    return confirmed, cancelled
+    return confirmed, cancelled, review_requested
 end
 
 ---@param parsed_params MCPHub.ParsedParams
----@return {error?:string, approve:boolean}
+---@return {error?:string, approve:boolean, review_requested:boolean}
 function M.handle_auto_approval_decision(parsed_params)
     local auto_approve = State.config.auto_approve or false
-    local status = { approve = false, error = nil }
+    local status = { approve = false, error = nil, review_requested = false }
+
     --- If user has a custom function that decides whether to auto-approve
     --- call that with params + saved autoApprove state as is_auto_approved_in_server field
     if type(auto_approve) == "function" then
         local ok, res = pcall(auto_approve, parsed_params)
         if not ok or type(res) == "string" then
             --- If auto_approve function throws an error, or returns a string, treat it as an error
-            status = { approve = false, error = res }
+            status = { approve = false, error = res, review_requested = false }
         elseif type(res) == "boolean" then
             --- If auto_approve function returns a boolean, use that as the decision
-            status = { approve = res, error = nil }
+            status = { approve = res, error = nil, review_requested = false }
+        elseif type(res) == "table" then
+            --- If auto_approve function returns a table, extract approve and review flags
+            status = {
+                approve = res.approve == true,
+                error = nil,
+                review_requested = res.review == true,
+            }
         end
     elseif type(auto_approve) == "boolean" then
-        status = { approve = auto_approve, error = nil }
+        status = { approve = auto_approve, error = nil, review_requested = false }
     end
 
     -- Check if auto-approval is enabled in servers.json
     if parsed_params.is_auto_approved_in_server then
-        status = { approve = true, error = nil }
+        status = { approve = true, error = nil, review_requested = false }
     end
 
     if status.error then
-        return { error = status.error or "Something went wrong with auto-approval", approve = false }
+        return {
+            error = status.error or "Something went wrong with auto-approval",
+            approve = false,
+            review_requested = false,
+        }
     end
 
     if status.approve == false and parsed_params.needs_confirmation_window then
-        local confirmed, _ = M.show_mcp_tool_prompt(parsed_params)
-        return { error = not confirmed and "User cancelled the operation", approve = confirmed }
+        local confirmed, cancelled, review_requested = M.show_mcp_tool_prompt(parsed_params)
+
+        -- Update parsed_params with review request
+        parsed_params.review_requested = review_requested
+
+        return {
+            error = not confirmed and "User cancelled the operation",
+            approve = confirmed,
+            review_requested = review_requested,
+        }
     end
+
     return status
 end
 

@@ -110,13 +110,7 @@ function M.multiline_input(title, content, on_save, opts)
             end
         end
         -- Close the window
-        if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-        end
-
-        if vim.api.nvim_buf_is_valid(bufnr) then
-            vim.api.nvim_buf_delete(bufnr, { force = true })
-        end
+        vim.api.nvim_win_close(win, true)
         -- -- Call save callback if content changed
         -- if content ~= new_content then
         on_save(new_content)
@@ -124,13 +118,7 @@ function M.multiline_input(title, content, on_save, opts)
     end
 
     local function close_window()
-        if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-        end
-
-        if vim.api.nvim_buf_is_valid(bufnr) then
-            vim.api.nvim_buf_delete(bufnr, { force = true })
-        end
+        vim.api.nvim_win_close(win, true)
         if opts.on_cancel then
             opts.on_cancel()
         end
@@ -244,16 +232,16 @@ function M.get_selection(bufnr)
     }
 end
 
----Create a confirmation window with Yes/No/Cancel options
+---Create a confirmation window with Yes/Yes & Review/No/Cancel options
 ---@param message string | string[] | NuiLine[] Message to display
 ---@param opts? {relative_to_chat?: boolean, min_width?: number, max_width?: number}
----@return boolean, boolean -- (confirmed, cancelled)
+---@return boolean, boolean, boolean -- (confirmed, cancelled, review_requested)
 function M.confirm(message, opts)
     opts = opts or {}
 
     local result = async.wrap(function(callback)
         if not message or #message == 0 then
-            return callback(false, true)
+            return callback(false, true, false)
         end
 
         -- Track active option (default to "yes")
@@ -266,6 +254,11 @@ function M.confirm(message, opts)
                 {
                     " Yes ",
                     active_option == "yes" and Text.highlights.button_active or Text.highlights.button_inactive,
+                },
+                { " • ", Text.highlights.seamless_border },
+                {
+                    " Yes & Review ",
+                    active_option == "yes_review" and Text.highlights.button_active or Text.highlights.button_inactive,
                 },
                 { " • ", Text.highlights.seamless_border },
                 { " No ", active_option == "no" and Text.highlights.button_active or Text.highlights.button_inactive },
@@ -368,7 +361,8 @@ function M.confirm(message, opts)
 
         -- Enhanced window options with better styling
         win_opts.style = "minimal"
-        win_opts.border = vim.o.winborder == "" and { "╭", "─", "╮", "│", "╯", "─", "╰", "│" } or nil
+        win_opts.border = vim.o.winborder ~= "" and vim.o.winborder
+            or { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
         win_opts.title_pos = "center"
         win_opts.title = {
             { " MCPHUB Confirmation ", Text.highlights.header_btn },
@@ -391,7 +385,7 @@ function M.confirm(message, opts)
         local is_closed = false
 
         -- Enhanced close function with cleanup
-        local function close_window(confirmed, cancelled)
+        local function close_window(confirmed, cancelled, review_requested)
             if is_closed then
                 return
             end
@@ -399,24 +393,24 @@ function M.confirm(message, opts)
 
             vim.schedule(function()
                 if vim.api.nvim_win_is_valid(win) then
-                    vim.api.nvim_win_close(win, true)
+                    if vim.api.nvim_win_is_valid(win) then
+                        vim.api.nvim_win_close(win, true)
+                    end
                 end
-
-                if vim.api.nvim_buf_is_valid(bufnr) then
-                    vim.api.nvim_buf_delete(bufnr, { force = true })
-                end
-                callback(confirmed, cancelled)
+                callback(confirmed, cancelled, review_requested)
             end)
         end
 
         -- Function to execute active option
         local function execute_active_option()
             if active_option == "yes" then
-                close_window(true, false)
+                close_window(true, false, false)
+            elseif active_option == "yes_review" then
+                close_window(true, false, true)
             elseif active_option == "no" then
-                close_window(false, false)
+                close_window(false, false, false)
             else -- cancel
-                close_window(false, true)
+                close_window(false, true, false)
             end
         end
 
@@ -424,33 +418,41 @@ function M.confirm(message, opts)
         local keymaps = {
             -- Direct actions
             ["y"] = function()
-                close_window(true, false)
+                close_window(true, false, false)
             end,
             ["Y"] = function()
-                close_window(true, false)
+                close_window(true, false, false)
+            end,
+            ["r"] = function()
+                close_window(true, false, true)
+            end,
+            ["R"] = function()
+                close_window(true, false, true)
             end,
             ["n"] = function()
-                close_window(false, false)
+                close_window(false, false, false)
             end,
             ["N"] = function()
-                close_window(false, false)
+                close_window(false, false, false)
             end,
             ["c"] = function()
-                close_window(false, true)
+                close_window(false, true, false)
             end,
             ["C"] = function()
-                close_window(false, true)
+                close_window(false, true, false)
             end,
             ["<Esc>"] = function()
-                close_window(false, true)
+                close_window(false, true, false)
             end,
             ["q"] = function()
-                close_window(false, true)
+                close_window(false, true, false)
             end,
             ["<CR>"] = execute_active_option, -- Execute the currently active option
             -- Tab navigation
             ["<Tab>"] = function()
                 if active_option == "yes" then
+                    active_option = "yes_review"
+                elseif active_option == "yes_review" then
                     active_option = "no"
                 elseif active_option == "no" then
                     active_option = "cancel"
@@ -476,7 +478,7 @@ function M.confirm(message, opts)
             buffer = bufnr,
             group = group,
             callback = function()
-                close_window(false, true)
+                close_window(false, true, false)
             end,
             once = true,
         })
@@ -489,6 +491,288 @@ function M.confirm(message, opts)
     end, 1)
 
     return result()
+end
+
+---Review tool result before sending to LLM
+---@param result MCPResponseOutput The tool execution result
+---@param metadata {server_name: string, tool_name?: string, uri?: string, action: string} Metadata about the tool/resource
+---@param callback fun(approved: boolean) Callback with user's decision
+function M.review_tool_result(result, metadata, callback)
+    local max_display_lines = 10000 -- Truncate very large results
+
+    -- Don't use async.wrap here since we're already in a callback context
+    vim.schedule(function()
+        if not result then
+            vim.notify("No result to review", vim.log.levels.WARN)
+            return callback(false)
+        end
+
+        -- Track active option (default to "approve")
+        local active_option = "approve"
+
+        -- Function to create footer with current active state
+        local function create_footer()
+            return {
+                { " ", Text.highlights.seamless_border },
+                {
+                    " Approve ",
+                    active_option == "approve" and Text.highlights.button_active or Text.highlights.button_inactive,
+                },
+                { " • ", Text.highlights.seamless_border },
+                {
+                    " Reject ",
+                    active_option == "reject" and Text.highlights.button_active or Text.highlights.button_inactive,
+                },
+                { " ", Text.highlights.seamless_border },
+            }
+        end
+
+        -- Process result into displayable lines
+        local content_lines = {}
+
+        -- Add metadata header
+        table.insert(
+            content_lines,
+            NuiLine():append("Server: ", Text.highlights.muted):append(metadata.server_name, Text.highlights.success)
+        )
+
+        if metadata.tool_name then
+            table.insert(
+                content_lines,
+                NuiLine():append("Tool: ", Text.highlights.muted):append(metadata.tool_name, Text.highlights.info)
+            )
+        elseif metadata.uri then
+            table.insert(
+                content_lines,
+                NuiLine():append("Resource: ", Text.highlights.muted):append(metadata.uri, Text.highlights.link)
+            )
+        end
+
+        table.insert(content_lines, Text.empty_line())
+        table.insert(content_lines, NuiLine():append("━━━ Result ━━━", Text.highlights.muted))
+        table.insert(content_lines, Text.empty_line())
+
+        -- Add result content
+        if result.text and result.text ~= "" then
+            local text_lines = vim.split(result.text, "\n", { plain = true })
+
+            -- Truncate if too large
+            if #text_lines > max_display_lines then
+                local truncated = vim.list_slice(text_lines, 1, max_display_lines)
+                vim.list_extend(truncated, {
+                    "",
+                    string.format("... [Truncated: showing %d of %d lines] ...", max_display_lines, #text_lines),
+                })
+                text_lines = truncated
+            end
+
+            for _, line in ipairs(text_lines) do
+                table.insert(content_lines, NuiLine():append(line, Text.highlights.text))
+            end
+        end
+
+        -- Add image info if present
+        if result.images and #result.images > 0 then
+            table.insert(content_lines, Text.empty_line())
+            table.insert(
+                content_lines,
+                NuiLine():append(
+                    string.format("📷 %d image%s included", #result.images, #result.images > 1 and "s" or ""),
+                    Text.highlights.info
+                )
+            )
+        end
+
+        -- Show error if present
+        if result.isError or result.error then
+            table.insert(content_lines, Text.empty_line())
+            table.insert(content_lines, NuiLine():append("⚠ Error occurred during execution", Text.highlights.error))
+            if result.error then
+                table.insert(content_lines, NuiLine():append(tostring(result.error), Text.highlights.error))
+            end
+        end
+
+        -- Handle empty result
+        if not result.text or result.text == "" and (not result.images or #result.images == 0) then
+            table.insert(content_lines, NuiLine():append("(No text content)", Text.highlights.muted))
+        end
+
+        -- Calculate window dimensions
+        local min_width = 60
+        local max_width = math.min(120, math.floor(vim.o.columns * 0.9))
+        local content_width = 0
+
+        for _, line in ipairs(content_lines) do
+            local line_width = type(line) == "string" and #line or line:width()
+            content_width = math.max(content_width, line_width)
+        end
+
+        local width = math.max(min_width, math.min(max_width, content_width + 4))
+        local max_height = math.floor(vim.o.lines * 0.8)
+        local height = math.min(#content_lines + 3, max_height)
+
+        -- Create buffer and window
+        local bufnr = vim.api.nvim_create_buf(false, true)
+        local ns_id = vim.api.nvim_create_namespace("MCPHubReviewResult")
+
+        -- Render content
+        for i, line in ipairs(content_lines) do
+            if type(line) == "string" then
+                line = Text.pad_line(line)
+            else
+                line = Text.pad_line(line)
+            end
+            line:render(bufnr, ns_id, i)
+        end
+
+        local win_opts = M.get_window_position(width, height)
+        win_opts.style = "minimal"
+        win_opts.border = vim.o.winborder ~= "" and vim.o.winborder
+            or { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
+        win_opts.title = {
+            { " Tool Result Review ", Text.highlights.header_btn },
+        }
+        win_opts.title_pos = "center"
+        win_opts.footer = create_footer()
+        win_opts.footer_pos = "center"
+
+        local win = vim.api.nvim_open_win(bufnr, true, win_opts)
+
+        -- Window options for scrolling
+        vim.api.nvim_win_set_option(win, "wrap", true)
+        vim.api.nvim_win_set_option(win, "cursorline", true)
+        vim.api.nvim_win_set_option(win, "scrolloff", 5)
+
+        -- Buffer options
+        vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
+        vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
+        vim.api.nvim_buf_set_option(bufnr, "swapfile", false)
+        vim.api.nvim_buf_set_option(bufnr, "filetype", "mcphub-review")
+
+        local is_closed = false
+
+        -- Function to update footer
+        local function update_footer()
+            if vim.api.nvim_win_is_valid(win) then
+                local config = vim.api.nvim_win_get_config(win)
+                config.footer = create_footer()
+                vim.api.nvim_win_set_config(win, config)
+            end
+        end
+
+        -- Close function
+        local function close_window(approved)
+            if is_closed then
+                return
+            end
+            is_closed = true
+
+            vim.schedule(function()
+                if vim.api.nvim_win_is_valid(win) then
+                    vim.api.nvim_win_close(win, true)
+                end
+                callback(approved)
+            end)
+        end
+
+        -- Function to execute active option
+        local function execute_active_option()
+            if active_option == "approve" then
+                close_window(true)
+            else -- reject
+                close_window(false)
+            end
+        end
+
+        -- Set up keymaps
+        local keymaps = {
+            -- Direct actions
+            ["y"] = function()
+                close_window(true)
+            end,
+            ["Y"] = function()
+                close_window(true)
+            end,
+            ["a"] = function()
+                close_window(true)
+            end,
+            ["A"] = function()
+                close_window(true)
+            end,
+            ["n"] = function()
+                close_window(false)
+            end,
+            ["N"] = function()
+                close_window(false)
+            end,
+            ["r"] = function()
+                close_window(false)
+            end,
+            ["R"] = function()
+                close_window(false)
+            end,
+            ["<Esc>"] = function()
+                close_window(false)
+            end,
+            ["q"] = function()
+                close_window(false)
+            end,
+            ["<CR>"] = execute_active_option,
+            -- Tab navigation
+            ["<Tab>"] = function()
+                if active_option == "approve" then
+                    active_option = "reject"
+                else
+                    active_option = "approve"
+                end
+                update_footer()
+            end,
+            -- Scrolling
+            ["j"] = function()
+                vim.cmd("normal! j")
+            end,
+            ["k"] = function()
+                vim.cmd("normal! k")
+            end,
+            ["<C-d>"] = function()
+                vim.cmd("normal! \x04") -- Ctrl-D
+            end,
+            ["<C-u>"] = function()
+                vim.cmd("normal! \x15") -- Ctrl-U
+            end,
+            ["gg"] = function()
+                vim.cmd("normal! gg")
+            end,
+            ["G"] = function()
+                vim.cmd("normal! G")
+            end,
+        }
+
+        for key, handler in pairs(keymaps) do
+            vim.keymap.set("n", key, handler, {
+                buffer = bufnr,
+                nowait = true,
+                silent = true,
+                desc = "MCPHub review: " .. key,
+            })
+        end
+
+        -- Auto-close protection
+        local group = vim.api.nvim_create_augroup("MCPHubReview" .. bufnr, { clear = true })
+        vim.api.nvim_create_autocmd({ "WinClosed", "BufWipeout" }, {
+            buffer = bufnr,
+            group = group,
+            callback = function()
+                close_window(false)
+            end,
+            once = true,
+        })
+
+        -- Focus and ensure normal mode
+        vim.api.nvim_set_current_win(win)
+        vim.cmd("stopinsert")
+        vim.cmd("redraw")
+    end)
 end
 
 -- Helper function to determine window positioning
@@ -617,13 +901,6 @@ function M.open_auth_popup(server_name, auth_url)
         end
         if vim.api.nvim_win_is_valid(input_win) then
             vim.api.nvim_win_close(input_win, true)
-        end
-
-        if vim.api.nvim_buf_is_valid(info_buf) then
-            vim.api.nvim_buf_delete(info_buf, { force = true })
-        end
-        if vim.api.nvim_buf_is_valid(input_buf) then
-            vim.api.nvim_buf_delete(input_buf, { force = true })
         end
         -- Return focus to MCPHub window
         if State.ui_instance and State.ui_instance.window then

@@ -1,4 +1,4 @@
-*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2025 December 12
+*mcphub.nvim.txt*        For NVIM v0.10.0        Last change: 2026 February 17
 
 ==============================================================================
 Table of Contents                              *mcphub.nvim-table-of-contents*
@@ -3295,11 +3295,34 @@ If `make_slash_commands = true`, MCP prompts are available as slash commands:
 _Example: Using an MCP prompt via slash command_:
 
 
-AUTO-APPROVAL ~
+TOOL APPROVAL & REVIEW ~
 
 By default, whenever codecompanion calls `use_mcp_tool` or
 `access_mcp_resource` tool or a specific tool on some MCP server, it shows a
 confirm dialog with tool name, server name and arguments.
+
+
+REVIEW TOOL RESULTS
+
+The confirmation dialog now includes a **“Yes & Review”** option, allowing
+you to inspect tool results before they’re sent to the LLM. This is
+particularly useful for preventing sensitive data leakage when working with
+tools that access confidential information (JIRA, Confluence, databases, etc.).
+
+**Keyboard shortcuts in confirmation dialog:** - `y`/`Y` - Yes (execute and
+auto-send to LLM) - `r`/`R` - **Yes & Review** (execute, then show review
+window) - `n`/`N` - No (don’t execute) - `c`/`C` or `<Esc>` - Cancel
+
+When you select "Yes & Review", the tool executes and then displays a review
+window where you can: - Inspect the full result (with scrolling for large
+outputs) - Approve to send to LLM (`y`, `a`, or `<CR>` on Approve) - Reject to
+prevent data leakage (`n`, `r`, or `<Esc>`)
+
+**See the full documentation**: Tool Result Review Feature
+</other/review-feature>
+
+
+AUTO-APPROVAL
 
 
 FINE-GRAINED AUTO-APPROVAL
@@ -3378,6 +3401,11 @@ specific tool call:
                 end
             end
     
+            -- Execute JIRA/Confluence tools but always review results
+            if params.server_name == "jira" or params.server_name == "confluence" then
+                return { approve = true, review = true }
+            end
+    
             -- Check if tool is configured for auto-approval in servers.json
             if params.is_auto_approved_in_server then
                 return true -- Respect servers.json configuration
@@ -3395,9 +3423,10 @@ resources) - `params.arguments` - Table of arguments passed to the tool -
 - Resource URI (for resource access) - `params.is_auto_approved_in_server` -
 Boolean indicating if tool is configured for auto-approval in servers.json
 
-**Return values:** - `true` - Auto-approve the call - `false` - Show
-confirmation prompt - `string` - Deny with error message - `nil` - Show
-confirmation prompt (same as false)
+**Return values:** - `true` - Auto-approve and execute immediately (no review)
+- `false` - Show confirmation prompt (user can choose review) - `{ approve =
+true, review = true }` - Execute and force review window - `string` - Deny with
+error message - `nil` - Show confirmation prompt (same as false)
 
 
 AUTO-APPROVAL PRIORITY
