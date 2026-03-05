@@ -14,7 +14,11 @@ function M.register(opts)
         return
     end
 
-    local cc_variables = config.interactions.chat.variables
+    local cc_variables = (config.interactions and config.interactions.chat and config.interactions.chat.variables)
+        or (config.strategies and config.strategies.chat and config.strategies.chat.variables)
+    if not cc_variables then
+        return
+    end
 
     -- Remove existing MCP variables
     for key, value in pairs(cc_variables) do
