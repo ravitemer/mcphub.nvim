@@ -424,8 +424,9 @@ async function main() {
   const nvim = await connect()
   log.info("Connected to Neovim.")
 
-  log.info("Registering proxy channel:", nvim.channelId)
-  await nvim.lua('require("mcphub.extensions.proxy").register_channel(...)', [nvim.channelId])
+  const channelId = await nvim.channelId
+  log.info("Registering proxy channel:", channelId)
+  await nvim.lua('require("mcphub.extensions.proxy").register_channel(...)', [channelId])
 
   log.debug("Creating MCP server...")
   const server = await listen(nvim)
