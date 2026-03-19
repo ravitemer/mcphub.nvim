@@ -1,6 +1,13 @@
 local M = {}
 
 local shared = require("mcphub.extensions.shared")
+local proxy_channel = nil
+
+--- Register the proxy's RPC channel for targeted notifications
+---@param channel_id number The channel ID of the proxy process
+function M.register_channel(channel_id)
+    proxy_channel = channel_id
+end
 
 --- Get proxy command and args for external MCP clients
 ---@return { command: string, args: string[] }
@@ -56,7 +63,8 @@ end
 ---@param request_id string The request ID to respond to
 ---@param result table The result to send
 local function send_result(request_id, result)
-    vim.rpcnotify(0, "mcphub_proxy_result", request_id, result)
+    local channel = proxy_channel or 0
+    vim.rpcnotify(channel, "mcphub_proxy_result", request_id, result)
 end
 
 --- Async version of call_tool for proxy (uses nice UI)
