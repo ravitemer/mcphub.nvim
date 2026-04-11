@@ -14,7 +14,7 @@
 local EditSession = {}
 EditSession.__index = EditSession
 
-local Path = require("mcphub.lib.path")
+local Path = require("plenary.path")
 local DEFAULT_CONFIG = {
     parser = {
         track_issues = true,

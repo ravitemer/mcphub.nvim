@@ -17,6 +17,7 @@
           pname = "mcphub.nvim";
           version = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
           src = self;
+          dependencies = [ pkgs.vimPlugins.plenary-nvim ];
           nvimSkipModule = [
             "bundled_build"
             "mcphub.extensions.avante"
@@ -37,3 +38,4 @@
       };
     };
 }
+

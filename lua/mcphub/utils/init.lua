@@ -23,17 +23,17 @@ end
 local uid = 0
 function M.gen_dump_path()
     uid = uid + 1
-    local P = require("mcphub.lib.path")
+    local P = require("plenary.path")
     local path
     local id = string.gsub("xxxx4xxx", "[xy]", function(l)
         local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
         return string.format("%x", v)
     end)
     if P.path.sep == "\\" then
-        path = string.format("%s\\AppData\\Local\\Temp\\mcphub_curl_%s.headers", os.getenv("USERPROFILE"), id)
+        path = string.format("%s\\AppData\\Local\\Temp\\plenary_curl_%s.headers", os.getenv("USERPROFILE"), id)
     else
         local temp_dir = os.getenv("XDG_RUNTIME_DIR") or "/tmp"
-        path = temp_dir .. "/mcphub_curl_" .. id .. ".headers"
+        path = temp_dir .. "/plenary_curl_" .. id .. ".headers"
     end
     local nvim_pid = vim.uv.os_getpid()
     local dump_file = path .. nvim_pid .. uid
@@ -653,7 +653,7 @@ function M.confirm_and_delete_server(server_name, on_delete)
         vim.notify("Server name is required for deletion", vim.log.levels.ERROR)
         return
     end
-    local async = require("mcphub.lib.async")
+    local async = require("plenary.async")
     async.run(function()
         local config_manager = require("mcphub.utils.config_manager")
         local server_config = config_manager.get_server_config(server_name, true) or {}

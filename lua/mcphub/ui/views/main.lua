@@ -267,7 +267,7 @@ function MainView:handle_workspace_kill(context)
     local warning_line = NuiLine()
     warning_line:append("This will terminate the hub process.", Text.highlights.error)
     table.insert(confirm_lines, warning_line)
-    local async = require("mcphub.lib.async")
+    local async = require("plenary.async")
 
     async.run(function()
         local confirmed, cancelled = ui_utils.confirm(confirm_lines, {

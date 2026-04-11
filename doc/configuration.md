@@ -9,6 +9,9 @@ All options are optional with sensible defaults. See below for each option in de
 ```lua
 {
     "ravitemer/mcphub.nvim",
+    dependencies = {
+        "nvim-lua/plenary.nvim",
+    },
     build = "npm install -g mcp-hub@latest",  -- Installs `mcp-hub` node binary globally
     config = function()
         require("mcphub").setup({
@@ -494,6 +497,7 @@ Logging configuration options:
 - `to_file`: Whether to write logs to file
 - `file_path`: Custom log file path
 - `prefix`: Prefix for log messages
+
 
 
 

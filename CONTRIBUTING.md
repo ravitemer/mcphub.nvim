@@ -19,6 +19,7 @@ The express server provides several key endpoints:
 - Node.js 18.0+
 - [lua-language-server](https://github.com/LuaLS/lua-language-server)
 - [stylua](https://github.com/JohnnyMorganz/StyLua)
+- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
 - [tmux](https://github.com/tmux/tmux) (recommended for development)
 
 ### Setting up mcp-hub for Development

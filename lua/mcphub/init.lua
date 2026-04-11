@@ -1,6 +1,6 @@
 local Error = require("mcphub.utils.errors")
 local ImageCache = require("mcphub.utils.image_cache")
-local Job = require("mcphub.lib.job")
+local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")

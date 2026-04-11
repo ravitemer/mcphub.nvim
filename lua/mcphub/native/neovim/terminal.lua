@@ -1,5 +1,5 @@
 local api = vim.api
-local Path = require("mcphub.lib.path")
+local Path = require("plenary.path")
 local mcphub = require("mcphub")
 
 -- Tool to execute Lua code using nvim_exec2

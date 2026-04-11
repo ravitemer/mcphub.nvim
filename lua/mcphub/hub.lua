@@ -1,10 +1,10 @@
 local Error = require("mcphub.utils.errors")
-local Job = require("mcphub.lib.job")
+local Job = require("plenary.job")
 local State = require("mcphub.state")
 local config = require("mcphub.config")
 local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
-local curl = require("mcphub.lib.curl")
+local curl = require("plenary.curl")
 local version = require("mcphub.utils.version")
 local workspace_utils = require("mcphub.utils.workspace")
 

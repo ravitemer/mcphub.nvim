@@ -1,7 +1,7 @@
 local M = {}
 
 local uv = (vim.loop or vim.uv)
-local path = require("mcphub.lib.path")
+local path = require("plenary.path")
 local utils = require("mcphub.utils")
 
 ---Search upward from current directory for any of the look_for files
