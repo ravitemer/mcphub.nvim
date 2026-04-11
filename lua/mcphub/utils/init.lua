@@ -23,17 +23,16 @@ end
 local uid = 0
 function M.gen_dump_path()
     uid = uid + 1
-    local P = require("plenary.path")
     local path
     local id = string.gsub("xxxx4xxx", "[xy]", function(l)
         local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
         return string.format("%x", v)
     end)
-    if P.path.sep == "\\" then
-        path = string.format("%s\\AppData\\Local\\Temp\\plenary_curl_%s.headers", os.getenv("USERPROFILE"), id)
+    if package.config:sub(1, 1) == "\\" then
+        path = string.format("%s\\AppData\\Local\\Temp\\mcphub_curl_%s.headers", os.getenv("USERPROFILE"), id)
     else
         local temp_dir = os.getenv("XDG_RUNTIME_DIR") or "/tmp"
-        path = temp_dir .. "/plenary_curl_" .. id .. ".headers"
+        path = temp_dir .. "/mcphub_curl_" .. id .. ".headers"
     end
     local nvim_pid = vim.uv.os_getpid()
     local dump_file = path .. nvim_pid .. uid
@@ -653,53 +652,46 @@ function M.confirm_and_delete_server(server_name, on_delete)
         vim.notify("Server name is required for deletion", vim.log.levels.ERROR)
         return
     end
-    local async = require("plenary.async")
-    async.run(function()
-        local config_manager = require("mcphub.utils.config_manager")
-        local server_config = config_manager.get_server_config(server_name, true) or {}
-        -- Create confirmation message with highlights
-        local message = {}
+    local config_manager = require("mcphub.utils.config_manager")
+    local server_config = config_manager.get_server_config(server_name, true) or {}
+    local message = {}
 
-        -- Header line with highlights
-        local header_line = NuiLine()
-        header_line:append("Do you want to delete ", Text.highlights.muted)
-        header_line:append("'" .. server_name .. "'", Text.highlights.error)
-        header_line:append(" server?", Text.highlights.muted)
-        table.insert(message, header_line)
-        table.insert(message, "")
+    local header_line = NuiLine()
+    header_line:append("Do you want to delete ", Text.highlights.muted)
+    header_line:append("'" .. server_name .. "'", Text.highlights.error)
+    header_line:append(" server?", Text.highlights.muted)
+    table.insert(message, header_line)
+    table.insert(message, "")
 
-        -- Current configuration preview
-        if server_config then
-            vim.list_extend(message, Text.render_json(vim.json.encode(server_config)))
-        else
-            local no_config_line = NuiLine()
-            no_config_line:append("No current configuration found.", Text.highlights.muted)
-            table.insert(message, no_config_line)
+    if server_config then
+        vim.list_extend(message, Text.render_json(vim.json.encode(server_config)))
+    else
+        local no_config_line = NuiLine()
+        no_config_line:append("No current configuration found.", Text.highlights.muted)
+        table.insert(message, no_config_line)
+    end
+
+    ui_utils.confirm(message, {
+        min_width = 70,
+        max_width = 90,
+    }, function(confirmed, cancelled)
+        if not confirmed or cancelled then
+            return
         end
-
-        -- Show confirmation dialog
-        local confirmed, cancelled = ui_utils.confirm(message, {
-            min_width = 70,
-            max_width = 90,
-        })
-
-        if confirmed and not cancelled then
-            -- Delete the server
-            if State.hub_instance then
-                local success = State.hub_instance:remove_server_config(server_name)
-                if success then
-                    vim.notify("Server '" .. server_name .. "' deleted successfully!", vim.log.levels.INFO)
-                    if on_delete then
-                        on_delete(server_name)
-                    end
-                else
-                    vim.notify("Failed to delete server '" .. server_name .. "'", vim.log.levels.ERROR)
+        if State.hub_instance then
+            local success = State.hub_instance:remove_server_config(server_name)
+            if success then
+                vim.notify("Server '" .. server_name .. "' deleted successfully!", vim.log.levels.INFO)
+                if on_delete then
+                    on_delete(server_name)
                 end
             else
-                vim.notify("MCP Hub not available", vim.log.levels.ERROR)
+                vim.notify("Failed to delete server '" .. server_name .. "'", vim.log.levels.ERROR)
             end
+        else
+            vim.notify("MCP Hub not available", vim.log.levels.ERROR)
         end
-    end, function() end)
+    end)
 end
 
 --- Convert ISO 8601 timestamp to relative time format (e.g., "23s", "1d", "1hr", "2m")

@@ -1,5 +1,4 @@
 local M = {}
-local async = require("plenary.async")
 local shared = require("mcphub.extensions.shared")
 
 --- Core MCP tool execution logic
@@ -10,80 +9,74 @@ local shared = require("mcphub.extensions.shared")
 ---@return nil|{ status: "success"|"error", data: string }
 function M.execute_mcp_tool(params, agent, output_handler, context)
     context = context or {}
-    ---@diagnostic disable-next-line: missing-parameter
-    async.run(function()
-        -- Reuse existing validation logic
-        local parsed_params = shared.parse_params(params, context.action)
-        if #parsed_params.errors > 0 then
-            return output_handler({
-                status = "error",
-                data = table.concat(parsed_params.errors, "\n"),
-            })
-        end
+    local parsed_params = shared.parse_params(params, context.action)
+    if #parsed_params.errors > 0 then
+        return output_handler({
+            status = "error",
+            data = table.concat(parsed_params.errors, "\n"),
+        })
+    end
 
-        local result = shared.handle_auto_approval_decision(parsed_params)
+    local result = shared.handle_auto_approval_decision(parsed_params)
 
-        if result.error then
-            return output_handler({
-                status = "error",
-                data = result.error,
-            })
-        end
+    if result.error then
+        return output_handler({
+            status = "error",
+            data = result.error,
+        })
+    end
 
-        local hub = require("mcphub").get_hub_instance()
-        if not hub then
-            return output_handler({
-                status = "error",
-                data = "MCP Hub is not ready yet",
-            })
-        end
+    local hub = require("mcphub").get_hub_instance()
+    if not hub then
+        return output_handler({
+            status = "error",
+            data = "MCP Hub is not ready yet",
+        })
+    end
 
-        -- Call appropriate hub method
-        if parsed_params.action == "access_mcp_resource" then
-            hub:access_resource(parsed_params.server_name, parsed_params.uri, {
-                caller = {
-                    type = "codecompanion",
-                    codecompanion = agent,
-                    auto_approve = result.approve,
-                },
-                parse_response = true,
-                callback = function(res, err)
-                    if err or not res then
-                        output_handler({
-                            status = "error",
-                            data = err and tostring(err)
-                                or "No response from accessing the resource " .. parsed_params.uri,
-                        })
-                    elseif res then
-                        output_handler({ status = "success", data = res })
-                    end
-                end,
-            })
-        elseif parsed_params.action == "use_mcp_tool" then
-            hub:call_tool(parsed_params.server_name, parsed_params.tool_name, parsed_params.arguments, {
-                caller = {
-                    type = "codecompanion",
-                    codecompanion = agent,
-                    auto_approve = result.approve,
-                },
-                parse_response = true,
-                callback = function(res, err)
-                    if err or not res then
-                        output_handler({ status = "error", data = tostring(err) or "No response from tool call" })
-                    elseif res.error then
-                        output_handler({ status = "error", data = res.error })
-                    else
-                        output_handler({ status = "success", data = res })
-                    end
-                end,
-            })
-        else
-            return output_handler({
-                status = "error",
-                data = "Invalid action type: " .. parsed_params.action,
-            })
-        end
-    end)
+    if parsed_params.action == "access_mcp_resource" then
+        hub:access_resource(parsed_params.server_name, parsed_params.uri, {
+            caller = {
+                type = "codecompanion",
+                codecompanion = agent,
+                auto_approve = result.approve,
+            },
+            parse_response = true,
+            callback = function(res, err)
+                if err or not res then
+                    output_handler({
+                        status = "error",
+                        data = err and tostring(err) or "No response from accessing the resource " .. parsed_params.uri,
+                    })
+                elseif res then
+                    output_handler({ status = "success", data = res })
+                end
+            end,
+        })
+    elseif parsed_params.action == "use_mcp_tool" then
+        hub:call_tool(parsed_params.server_name, parsed_params.tool_name, parsed_params.arguments, {
+            caller = {
+                type = "codecompanion",
+                codecompanion = agent,
+                auto_approve = result.approve,
+            },
+            parse_response = true,
+            callback = function(res, err)
+                if err or not res then
+                    output_handler({ status = "error", data = tostring(err) or "No response from tool call" })
+                elseif res.error then
+                    output_handler({ status = "error", data = res.error })
+                else
+                    output_handler({ status = "success", data = res })
+                end
+            end,
+        })
+    else
+        return output_handler({
+            status = "error",
+            data = "Invalid action type: " .. parsed_params.action,
+        })
+    end
 end
 
 ---@param display_name string

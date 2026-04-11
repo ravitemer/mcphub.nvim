@@ -74,42 +74,11 @@ function M.register(opts)
         return
     end
 
-    local async = require("plenary.async")
     local chat_functions = require("CopilotChat.functions")
     local shared = require("mcphub.extensions.shared")
 
     -- Cleanup existing mcphub functions
     cleanup_mcphub_functions(chat)
-
-    -- Create async wrappers with proper event loop scheduling
-    local call_tool = async.wrap(function(server, tool, input, callback)
-        -- Schedule the MCP call to run in the main event loop to avoid fast event context issues
-        vim.schedule(function()
-            hub:call_tool(server, tool, input, {
-                caller = {
-                    type = "copilotchat",
-                    copilotchat = chat,
-                },
-                callback = function(res, err)
-                    callback(res, err)
-                end,
-            })
-        end)
-    end, 4)
-
-    local access_resource = async.wrap(function(server, uri, callback)
-        vim.schedule(function()
-            hub:access_resource(server, uri, {
-                caller = {
-                    type = "copilotchat",
-                    copilotchat = chat,
-                },
-                callback = function(res, err)
-                    callback(res, err)
-                end,
-            })
-        end)
-    end, 3)
 
     -- Get servers and process them to avoid name conflicts
     local servers = hub:get_servers()
@@ -182,7 +151,12 @@ function M.register(opts)
                             --     end
                             -- end
 
-                            local res, err = call_tool(server_name, tool.name, input or {})
+                            local res, err = hub:call_tool(server_name, tool.name, input or {}, {
+                                caller = {
+                                    type = "copilotchat",
+                                    copilotchat = chat,
+                                },
+                            })
                             if err then
                                 error(err)
                             end
@@ -236,7 +210,12 @@ function M.register(opts)
                         group = safe_server_name,
                         description = resource.description or "No description provided",
                         resolve = function()
-                            local res, err = access_resource(server_name, resource.uri)
+                            local res, err = hub:access_resource(server_name, resource.uri, {
+                                caller = {
+                                    type = "copilotchat",
+                                    copilotchat = chat,
+                                },
+                            })
                             if err then
                                 error(err)
                             end
@@ -278,7 +257,12 @@ function M.register(opts)
                         description = template.description or "No description provided",
                         resolve = function(input)
                             local url = chat_functions.uri_to_url(template.uriTemplate, input or {})
-                            local res, err = access_resource(server_name, url)
+                            local res, err = hub:access_resource(server_name, url, {
+                                caller = {
+                                    type = "copilotchat",
+                                    copilotchat = chat,
+                                },
+                            })
                             if err then
                                 error(err)
                             end

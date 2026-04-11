@@ -1,10 +1,8 @@
 local Error = require("mcphub.utils.errors")
-local Job = require("plenary.job")
 local State = require("mcphub.state")
 local config = require("mcphub.config")
 local config_manager = require("mcphub.utils.config_manager")
 local constants = require("mcphub.utils.constants")
-local curl = require("plenary.curl")
 local version = require("mcphub.utils.version")
 local workspace_utils = require("mcphub.utils.workspace")
 
@@ -30,7 +28,7 @@ local MCP_REQUEST_TIMEOUT = 60000 -- 60s for MCP requests
 --- @field cmd string The cmd to invoke the MCP Hub server
 --- @field cmdArgs table The args to pass to the cmd to spawn the server
 --- @field ready boolean Whether the connection to server is ready
---- @field server_job Job|nil The server process job if we started it
+--- @field server_job table|nil The server process handle if we started it
 --- @field is_owner boolean Whether this instance started the server
 --- @field is_shutting_down boolean Whether we're in the process of shutting down
 --- @field mcp_request_timeout number --Max time allowed for a MCP tool or resource to execute in milliseconds, set longer for long running tasks
@@ -39,6 +37,134 @@ local MCP_REQUEST_TIMEOUT = 60000 -- 60s for MCP requests
 --- @field setup_opts table Original options used to create this hub instance
 local MCPHub = {}
 MCPHub.__index = MCPHub
+
+local function start_system_job(cmd, opts)
+    local state = {
+        stdout = {},
+        stderr = {},
+        id = nil,
+    }
+
+    local job_opts = {
+        cwd = opts.cwd,
+        env = opts.env,
+        detach = opts.detach == true,
+        on_stdout = function(_, data)
+            if not data then
+                return
+            end
+            for _, line in ipairs(data) do
+                if line ~= "" then
+                    table.insert(state.stdout, line)
+                    if opts.on_stdout then
+                        opts.on_stdout(state, line)
+                    end
+                end
+            end
+        end,
+        on_stderr = function(_, data)
+            if not data then
+                return
+            end
+            for _, line in ipairs(data) do
+                if line ~= "" then
+                    table.insert(state.stderr, line)
+                    if opts.on_stderr then
+                        opts.on_stderr(state, line)
+                    end
+                end
+            end
+        end,
+        on_exit = function(_, code)
+            if opts.on_exit then
+                opts.on_exit(state, code)
+            end
+        end,
+    }
+
+    state.id = vim.fn.jobstart(cmd, job_opts)
+    if state.id <= 0 then
+        error("Failed to start job: " .. table.concat(cmd, " "))
+    end
+
+    if opts.on_start then
+        opts.on_start(state)
+    end
+
+    return state
+end
+
+local function stop_system_job(job)
+    if job and job.id and job.id > 0 then
+        vim.fn.jobstop(job.id)
+    end
+end
+
+local function system_job_stderr(job)
+    return table.concat(job.stderr or {}, "\n")
+end
+
+local function request_with_curl(request_opts, callback)
+    local cmd = { "curl", "-sS", "-w", "\n__MCPHUB_STATUS__:%{http_code}" }
+
+    vim.list_extend(cmd, {
+        "--connect-timeout",
+        tostring(vim.fn.floor(CONNECT_TIMEOUT / 1000)),
+    })
+
+    if request_opts.timeout then
+        local timeout_seconds = tostring(vim.fn.floor(request_opts.timeout / 1000))
+        vim.list_extend(cmd, { "--max-time", timeout_seconds })
+    end
+
+    for key, value in pairs(request_opts.headers or {}) do
+        vim.list_extend(cmd, { "-H", string.format("%s: %s", key, value) })
+    end
+
+    if request_opts.method and request_opts.method ~= "" then
+        vim.list_extend(cmd, { "-X", request_opts.method })
+    end
+
+    if request_opts.body then
+        vim.list_extend(cmd, { "--data-binary", request_opts.body })
+    end
+
+    vim.list_extend(cmd, request_opts.dump or {})
+    vim.list_extend(cmd, request_opts.raw or {})
+    table.insert(cmd, request_opts.url)
+
+    local function to_response(obj)
+        local stdout = obj.stdout or ""
+        local body, status = stdout:match("^(.*)\n__MCPHUB_STATUS__:(%d+)$")
+        if not body then
+            body = stdout
+            status = "0"
+        end
+        return {
+            status = tonumber(status) or 0,
+            body = body,
+            exit = obj.code or 0,
+            stderr = obj.stderr or "",
+        }
+    end
+
+    if callback then
+        vim.system(cmd, { text = true }, function(obj)
+            if obj.code ~= 0 and request_opts.on_error then
+                request_opts.on_error({
+                    exit = obj.code,
+                    stderr = obj.stderr or "",
+                    message = obj.stderr or "curl request failed",
+                })
+                return
+            end
+            callback(to_response(obj))
+        end)
+        return
+    end
+
+    return to_response(vim.system(cmd, { text = true }):wait())
+end
 
 --- Create a new MCPHub instance
 --- @param opts table Configuration options
@@ -270,13 +396,10 @@ function MCPHub:_start_server_with_context(context)
         is_workspace_mode = context.is_workspace_mode,
     }))
 
-    ---@diagnostic disable-next-line: missing-fields
-    self.server_job = Job:new({
-        command = self.cmd,
-        args = args,
+    self.server_job = start_system_job(vim.list_extend({ self.cmd }, args), {
         cwd = context.cwd, -- Set working directory
         env = job_env, -- Pass environment variables
-        hide = true,
+        detach = true,
         on_stderr = vim.schedule_wrap(function(_, data)
             if data then
                 log.debug("Server stderr:" .. data)
@@ -291,7 +414,7 @@ function MCPHub:_start_server_with_context(context)
             -- end
         end),
         on_exit = vim.schedule_wrap(function(j, code)
-            local stderr = table.concat(j:stderr_result() or {}, "\n")
+            local stderr = system_job_stderr(j)
             log.debug("Server process exited with code " .. code .. " and stderr: " .. stderr)
             if stderr:match("EADDRINUSE") then
                 -- The on_start's self:connect_sse() will handle this case
@@ -304,8 +427,6 @@ function MCPHub:_start_server_with_context(context)
             end
         end),
     })
-
-    self.server_job:start()
 end
 
 --- Start the MCP Hub server
@@ -1034,14 +1155,17 @@ function MCPHub:api_request(method, path, opts)
 
     if callback then
         -- Async mode
-        curl.request(vim.tbl_extend("force", request_opts, {
-            callback = vim.schedule_wrap(function(response)
+        request_with_curl(
+            vim.tbl_extend("force", request_opts, {
+                callback = true,
+            }),
+            vim.schedule_wrap(function(response)
                 process_response(response)
-            end),
-        }))
+            end)
+        )
     else
         -- Sync mode
-        return process_response(curl.request(request_opts))
+        return process_response(request_with_curl(request_opts))
     end
 end
 
@@ -1206,21 +1330,19 @@ function MCPHub:connect_sse()
     base_url = base_url:gsub("/+$", "")
 
     -- Create SSE connection
-    ---@diagnostic disable-next-line: missing-fields
-    local sse_job = Job:new({
-        command = "curl",
-        args = {
-            "--no-buffer",
-            "--tcp-nodelay",
-            "--retry",
-            "5",
-            "--retry-delay",
-            "1",
-            "--retry-connrefused",
-            "--keepalive-time",
-            "60",
-            base_url .. "/api/events",
-        },
+    local sse_job = start_system_job({
+        "curl",
+        "--no-buffer",
+        "--tcp-nodelay",
+        "--retry",
+        "5",
+        "--retry-delay",
+        "1",
+        "--retry-connrefused",
+        "--keepalive-time",
+        "60",
+        base_url .. "/api/events",
+    }, {
         on_stdout = vim.schedule_wrap(function(_, data)
             if data ~= nil then
                 buffer = buffer .. data .. "\n"
@@ -1263,13 +1385,12 @@ function MCPHub:connect_sse()
 
     -- Store SSE job for cleanup
     self.sse_job = sse_job
-    sse_job:start()
 end
 
 --- Stop SSE connection
 function MCPHub:stop_sse()
     if self.sse_job then
-        self.sse_job:shutdown(0)
+        stop_system_job(self.sse_job)
         self.sse_job = nil
     end
 end

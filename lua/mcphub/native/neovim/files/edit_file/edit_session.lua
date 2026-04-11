@@ -14,7 +14,6 @@
 local EditSession = {}
 EditSession.__index = EditSession
 
-local Path = require("plenary.path")
 local DEFAULT_CONFIG = {
     parser = {
         track_issues = true,
@@ -82,9 +81,15 @@ function EditSession:get_file_content(path, bufnr)
         return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
     end
 
-    local file_path = Path:new(path)
-    if file_path:exists() and file_path:is_file() then
-        return file_path:read()
+    local file_path = vim.fs.normalize(vim.fn.expand(path))
+    local stat = vim.uv.fs_stat(file_path)
+    if stat and stat.type == "file" then
+        local fd = io.open(file_path, "r")
+        if fd then
+            local content = fd:read("*a")
+            fd:close()
+            return content
+        end
     end
     return ""
 end

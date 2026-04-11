@@ -1,6 +1,48 @@
-local Path = require("plenary.path")
 local Text = require("mcphub.utils.text")
-local scan = require("plenary.scandir")
+local uv = vim.uv or vim.loop
+
+local function scan_dir(root, results)
+    local handle = uv.fs_scandir(root)
+    if not handle then
+        return
+    end
+    while true do
+        local name, kind = uv.fs_scandir_next(handle)
+        if not name then
+            break
+        end
+        if name:sub(1, 1) ~= "." then
+            local full_path = vim.fs.joinpath(root, name)
+            if kind == "directory" then
+                scan_dir(full_path, results)
+            else
+                table.insert(results, full_path)
+            end
+        end
+    end
+end
+
+local function git_list_files(root)
+    local result = vim.system({
+        "git",
+        "-C",
+        root,
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+    }, { text = true }):wait()
+
+    if result.code ~= 0 or not result.stdout or result.stdout == "" then
+        return nil
+    end
+
+    local files = {}
+    for _, line in ipairs(vim.split(result.stdout, "\n", { plain = true, trimempty = true })) do
+        table.insert(files, vim.fs.joinpath(root, line))
+    end
+    return files
+end
 
 -- Get file info utility
 local function get_file_info(path)
@@ -52,7 +94,7 @@ local search_tools = {
                 return res:error("Pattern is required for file search")
             end
             -- local path = vim.fn.expand(params.path or ".")
-            local path = Path:new(params.path or "."):absolute()
+            local path = vim.fs.normalize(vim.fn.expand(params.path or "."))
             local pattern = params.pattern
 
             -- Build glob pattern
@@ -104,19 +146,11 @@ local search_tools = {
         },
         handler = function(req, res)
             local params = req.params
-            local path = Path:new(params.path or "."):absolute()
-            local depth = nil
-            local hidden = false
-            local respect_gitignore = true
-            local include_dirs = false
-            local scan_opts = {
-                hidden = hidden,
-                depth = depth,
-                respect_gitignore = respect_gitignore,
-                add_dirs = include_dirs,
-            }
-
-            local results = scan.scan_dir(path, scan_opts)
+            local path = vim.fs.normalize(vim.fn.expand(params.path or "."))
+            local results = git_list_files(path) or {}
+            if #results == 0 then
+                scan_dir(path, results)
+            end
 
             if #results == 0 then
                 return res:text("No files found in: " .. path):send()

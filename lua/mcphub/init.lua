@@ -1,6 +1,5 @@
 local Error = require("mcphub.utils.errors")
 local ImageCache = require("mcphub.utils.image_cache")
-local Job = require("plenary.job")
 local MCPHub = require("mcphub.hub")
 local State = require("mcphub.state")
 local log = require("mcphub.utils.log")
@@ -80,10 +79,10 @@ function M.setup(opts)
     end
 
     ---Version check handler
-    ---@param job Job
+    ---@param stdout string
     ---@param code number
     ---@param config MCPHub.Config
-    local function _handle_version_check(job, code, config)
+    local function _handle_version_check(stdout, code, config)
         if code ~= 0 then
             return _on_setup_failed(
                 Error(
@@ -95,7 +94,7 @@ function M.setup(opts)
         end
 
         -- Validate version
-        local version_result = validation.validate_version(job:result()[1])
+        local version_result = validation.validate_version(vim.trim(stdout))
         if not version_result.ok then
             return _on_setup_failed(version_result.error)
         end
@@ -174,29 +173,22 @@ function M.setup(opts)
     end
 
     -- Start version check
-    local ok, job = pcall(function()
-        ---@diagnostic disable-next-line: missing-fields
-        return Job:new({
-            command = config.cmd,
-            args = utils.clean_args({ config.cmdArgs, "--version" }),
-            on_exit = vim.schedule_wrap(function(j, code)
-                _handle_version_check(j, code, config)
-            end),
-        })
-    end)
-
     local help_msg = [[mcp-hub executable not found. Please ensure:
 1. For global install: Run 'npm install -g mcp-hub@latest'
 2. For bundled install: Set build = 'bundled_build.lua' in lazy spec and use_bundled_binary = true in config.
 3. For custom install: Verify cmd/cmdArgs point to valid mcp-hub executable
 ]]
-    if not ok then
-        -- Handle executable not found error
-        return _on_setup_failed(Error("SETUP", Error.Types.SETUP.MISSING_DEPENDENCY, help_msg, { stack = job }))
-    end
-
-    -- Start the job (uv.spawn might fail)
-    local spawn_ok, err = pcall(job.start, job)
+    local cmd = { config.cmd }
+    vim.list_extend(cmd, utils.clean_args({ config.cmdArgs, "--version" }))
+    local spawn_ok, err = pcall(function()
+        vim.system(
+            cmd,
+            { text = true },
+            vim.schedule_wrap(function(obj)
+                _handle_version_check(obj.stdout or "", obj.code, config)
+            end)
+        )
+    end)
     if not spawn_ok then
         -- Handle spawn error
         return _on_setup_failed(
