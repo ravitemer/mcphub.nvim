@@ -267,34 +267,31 @@ function MainView:handle_workspace_kill(context)
     local warning_line = NuiLine()
     warning_line:append("This will terminate the hub process.", Text.highlights.error)
     table.insert(confirm_lines, warning_line)
-    local async = require("plenary.async")
-
-    async.run(function()
-        local confirmed, cancelled = ui_utils.confirm(confirm_lines, {
-            min_width = 60,
-            max_width = 80,
-        })
-
-        if confirmed and not cancelled then
-            -- Kill the process
-            local success = pcall(function()
-                local uv = vim.loop or vim.uv
-                uv.kill(workspace_details.pid, "sigterm")
-            end)
-
-            if success then
-                vim.notify(
-                    string.format("Sent SIGTERM to workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
-                    vim.log.levels.INFO
-                )
-            else
-                vim.notify(
-                    string.format("Failed to kill workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
-                    vim.log.levels.ERROR
-                )
-            end
+    ui_utils.confirm(confirm_lines, {
+        min_width = 60,
+        max_width = 80,
+    }, function(confirmed, cancelled)
+        if not confirmed or cancelled then
+            return
         end
-    end, function() end)
+
+        local success = pcall(function()
+            local uv = vim.loop or vim.uv
+            uv.kill(workspace_details.pid, "sigterm")
+        end)
+
+        if success then
+            vim.notify(
+                string.format("Sent SIGTERM to workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
+                vim.log.levels.INFO
+            )
+        else
+            vim.notify(
+                string.format("Failed to kill workspace '%s' (PID: %d)", workspace_name, workspace_details.pid),
+                vim.log.levels.ERROR
+            )
+        end
+    end)
 end
 
 --- Handle changing directory to a workspace

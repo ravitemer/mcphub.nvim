@@ -1,4 +1,27 @@
-local Path = require("plenary.path")
+local uv = vim.uv or vim.loop
+
+local function read_file(path)
+    local fd = assert(io.open(path, "r"))
+    local content = fd:read("*a")
+    fd:close()
+    return content
+end
+
+local function iter_lines(path)
+    local fd = assert(io.open(path, "r"))
+    return function()
+        local line = fd:read("*line")
+        if line == nil then
+            fd:close()
+            return nil
+        end
+        return line
+    end
+end
+
+local function path_exists(path)
+    return uv.fs_stat(path) ~= nil
+end
 
 ---Basic file operations tools
 ---@type MCPTool[]
@@ -28,9 +51,9 @@ local file_tools = {
         },
         handler = function(req, res)
             local params = req.params
-            local p = Path:new(params.path)
+            local file_path = vim.fs.normalize(vim.fn.expand(params.path))
 
-            if not p:exists() then
+            if not path_exists(file_path) then
                 return res:error("File not found: " .. params.path)
             end
             if params.start_line and params.end_line then
@@ -42,7 +65,7 @@ local file_tools = {
                 local extracted = {}
                 local current_line = 0
 
-                for line in p:iter() do
+                for line in iter_lines(file_path) do
                     current_line = current_line + 1
                     if
                         current_line >= params.start_line and (params.end_line == -1 or current_line <= params.end_line)
@@ -55,7 +78,7 @@ local file_tools = {
                 end
                 return res:text(table.concat(extracted, "\n")):send()
             else
-                return res:text(p:read()):send()
+                return res:text(read_file(file_path)):send()
             end
         end,
     },
@@ -77,13 +100,16 @@ local file_tools = {
             required = { "path", "new_path" },
         },
         handler = function(req, res)
-            local p = Path:new(req.params.path)
-            if not p:exists() then
+            local source = vim.fs.normalize(vim.fn.expand(req.params.path))
+            if not path_exists(source) then
                 return res:error("Source path not found: " .. req.params.path)
             end
 
-            local new_p = Path:new(req.params.new_path)
-            p:rename({ new_name = new_p.filename })
+            local target = vim.fs.normalize(vim.fn.expand(req.params.new_path))
+            local rename_result = vim.fn.rename(source, target)
+            if rename_result ~= 0 then
+                return res:error("Failed to move " .. req.params.path .. " to " .. req.params.new_path)
+            end
             return res:text(string.format("Moved %s to %s", req.params.path, req.params.new_path)):send()
         end,
     },
@@ -121,13 +147,13 @@ local file_tools = {
             end
 
             for i, path in ipairs(params.paths) do
-                local p = Path:new(path)
+                local file_path = vim.fs.normalize(vim.fn.expand(path))
 
-                if not p:exists() then
+                if not path_exists(file_path) then
                     table.insert(errors, string.format("File %d not found: %s", i, path))
                 else
                     local success, content = pcall(function()
-                        return p:read()
+                        return read_file(file_path)
                     end)
 
                     if success then
@@ -202,16 +228,16 @@ local file_tools = {
             end
 
             for i, path in ipairs(params.paths) do
-                local p = Path:new(path)
+                local target = vim.fs.normalize(vim.fn.expand(path))
 
-                if not p:exists() then
+                if not path_exists(target) then
                     table.insert(errors, string.format("Path %d not found: %s", i, path))
                 else
                     local success, err = pcall(function()
-                        p:rm()
+                        return vim.fn.delete(target, "rf")
                     end)
 
-                    if success then
+                    if success and err == 0 then
                         table.insert(results, {
                             path = path,
                             index = i,

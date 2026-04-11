@@ -94,7 +94,6 @@ function M.mcp_tool()
         return str:sub(1, i - 1) .. "... (truncated)"
     end
 
-    local async = require("plenary.async")
     local shared = require("mcphub.extensions.shared")
     for action_name, schema in pairs(tool_schemas) do
         ---@type AvanteLLMToolFunc<MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs>
@@ -102,76 +101,70 @@ function M.mcp_tool()
             opts = opts or {}
             local on_complete = opts.on_complete or function() end
             local on_log = opts.on_log or function() end
-            ---@diagnostic disable-next-line: missing-parameter
-            async.run(function()
-                local hub = require("mcphub").get_hub_instance()
-                if not hub then
-                    return on_complete(nil, "MCP Hub not initialized")
-                end
-                local params = shared.parse_params(args, action_name)
-                if #params.errors > 0 then
-                    return on_complete(nil, table.concat(params.errors, "\n"))
-                end
+            local hub = require("mcphub").get_hub_instance()
+            if not hub then
+                return on_complete(nil, "MCP Hub not initialized")
+            end
+            local params = shared.parse_params(args, action_name)
+            if #params.errors > 0 then
+                return on_complete(nil, table.concat(params.errors, "\n"))
+            end
 
-                local result = shared.handle_auto_approval_decision(params)
-                if result.error then
-                    return on_complete(nil, result.error)
+            local result = shared.handle_auto_approval_decision(params)
+            if result.error then
+                return on_complete(nil, result.error)
+            end
+            local sidebar = require("avante").get()
+            if params.action == "access_mcp_resource" then
+                if on_log and type(on_log) == "function" then
+                    on_log(string.format("Accessing `%s` resource from server `%s`", params.uri, params.server_name))
                 end
-                local sidebar = require("avante").get()
-                if params.action == "access_mcp_resource" then
-                    if on_log and type(on_log) == "function" then
-                        on_log(
-                            string.format("Accessing `%s` resource from server `%s`", params.uri, params.server_name)
+                hub:access_resource(params.server_name, params.uri, {
+                    parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                        auto_approve = result.approve,
+                    },
+                    callback = function(result, err)
+                        on_complete(result.text, err)
+                    end,
+                })
+            elseif params.action == "use_mcp_tool" then
+                if on_log and type(on_log) == "function" then
+                    on_log(
+                        string.format(
+                            "Calling tool `%s` on server `%s` with arguments: %s",
+                            params.tool_name,
+                            params.server_name,
+                            vim.inspect(params.arguments, {
+                                indent = "  ",
+                                depth = 2,
+                                process = function(item)
+                                    return truncate_utf8(item, 80)
+                                end,
+                            })
                         )
-                    end
-                    hub:access_resource(params.server_name, params.uri, {
-                        parse_response = true,
-                        caller = {
-                            type = "avante",
-                            avante = sidebar,
-                            auto_approve = result.approve,
-                        },
-                        callback = function(result, err)
-                            --result has .text and .images [{mimeType, data}]
+                    )
+                end
+                hub:call_tool(params.server_name, params.tool_name, params.arguments, {
+                    parse_response = true,
+                    caller = {
+                        type = "avante",
+                        avante = sidebar,
+                        auto_approve = result.approve,
+                    },
+                    callback = function(result, err)
+                        if result.error then
+                            on_complete(nil, result.error)
+                        else
                             on_complete(result.text, err)
-                        end,
-                    })
-                elseif params.action == "use_mcp_tool" then
-                    if on_log and type(on_log) == "function" then
-                        on_log(
-                            string.format(
-                                "Calling tool `%s` on server `%s` with arguments: %s",
-                                params.tool_name,
-                                params.server_name,
-                                vim.inspect(params.arguments, {
-                                    indent = "  ",
-                                    depth = 2,
-                                    process = function(item)
-                                        return truncate_utf8(item, 80)
-                                    end,
-                                })
-                            )
-                        )
-                    end
-                    hub:call_tool(params.server_name, params.tool_name, params.arguments, {
-                        parse_response = true,
-                        caller = {
-                            type = "avante",
-                            avante = sidebar,
-                            auto_approve = result.approve,
-                        },
-                        callback = function(result, err)
-                            if result.error then
-                                on_complete(nil, result.error)
-                            else
-                                on_complete(result.text, err)
-                            end
-                        end,
-                    })
-                else
-                    return on_complete(nil, "Invalid action type")
-                end
-            end)
+                        end
+                    end,
+                })
+            else
+                return on_complete(nil, "Invalid action type")
+            end
         end
 
         ---@type AvanteLLMToolReturn[]

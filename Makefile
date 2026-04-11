@@ -31,12 +31,8 @@ docs: deps/panvimdoc
 		scripts/vimdoc.md \
 		-o doc/mcphub.txt
 
-deps: deps/plenary.nvim deps/nvim-treesitter deps/mini.nvim deps/panvimdoc
+deps: deps/nvim-treesitter deps/mini.nvim deps/panvimdoc
 	@echo Pulling...
-
-deps/plenary.nvim:
-	@mkdir -p deps
-	git clone --filter=blob:none https://github.com/nvim-lua/plenary.nvim.git $@
 
 deps/nvim-treesitter:
 	@mkdir -p deps
@@ -49,5 +45,4 @@ deps/mini.nvim:
 deps/panvimdoc:
 	@mkdir -p deps
 	git clone --filter=blob:none https://github.com/kdheepak/panvimdoc $@
-
 

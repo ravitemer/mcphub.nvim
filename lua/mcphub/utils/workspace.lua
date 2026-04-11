@@ -1,7 +1,6 @@
 local M = {}
 
 local uv = (vim.loop or vim.uv)
-local path = require("plenary.path")
 local utils = require("mcphub.utils")
 
 ---Search upward from current directory for any of the look_for files
@@ -9,26 +8,25 @@ local utils = require("mcphub.utils")
 ---@param start_dir? string Starting directory (defaults to current working directory)
 ---@return table|nil { root_dir = "/path", config_file = "/path/.vscode/mcp.json" } or nil
 function M.find_workspace_config(look_for_patterns, start_dir)
-    start_dir = start_dir or vim.fn.getcwd()
+    local current_dir = vim.fs.normalize(start_dir or vim.fn.getcwd())
 
-    local current_dir = path:new(start_dir)
-    local parent_dir = current_dir:parent()
-    -- Search upward until we hit the root
-    while current_dir and tostring(current_dir) ~= tostring(parent_dir) do
+    while current_dir do
         -- Check each pattern in order
         for _, pattern in ipairs(look_for_patterns) do
-            local config_file = current_dir / pattern
-            if config_file:exists() then
+            local config_file = vim.fs.joinpath(current_dir, pattern)
+            if uv.fs_stat(config_file) then
                 return {
-                    root_dir = tostring(current_dir),
-                    config_file = tostring(config_file),
+                    root_dir = current_dir,
+                    config_file = config_file,
                 }
             end
         end
 
-        -- Move up one directory
+        local parent_dir = vim.fs.dirname(current_dir)
+        if not parent_dir or parent_dir == current_dir then
+            break
+        end
         current_dir = parent_dir
-        parent_dir = current_dir:parent()
     end
 
     return nil
@@ -126,13 +124,16 @@ end
 ---@return table Table of workspace_path -> {pid, port, startTime}
 function M.read_workspace_cache()
     local cache_path = M.get_workspace_cache_path()
-    local cache_file = path:new(cache_path)
-
-    if not cache_file:exists() then
+    if not uv.fs_stat(cache_path) then
         return {}
     end
 
-    local content = cache_file:read()
+    local fd = io.open(cache_path, "r")
+    if not fd then
+        return {}
+    end
+    local content = fd:read("*a")
+    fd:close()
     if not content or content == "" then
         return {}
     end

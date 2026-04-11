@@ -1,5 +1,4 @@
 local api = vim.api
-local Path = require("plenary.path")
 local mcphub = require("mcphub")
 
 -- Tool to execute Lua code using nvim_exec2
@@ -123,20 +122,20 @@ Command Execution Guide:
             return res:error("cwd field is required and cannot be empty.")
         end
 
-        -- Use Plenary Path to handle the path
-        local path = Path:new(cwd)
+        local path = vim.fs.normalize(vim.fn.expand(cwd))
 
         -- Check if the directory exists
-        if not path:exists() then
+        local stat = vim.uv.fs_stat(path)
+        if not stat then
             return res:error("Directory does not exist: " .. cwd)
         end
 
         -- Make sure it's a directory
-        if not path:is_dir() then
+        if stat.type ~= "directory" then
             return res:error("Path is not a directory: " .. cwd)
         end
 
-        local absolute_path = path:absolute()
+        local absolute_path = path
         local output = ""
         local stderr_output = ""
 
