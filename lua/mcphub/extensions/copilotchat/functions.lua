@@ -74,7 +74,7 @@ function M.register(opts)
         return
     end
 
-    local async = require("plenary.async")
+    local async = require("mcphub.lib.async")
     local chat_functions = require("CopilotChat.functions")
     local shared = require("mcphub.extensions.shared")
 

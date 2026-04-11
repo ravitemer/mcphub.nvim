@@ -1,5 +1,5 @@
 local M = {}
-local async = require("plenary.async")
+local async = require("mcphub.lib.async")
 local shared = require("mcphub.extensions.shared")
 
 --- Core MCP tool execution logic

@@ -9,13 +9,6 @@ local fmt = string.format
 
 local M = {}
 
-M.deps = {
-    {
-        name = "plenary.nvim",
-        plugin_name = "plenary",
-    },
-}
-
 M.libraries = {
     {
         name = "curl",
@@ -92,19 +85,6 @@ function M.check()
         error(fmt("mcp-hub version not compatible: %s", validation_result.error.message))
     else
         ok(fmt("mcp-hub version %s is compatible", installed_version))
-    end
-
-    start("Plugin Dependencies:")
-    for _, plugin in ipairs(M.deps) do
-        if plugin_available(plugin.plugin_name) then
-            ok(fmt("%s installed", plugin.name))
-        else
-            if plugin.optional then
-                warn(plugin.failed_msg or fmt("%s not found", plugin.name))
-            else
-                error(plugin.failed_msg or fmt("%s not found", plugin.name))
-            end
-        end
     end
 
     start("Libraries:")

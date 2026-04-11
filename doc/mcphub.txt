@@ -291,7 +291,6 @@ REQUIREMENTS                           *mcphub.nvim-installation-requirements*
 
 - Neovim >= 0.8.0 (built with LuaJIT)
 - Node.js >= 18.0.0
-- plenary.nvim <https://github.com/nvim-lua/plenary.nvim>
 - mcp-hub <https://github.com/ravitemer/mcp-hub> (automatically installed via build command)
 - jq <https://github.com/jqlang/jq> (optional, for better servers.json formatting)
 
@@ -315,9 +314,6 @@ everytime the plugin is updated.
 >lua
     {
         "ravitemer/mcphub.nvim",
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-        },
         build = "npm install -g mcp-hub@latest",  -- Installs `mcp-hub` node binary globally
         config = function()
             require("mcphub").setup()
@@ -340,9 +336,6 @@ for the `build` command. We need to explicitly set `use_bundled_binary` to
 >lua
     {
         "ravitemer/mcphub.nvim",
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-        },
         build = "bundled_build.lua",  -- Bundles `mcp-hub` binary along with the neovim plugin
         config = function()
             require("mcphub").setup({
@@ -363,9 +356,6 @@ below:
 >lua
     {
         "ravitemer/mcphub.nvim",
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-        },
         config = function()
             require("mcphub").setup({
                 cmd = "node",
@@ -448,9 +438,6 @@ detail.
 >lua
     {
         "ravitemer/mcphub.nvim",
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-        },
         build = "npm install -g mcp-hub@latest",  -- Installs `mcp-hub` node binary globally
         config = function()
             require("mcphub").setup({

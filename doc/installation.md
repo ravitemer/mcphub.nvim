@@ -6,7 +6,6 @@ Please read the [getting started](/index) guide before reading this.
 
 - Neovim >= 0.8.0 (built with LuaJIT)
 - Node.js >= 18.0.0
-- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
 - [mcp-hub](https://github.com/ravitemer/mcp-hub) (automatically installed via build command)
 - [jq](https://github.com/jqlang/jq) (optional, for better servers.json formatting)
 
@@ -25,9 +24,6 @@ Install `mcp-hub` node binary globally using `npm`, `yarn`, or `bun` any other n
 ```lua
 {
     "ravitemer/mcphub.nvim",
-    dependencies = {
-        "nvim-lua/plenary.nvim",
-    },
     build = "npm install -g mcp-hub@latest",  -- Installs `mcp-hub` node binary globally
     config = function()
         require("mcphub").setup()
@@ -46,9 +42,6 @@ Download `mcp-hub` binary alongside the neovim plugin using `bundled_build.lua` 
 ```lua
 {
     "ravitemer/mcphub.nvim",
-    dependencies = {
-        "nvim-lua/plenary.nvim",
-    },
     build = "bundled_build.lua",  -- Bundles `mcp-hub` binary along with the neovim plugin
     config = function()
         require("mcphub").setup({
@@ -65,9 +58,6 @@ Ideal for development. You can provide the command that our plugin should use to
 ```lua
 {
     "ravitemer/mcphub.nvim",
-    dependencies = {
-        "nvim-lua/plenary.nvim",
-    },
     config = function()
         require("mcphub").setup({
             cmd = "node",

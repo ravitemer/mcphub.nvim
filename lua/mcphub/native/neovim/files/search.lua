@@ -1,6 +1,6 @@
-local Path = require("plenary.path")
+local Path = require("mcphub.lib.path")
 local Text = require("mcphub.utils.text")
-local scan = require("plenary.scandir")
+local scan = require("mcphub.lib.scandir")
 
 -- Get file info utility
 local function get_file_info(path)

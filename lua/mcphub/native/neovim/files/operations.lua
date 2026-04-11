@@ -1,4 +1,4 @@
-local Path = require("plenary.path")
+local Path = require("mcphub.lib.path")
 
 ---Basic file operations tools
 ---@type MCPTool[]

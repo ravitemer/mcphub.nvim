@@ -2,7 +2,7 @@ local M = {}
 local NuiLine = require("mcphub.utils.nuiline")
 local State = require("mcphub.state")
 local Text = require("mcphub.utils.text")
-local async = require("plenary.async")
+local async = require("mcphub.lib.async")
 local constants = require("mcphub.utils.constants")
 
 ---@param title string Title of the floating window

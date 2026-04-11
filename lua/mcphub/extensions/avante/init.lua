@@ -94,7 +94,7 @@ function M.mcp_tool()
         return str:sub(1, i - 1) .. "... (truncated)"
     end
 
-    local async = require("plenary.async")
+    local async = require("mcphub.lib.async")
     local shared = require("mcphub.extensions.shared")
     for action_name, schema in pairs(tool_schemas) do
         ---@type AvanteLLMToolFunc<MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs>
