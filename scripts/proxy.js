@@ -330,7 +330,7 @@ async function listen(nvim) {
 
     try {
       const result = await call((requestId) =>
-        nvim.lua(`require("mcphub.extensions.proxy").access_resource(...)`, [requestId, serverName, resourceUri, { caller: { type: "external", source: "proxy" } }])
+        nvim.lua(`require("mcphub.extensions.proxy").access_resource(...)`, [requestId, serverName, uri, { caller: { type: "external", source: "proxy" } }])
       )
 
       if (!result) {
