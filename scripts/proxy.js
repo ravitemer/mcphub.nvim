@@ -296,9 +296,11 @@ async function listen(nvim) {
 
     const all = []
     for (const mcpServer of servers) {
+      const prefix = `${mcpServer.name}://`
       for (const resource of mcpServer.capabilities.resources || []) {
+        const uri = resource.uri.startsWith(prefix) ? resource.uri : `${prefix}${resource.uri}`
         all.push({
-          uri: `${mcpServer.name}://${resource.uri}`,
+          uri,
           name: resource.name || resource.uri,
           description: resource.description,
           mimeType: resource.mimeType
