@@ -76,7 +76,7 @@ else
     }):wait()
     if npm_install_result.code ~= 0 then
         error("Failed to install mcp-hub: " .. npm_install_result.stderr)
-    else
-        status("Build complete!", vim.log.levels.INFO)
     end
+
+    status("Build complete!", vim.log.levels.INFO)
 end

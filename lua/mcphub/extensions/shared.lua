@@ -89,8 +89,10 @@ function M.parse_params(params, action_name)
         tool_name = tool_name or "nil",
         arguments = arguments or {},
         uri = uri or "nil",
-        needs_confirmation_window = M.needs_confirmation_window(server_name, tool_name),
-        is_auto_approved_in_server = M.is_auto_approved_in_server(server_name, tool_name),
+        needs_confirmation_window = action_name == "access_mcp_resource" and false
+            or M.needs_confirmation_window(server_name, tool_name),
+        is_auto_approved_in_server = action_name == "access_mcp_resource" and true
+            or M.is_auto_approved_in_server(server_name, tool_name),
     }
 end
 
