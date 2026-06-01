@@ -8,7 +8,7 @@ local shared = require("mcphub.extensions.shared")
 ---@param output_handler function Callback for asynchronous calls
 ---@param context MCPHub.ToolCallContext
 ---@return nil|{ status: "success"|"error", data: string }
-function M.execute_mcp_tool(params, agent, output_handler, context)
+function M.execute_mcp_tool(params, tools, output_handler, context)
     context = context or {}
     ---@diagnostic disable-next-line: missing-parameter
     async.run(function()
@@ -43,7 +43,7 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
             hub:access_resource(parsed_params.server_name, parsed_params.uri, {
                 caller = {
                     type = "codecompanion",
-                    codecompanion = agent,
+                    codecompanion = tools,
                     auto_approve = result.approve,
                 },
                 parse_response = true,
@@ -63,7 +63,7 @@ function M.execute_mcp_tool(params, agent, output_handler, context)
             hub:call_tool(parsed_params.server_name, parsed_params.tool_name, parsed_params.arguments, {
                 caller = {
                     type = "codecompanion",
-                    codecompanion = agent,
+                    codecompanion = tools,
                     auto_approve = result.approve,
                 },
                 parse_response = true,
@@ -108,7 +108,6 @@ local function add_tool_output(
     images
 )
     local config = require("codecompanion.config")
-    local helpers = require("codecompanion.interactions.chat.helpers")
     local show_result_in_chat = opts.show_result_in_chat == true
     local text = llm_msg
     local formatted_name = opts.format_tool and opts.format_tool(display_name, tool) or display_name
@@ -121,7 +120,7 @@ local function add_tool_output(
                 or string.format("**`%s` Tool**: Successfully finished", formatted_name)
         )
         for _, image in ipairs(images) do
-            helpers.add_image(chat, image)
+            chat:add_image_message(image)
         end
     else
         if show_result_in_chat or is_error then
@@ -148,17 +147,14 @@ end
 ---@return {error: function, success: function}
 function M.create_output_handlers(display_name, has_function_calling, opts)
     return {
-        ---@param self CodeCompanion.Agent.Tool
-        ---@param agent CodeCompanion.Agent
-        ---@param stderr table The error output from the command
-        error = function(self, agent, cmd, stderr)
-            ---@diagnostic disable-next-line: cast-local-type
-            stderr = has_function_calling and (stderr[#stderr] or "") or cmd[#cmd]
-            ---@diagnostic disable-next-line: cast-local-type
-            agent = has_function_calling and agent or self
-            if type(stderr) == "table" then
-                ---@diagnostic disable-next-line: cast-local-type
-                stderr = vim.inspect(stderr)
+        ---@param self CodeCompanion.Tools.Tool The tool object
+        ---@param stderr table|nil The error output from the command
+        ---@param meta { cmd: table, tools: CodeCompanion.Tools } Metadata with tools coordinator
+        error = function(self, stderr, meta)
+            local chat = meta.tools.chat
+            local err_data = stderr and (stderr[#stderr] or "") or ""
+            if type(err_data) == "table" then
+                err_data = vim.inspect(err_data)
             end
             local formatted_name = opts.format_tool and opts.format_tool(display_name, self) or display_name
             local err_msg = string.format(
@@ -169,21 +165,19 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
 ````
 ]],
                 formatted_name,
-                stderr
+                err_data
             )
-            add_tool_output(display_name, self, agent.chat, err_msg, true, has_function_calling, opts, nil, {})
+            add_tool_output(display_name, self, chat, err_msg, true, has_function_calling, opts, nil, {})
         end,
 
-        ---@param self CodeCompanion.Agent.Tool
-        ---@param agent CodeCompanion.Agent
-        ---@param cmd table The command that was executed
-        ---@param stdout table The output from the command
-        success = function(self, agent, cmd, stdout)
+        ---@param self CodeCompanion.Tools.Tool The tool object
+        ---@param stdout table|nil The output from the command
+        ---@param meta { cmd: table, tools: CodeCompanion.Tools } Metadata with tools coordinator
+        success = function(self, stdout, meta)
+            local chat = meta.tools.chat
             local image_cache = require("mcphub.utils.image_cache")
             ---@type MCPResponseOutput
-            local result = has_function_calling and stdout[#stdout] or cmd[#cmd]
-            ---@diagnostic disable-next-line: cast-local-type
-            agent = has_function_calling and agent or self
+            local result = stdout and stdout[#stdout] or {}
             local formatted_name = opts.format_tool and opts.format_tool(display_name, self) or display_name
             local to_llm = nil
             local to_user = nil
@@ -243,7 +237,7 @@ function M.create_output_handlers(display_name, has_function_calling, opts)
             add_tool_output(
                 display_name,
                 self,
-                agent.chat,
+                chat,
                 to_llm or fallback_to_llm,
                 false,
                 has_function_calling,
