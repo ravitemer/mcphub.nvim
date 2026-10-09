@@ -1289,6 +1289,43 @@ OPTIONAL FIELDS:
   local servers. See the Universal Placeholder Syntax section above for full
   details.
 
+PARALLEL SEARCH (NO API KEY)
+
+Parallel Search MCP <https://docs.parallel.ai/integrations/mcp/search-mcp>
+provides `web_search` for web search and `web_fetch` for reading pages. The
+anonymous endpoint is free for light use, with lower rate limits than
+authenticated access.
+
+After installing MCPHub <https://ravitemer.github.io/mcphub.nvim/installation>,
+add the `parallel-search` entry below to the `mcpServers` object in
+`~/.config/mcphub/servers.json`, keeping your existing servers:
+
+>json
+    {
+        "mcpServers": {
+            "parallel-search": {
+                "url": "https://search.parallel.ai/mcp",
+                "headers": {
+                    "User-Agent": "mcphub.nvim"
+                }
+            }
+        }
+    }
+<
+
+This uses MCPHub’s Streamable HTTP transport and needs no API key or login.
+Open `:MCPHub`, press `l` on `parallel-search` to expand it, then press `l` on
+`web_search` to open its tool editor. Fill in the required inputs, for example:
+
+- `objective`: `Find the official Neovim documentation for Lua configuration.`
+- `search_queries`: `["Neovim Lua configuration documentation"]`
+
+Press `l` on **Submit** to run the search. Open `web_fetch` and set `urls` to a
+JSON array containing a result URL, such as
+`["https://neovim.io/doc/user/lua.html"]`, then submit to read the page. Tool
+approval remains under your existing MCPHub settings.
+
+
 MCPHUB SPECIFIC FIELDS ~
 
 MCPHub adds several extra keys for each server automatically from the UI:
