@@ -1,6 +1,6 @@
 # Native MCP Server Development Guide
 
-This guide explains how to create native Lua servers for mcphub.nvim using the MCP (Model Communication Protocol) architecture.
+This guide explains how to create native Lua servers for mcphub.nvim using the MCP (Model Context Protocol) architecture.
 
 ## Server Lifecycle
 
