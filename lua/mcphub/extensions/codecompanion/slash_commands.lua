@@ -74,12 +74,16 @@ function M.register()
 
                         if output.text and output.text ~= "" then
                             text_messages = text_messages + 1
-                            -- If last message is from user, add it to chat buffer
+                            -- The current user message belongs in CodeCompanion's prompt input.
                             if i == #messages and mapped_role == config.constants.USER_ROLE then
-                                self:add_buf_message({
-                                    role = mapped_role,
-                                    content = output.text,
-                                })
+                                if self.prompt and self.prompt.add then
+                                    self.prompt:add({ content = output.text })
+                                else
+                                    self:add_buf_message({
+                                        role = mapped_role,
+                                        content = output.text,
+                                    })
+                                end
                             else
                                 self:add_message({
                                     role = mapped_role,

@@ -2,6 +2,13 @@ local M = {}
 local async = require("plenary.async")
 local shared = require("mcphub.extensions.shared")
 
+local function uses_table_tool_output()
+    local codecompanion = require("codecompanion")
+    local version = codecompanion.version and codecompanion.version()
+    local major = version and tonumber(version:match("^(%d+)"))
+    return major and major >= 20
+end
+
 --- Core MCP tool execution logic
 ---@param params MCPHub.ToolCallArgs | MCPHub.ResourceAccessArgs
 ---@param agent CodeCompanion.Agent The Editor tool
@@ -113,12 +120,19 @@ local function add_tool_output(
     local formatted_name = opts.format_tool and opts.format_tool(display_name, tool) or display_name
 
     if has_function_calling then
-        chat:add_tool_output(
-            tool,
-            text,
-            (user_msg or show_result_in_chat or is_error) and (user_msg or text)
-                or string.format("**`%s` Tool**: Successfully finished", formatted_name)
-        )
+        local display = (user_msg or show_result_in_chat or is_error) and (user_msg or text)
+            or string.format("**`%s` Tool**: Successfully finished", formatted_name)
+        if uses_table_tool_output() then
+            chat:add_tool_output(tool, { content = text })
+            if show_result_in_chat or is_error or #images > 0 then
+                chat:add_buf_message({
+                    role = config.constants.LLM_ROLE,
+                    content = display,
+                }, { type = chat.MESSAGE_TYPES.TOOL_MESSAGE })
+            end
+        else
+            chat:add_tool_output(tool, text, display)
+        end
         for _, image in ipairs(images) do
             chat:add_image_message(image)
         end

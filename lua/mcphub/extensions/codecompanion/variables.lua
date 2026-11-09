@@ -96,11 +96,14 @@ end
 function M.update_variable_syntax(resources)
     vim.schedule(function()
         for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-            if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "codecompanion" then
+            if
+                vim.api.nvim_buf_is_valid(bufnr)
+                and (vim.bo[bufnr].filetype == "codecompanion" or vim.bo[bufnr].filetype == "codecompanion_chat_input")
+            then
                 vim.api.nvim_buf_call(bufnr, function()
                     for _, resource in ipairs(resources) do
-                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. resource .. '}"')
-                        vim.cmd.syntax('match CodeCompanionChatVariable "#{' .. resource .. '}{[^}]*}"')
+                        vim.cmd.syntax('match CodeCompanionChatEditorContext "#{' .. resource .. '}"')
+                        vim.cmd.syntax('match CodeCompanionChatEditorContext "#{' .. resource .. '}{[^}]*}"')
                     end
                 end)
             end

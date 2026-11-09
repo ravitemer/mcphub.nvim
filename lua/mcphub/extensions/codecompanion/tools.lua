@@ -401,7 +401,10 @@ end
 function M.update_syntax_highlighting(server_tools)
     vim.schedule(function()
         for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-            if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "codecompanion" then
+            if
+                vim.api.nvim_buf_is_valid(bufnr)
+                and (vim.bo[bufnr].filetype == "codecompanion" or vim.bo[bufnr].filetype == "codecompanion_chat_input")
+            then
                 vim.api.nvim_buf_call(bufnr, function()
                     for safe_server_name, server_data in pairs(server_tools) do
                         local tool_names = server_data.tool_names
